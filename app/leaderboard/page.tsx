@@ -18,6 +18,51 @@ export default function Leaderboard() {
   const [selectedTrader, setSelectedTrader] = useState<Trader | null>(null);
   const { data, isLoading, error } = useLeaderboard(timeframe);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  // Filter the leaderboard list by search query
+  const filteredData = React.useMemo(() => {
+    if (!data) return [];
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return data;
+    return data.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        String(t.id).toLowerCase().includes(q)
+    );
+  }, [data, searchQuery]);
+
+  // Paginated chunk of filtered data
+  const paginatedData = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredData.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredData, currentPage]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+
+  // Generate dynamic page numbers for pagination controls
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push("...");
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
   return (
     <div className="pt-12 pb-24 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -37,7 +82,10 @@ export default function Leaderboard() {
             {(["all", "monthly", "weekly", "daily"] as Timeframe[]).map((t) => (
               <button
                 key={t}
-                onClick={() => setTimeframe(t)}
+                onClick={() => {
+                  setTimeframe(t);
+                  setCurrentPage(1);
+                }}
                 className={`px-6 py-2 rounded-md text-sm font-medium capitalize whitespace-nowrap transition-all ${
                   timeframe === t
                     ? "bg-brand-600 text-white shadow-sm"
@@ -54,6 +102,11 @@ export default function Leaderboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Search trader..."
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
@@ -105,8 +158,17 @@ export default function Leaderboard() {
                       </div>
                     </td>
                   </tr>
+                ) : paginatedData.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-6 py-20 text-center text-slate-500 font-medium"
+                    >
+                      No traders found matching your criteria.
+                    </td>
+                  </tr>
                 ) : (
-                  data.map((trader) => (
+                  paginatedData.map((trader) => (
                     <tr
                       key={trader.id}
                       className="hover:bg-slate-800/30 transition-colors cursor-pointer group"
@@ -176,25 +238,60 @@ export default function Leaderboard() {
           </div>
 
           {/* Pagination */}
-          <div className="border-t border-slate-800 px-6 py-4 flex items-center justify-between">
+          <div className="border-t border-slate-800 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-slate-400">
-              Showing 1 to 10 of 2,500+ traders
+              Showing{" "}
+              <span className="font-medium text-white">
+                {filteredData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+              </span>{" "}
+              to{" "}
+              <span className="font-medium text-white">
+                {Math.min(currentPage * itemsPerPage, filteredData.length)}
+              </span>{" "}
+              of{" "}
+              <span className="font-medium text-white">
+                {filteredData.length}
+              </span>{" "}
+              traders
             </div>
+            
             <div className="flex items-center gap-2">
-              <button className="p-1.5 rounded bg-slate-800 text-slate-400 hover:text-white disabled:opacity-50">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded bg-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+              >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <button className="w-8 h-8 rounded bg-brand-600 text-white text-sm font-medium">
-                1
-              </button>
-              <button className="w-8 h-8 rounded hover:bg-slate-800 text-slate-400 text-sm font-medium">
-                2
-              </button>
-              <button className="w-8 h-8 rounded hover:bg-slate-800 text-slate-400 text-sm font-medium">
-                3
-              </button>
-              <span className="text-slate-500">...</span>
-              <button className="p-1.5 rounded bg-slate-800 text-slate-400 hover:text-white">
+              
+              {getPageNumbers().map((page, index) => {
+                if (page === "...") {
+                  return (
+                    <span key={`ellipsis-${index}`} className="px-2 text-slate-500">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={`page-${page}`}
+                    onClick={() => setCurrentPage(page as number)}
+                    className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                      currentPage === page
+                        ? "bg-brand-600 text-white"
+                        : "hover:bg-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded bg-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+              >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -277,6 +374,49 @@ export default function Leaderboard() {
                 </div>
               </div>
 
+              {/* Live Alpari API Data Summary */}
+              <div className="mb-8 bg-slate-900/60 rounded-xl p-4 border border-slate-800">
+                <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider text-xs">
+                  Account Summary (Live Data)
+                </h3>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+                  <div>
+                    <span className="text-slate-500 block text-xs">Country</span>
+                    <span className="text-white font-medium">{selectedTrader.country || "India"}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-xs">Registered</span>
+                    <span className="text-white font-medium">{selectedTrader.registrationDate || "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-xs">Total Volume</span>
+                    <span className="text-white font-medium">{selectedTrader.volume?.toFixed(2) ?? "0.00"} Lots</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-xs">Net Deposits</span>
+                    <span className="text-white font-medium">${selectedTrader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-xs">Total Balance</span>
+                    <span className="text-white font-medium">${selectedTrader.totalBalance?.toFixed(2) ?? "0.00"}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-xs">Account Equity</span>
+                    <span className="text-white font-medium">${selectedTrader.totalEquity?.toFixed(2) ?? "0.00"}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-xs">Settled Rebates</span>
+                    <span className="text-emerald-400 font-medium">${selectedTrader.settledRebates?.toFixed(2) ?? "0.00"}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-xs">Program</span>
+                    <span className="text-white font-medium text-xs truncate block" title={selectedTrader.programName}>
+                      {selectedTrader.programName || "Scheme 1.0, MT"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="mb-8">
                 <h3 className="text-sm font-medium text-slate-300 mb-3">
                   Badges Earned
@@ -331,11 +471,11 @@ export default function Leaderboard() {
                             </td>
                             <td className="px-3 py-2">
                               <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                  a.action === "Buy"
-                                    ? "bg-emerald-500/10 text-emerald-400"
-                                    : "bg-rose-500/10 text-rose-400"
-                                }`}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      a.action === "Buy"
+                                          ? "bg-emerald-500/10 text-emerald-400"
+                                          : "bg-rose-500/10 text-rose-400"
+                                  }`}
                               >
                                 {a.action}
                               </span>

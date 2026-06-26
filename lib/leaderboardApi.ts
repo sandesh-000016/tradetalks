@@ -31,6 +31,14 @@ export interface Trader {
   badges: number;
   status: "online" | "offline";
   activity?: TradeActivity[];
+  country?: string;
+  registrationDate?: string;
+  volume?: number;
+  settledRebates?: number;
+  mtNetDeposits?: number;
+  totalBalance?: number;
+  totalEquity?: number;
+  programName?: string;
 }
 
 export async function fetchLeaderboard(
