@@ -192,7 +192,7 @@ export default function Leaderboard() {
                           <div className="relative">
                             <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
                               <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${trader.name}`}
+                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${trader.name}`}
                                 alt={trader.name}
                                 className="w-full h-full object-cover"
                               />
@@ -322,7 +322,7 @@ export default function Leaderboard() {
               <div className="relative -mt-16 mb-4 flex justify-between items-end">
                 <div className="w-32 h-32 rounded-2xl bg-slate-800 border-4 border-slate-900 overflow-hidden shadow-xl">
                   <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedTrader.name}`}
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${selectedTrader.name}`}
                     alt={selectedTrader.name}
                     className="w-full h-full object-cover"
                   />

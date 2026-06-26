@@ -46,12 +46,14 @@ export function Navbar() {
                 {link.name}
               </Link>
             ))}
-            <Link
-              href="/register"
+            <a
+              href="https://alpari.com/en/?Referral=72725"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-600/20 transition-all"
             >
-              Enroll Now
-            </Link>
+              Register Now
+            </a>
           </div>
 
           {/* Mobile menu button */}
@@ -90,13 +92,15 @@ export function Navbar() {
                 {link.name}
               </Link>
             ))}
-            <Link
-              href="/register"
+            <a
+              href="https://alpari.com/en/?Referral=72725"
+              target="_blank"
+              rel="noopener noreferrer"
               className="block w-full text-center mt-4 px-5 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-brand-600 hover:bg-brand-500"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Enroll Now
-            </Link>
+              Register Now
+            </a>
           </div>
         </div>
       )}
