@@ -264,16 +264,16 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <span className="text-emerald-400 font-display font-bold">
-                          +{trader.profit.toFixed(2)}%
+                          +{(trader.profit ?? 0).toFixed(2)}%
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <span className="text-slate-300">
-                          {trader.drawdown.toFixed(2)}%
+                          {(trader.drawdown ?? 0).toFixed(2)}%
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="text-slate-300">{trader.winRate}%</span>
+                        <span className="text-slate-300">{trader.winRate ?? 0}%</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center">
@@ -431,13 +431,13 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
                   <div className="text-emerald-400 font-display font-bold text-xl mb-1">
-                    +{selectedTrader.profit.toFixed(2)}%
+                    +{(selectedTrader.profit ?? 0).toFixed(2)}%
                   </div>
                   <div className="text-xs text-slate-500 uppercase">Profit</div>
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
                   <div className="text-white font-display font-bold text-xl mb-1">
-                    {selectedTrader.winRate}%
+                    {selectedTrader.winRate ?? 0}%
                   </div>
                   <div className="text-xs text-slate-500 uppercase">
                     Win Rate
@@ -445,7 +445,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
                   <div className="text-white font-display font-bold text-xl mb-1">
-                    {selectedTrader.drawdown.toFixed(2)}%
+                    {(selectedTrader.drawdown ?? 0).toFixed(2)}%
                   </div>
                   <div className="text-xs text-slate-500 uppercase">
                     Drawdown

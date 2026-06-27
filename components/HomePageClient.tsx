@@ -656,17 +656,17 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                       <svg className="w-full h-full transform group-hover:scale-110 transition-transform duration-350" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M24 38L18 56L32 50L46 56L40 38" fill="url(#gold-ribbon-grad)" />
                         <circle cx="32" cy="28" r="18" fill="url(#gold-grad)" filter="drop-shadow(0px 4px 8px rgba(226, 165, 18, 0.3))"/>
-                        <circle cx="32" cy="28" r="14" stroke="#FFE9A3" stroke-width="1"/>
-                        <text x="32" y="33.5" font-family="system-ui, sans-serif" font-weight="900" font-size="15" fill="#6A4600" text-anchor="middle">1</text>
+                        <circle cx="32" cy="28" r="14" stroke="#FFE9A3" strokeWidth="1"/>
+                        <text x="32" y="33.5" fontFamily="system-ui, sans-serif" fontWeight="900" fontSize="15" fill="#6A4600" textAnchor="middle">1</text>
                         <defs>
                           <linearGradient id="gold-grad" x1="14" y1="10" x2="50" y2="46" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FFE072"/>
-                            <stop offset="0.5" stop-color="#F2AF29"/>
-                            <stop offset="1" stop-color="#C78704"/>
+                            <stop stopColor="#FFE072"/>
+                            <stop offset="0.5" stopColor="#F2AF29"/>
+                            <stop offset="1" stopColor="#C78704"/>
                           </linearGradient>
                           <linearGradient id="gold-ribbon-grad" x1="18" y1="38" x2="46" y2="56" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#D99706"/>
-                            <stop offset="1" stop-color="#8C5C00"/>
+                            <stop stopColor="#D99706"/>
+                            <stop offset="1" stopColor="#8C5C00"/>
                           </linearGradient>
                         </defs>
                       </svg>
@@ -689,17 +689,17 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                       <svg className="w-full h-full transform group-hover:scale-110 transition-transform duration-350" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M24 38L18 56L32 50L46 56L40 38" fill="url(#purple-ribbon-grad)" />
                         <circle cx="32" cy="28" r="18" fill="url(#purple-grad)" filter="drop-shadow(0px 4px 8px rgba(168, 85, 247, 0.3))"/>
-                        <circle cx="32" cy="28" r="14" stroke="#F5EDFF" stroke-width="1"/>
+                        <circle cx="32" cy="28" r="14" stroke="#F5EDFF" strokeWidth="1"/>
                         <path d="M32 19L34.5 24.5L40.5 25.3L36 29.5L37.2 35.5L32 32.5L26.8 35.5L28 29.5L23.5 25.3L29.5 24.5L32 19Z" fill="#FBF8FF"/>
                         <defs>
                           <linearGradient id="purple-grad" x1="14" y1="10" x2="50" y2="46" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#D8B4FE"/>
-                            <stop offset="0.5" stop-color="#A855F7"/>
-                            <stop offset="1" stop-color="#701A75"/>
+                            <stop stopColor="#D8B4FE"/>
+                            <stop offset="0.5" stopColor="#A855F7"/>
+                            <stop offset="1" stopColor="#701A75"/>
                           </linearGradient>
                           <linearGradient id="purple-ribbon-grad" x1="18" y1="38" x2="46" y2="56" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#9333EA"/>
-                            <stop offset="1" stop-color="#581C87"/>
+                            <stop stopColor="#9333EA"/>
+                            <stop offset="1" stopColor="#581C87"/>
                           </linearGradient>
                         </defs>
                       </svg>
@@ -721,13 +721,13 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     <div className="w-12 h-12 flex items-center justify-center shrink-0">
                       <svg className="w-full h-full transform group-hover:scale-110 transition-transform duration-350" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M32 8C42 8 50 12 50 12V28C50 40 32 52 32 52C32 52 14 40 14 28V12C14 12 22 8 32 8Z" fill="url(#green-grad)" filter="drop-shadow(0px 4px 8px rgba(34, 197, 94, 0.3))"/>
-                        <path d="M32 12C39.5 12 46 15 46 15V28C46 38 32 48 32 48C32 48 18 38 18 28V15C18 15 24.5 12 32 12Z" stroke="#DCFCE7" stroke-width="1"/>
+                        <path d="M32 12C39.5 12 46 15 46 15V28C46 38 32 48 32 48C32 48 18 38 18 28V15C18 15 24.5 12 32 12Z" stroke="#DCFCE7" strokeWidth="1"/>
                         <path d="M32 20L34.5 25L40 25.8L36 29.8L37.2 35.3L32 32.5L26.8 35.3L28 29.8L24 25.8L29.5 25L32 20Z" fill="#F0FDF4"/>
                         <defs>
                           <linearGradient id="green-grad" x1="14" y1="8" x2="50" y2="52" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#86EFAC"/>
-                            <stop offset="0.5" stop-color="#22C55E"/>
-                            <stop offset="1" stop-color="#14532D"/>
+                            <stop stopColor="#86EFAC"/>
+                            <stop offset="0.5" stopColor="#22C55E"/>
+                            <stop offset="1" stopColor="#14532D"/>
                           </linearGradient>
                         </defs>
                       </svg>
@@ -749,13 +749,13 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     <div className="w-12 h-12 flex items-center justify-center shrink-0">
                       <svg className="w-full h-full transform group-hover:scale-110 transition-transform duration-350" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M32 8C42 8 50 12 50 12V28C50 40 32 52 32 52C32 52 14 40 14 28V12C14 12 22 8 32 8Z" fill="url(#blue-grad)" filter="drop-shadow(0px 4px 8px rgba(59, 130, 246, 0.3))"/>
-                        <path d="M32 12C39.5 12 46 15 46 15V28C46 38 32 48 32 48C32 48 18 38 18 28V15C18 15 24.5 12 32 12Z" stroke="#DBEAFE" stroke-width="1"/>
+                        <path d="M32 12C39.5 12 46 15 46 15V28C46 38 32 48 32 48C32 48 18 38 18 28V15C18 15 24.5 12 32 12Z" stroke="#DBEAFE" strokeWidth="1"/>
                         <path d="M32 20L34.5 25L40 25.8L36 29.8L37.2 35.3L32 32.5L26.8 35.3L28 29.8L24 25.8L29.5 25L32 20Z" fill="#EFF6FF"/>
                         <defs>
                           <linearGradient id="blue-grad" x1="14" y1="8" x2="50" y2="52" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#93C5FD"/>
-                            <stop offset="0.5" stop-color="#3B82F6"/>
-                            <stop offset="1" stop-color="#1E3A8A"/>
+                            <stop stopColor="#93C5FD"/>
+                            <stop offset="0.5" stopColor="#3B82F6"/>
+                            <stop offset="1" stopColor="#1E3A8A"/>
                           </linearGradient>
                         </defs>
                       </svg>
@@ -778,17 +778,17 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                       <svg className="w-full h-full transform group-hover:scale-110 transition-transform duration-350" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M24 38L18 56L32 50L46 56L40 38" fill="url(#bronze-ribbon-grad)" />
                         <circle cx="32" cy="28" r="18" fill="url(#bronze-grad)" filter="drop-shadow(0px 4px 8px rgba(217, 119, 6, 0.25))"/>
-                        <circle cx="32" cy="28" r="14" stroke="#FEF3C7" stroke-width="1"/>
+                        <circle cx="32" cy="28" r="14" stroke="#FEF3C7" strokeWidth="1"/>
                         <path d="M32 19L34.5 24.5L40.5 25.3L36 29.5L37.2 35.5L32 32.5L26.8 35.5L28 29.5L23.5 25.3L29.5 24.5L32 19Z" fill="#FEF3C7"/>
                         <defs>
                           <linearGradient id="bronze-grad" x1="14" y1="10" x2="50" y2="46" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FCD34D"/>
-                            <stop offset="0.5" stop-color="#D97706"/>
-                            <stop offset="1" stop-color="#78350F"/>
+                            <stop stopColor="#FCD34D"/>
+                            <stop offset="0.5" stopColor="#D97706"/>
+                            <stop offset="1" stopColor="#78350F"/>
                           </linearGradient>
                           <linearGradient id="bronze-ribbon-grad" x1="18" y1="38" x2="46" y2="56" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#B45309"/>
-                            <stop offset="1" stop-color="#451A03"/>
+                            <stop stopColor="#B45309"/>
+                            <stop offset="1" stopColor="#451A03"/>
                           </linearGradient>
                         </defs>
                       </svg>
@@ -810,13 +810,13 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     <div className="w-12 h-12 flex items-center justify-center shrink-0">
                       <svg className="w-full h-full transform group-hover:scale-110 transition-transform duration-350" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M32 8C42 8 50 12 50 12V28C50 40 32 52 32 52C32 52 14 40 14 28V12C14 12 22 8 32 8Z" fill="url(#teal-grad)" filter="drop-shadow(0px 4px 8px rgba(20, 184, 166, 0.3))"/>
-                        <path d="M32 12C39.5 12 46 15 46 15V28C46 38 32 48 32 48C32 48 18 38 18 28V15C18 15 24.5 12 32 12Z" stroke="#CCFBF1" stroke-width="1"/>
+                        <path d="M32 12C39.5 12 46 15 46 15V28C46 38 32 48 32 48C32 48 18 38 18 28V15C18 15 24.5 12 32 12Z" stroke="#CCFBF1" strokeWidth="1"/>
                         <path d="M32 20L34.5 25L40 25.8L36 29.8L37.2 35.3L32 32.5L26.8 35.3L28 29.8L24 25.8L29.5 25L32 20Z" fill="#F0FDFA"/>
                         <defs>
                           <linearGradient id="teal-grad" x1="14" y1="8" x2="50" y2="52" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#5EEAD4"/>
-                            <stop offset="0.5" stop-color="#14B8A6"/>
-                            <stop offset="1" stop-color="#115E59"/>
+                            <stop stopColor="#5EEAD4"/>
+                            <stop offset="0.5" stopColor="#14B8A6"/>
+                            <stop offset="1" stopColor="#115E59"/>
                           </linearGradient>
                         </defs>
                       </svg>

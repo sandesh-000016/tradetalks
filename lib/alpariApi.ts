@@ -274,8 +274,8 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
     };
   });
 
-  // Sort by profit descending
-  tradersList.sort((a, b) => b.profit - a.profit);
+  // Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
+  tradersList.sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0));
 
   // Assign ranks and determine badges
   tradersList = tradersList.map((t, idx) => {
