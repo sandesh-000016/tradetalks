@@ -53,7 +53,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeInfo> = {
     id: "final_winner",
     title: "Final Winner",
     subtitle: "GRAND PRIZE",
-    desc: "Overall 6-month winner: Win rate >= 50%, profit > 30%, drawdown <= 20%.",
+    desc: "Overall 6-month winner: Win rate >= 50%, profit > 30%, drawdown <= 20%, account balance > $100.",
     color: "bg-amber-500/10 border-amber-500/30 text-amber-400",
     textColor: "text-amber-400",
     iconName: "medal",
@@ -61,7 +61,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeInfo> = {
   top_rank_monthly: {
     id: "top_rank_monthly",
     title: "Monthly Top Rank",
-    desc: "Win rate > 70%, profit > 50%, drawdown < 20% in the month.",
+    desc: "Win rate > 70%, profit > 50%, drawdown < 20% in the month, account balance > $100.",
     color: "bg-violet-500/10 border-violet-500/30 text-violet-400",
     textColor: "text-violet-400",
     iconName: "star",
@@ -69,7 +69,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeInfo> = {
   weekly_top: {
     id: "weekly_top",
     title: "Weekly Top",
-    desc: "Win rate > 70%, profit >= 20%, drawdown < 10% in the week.",
+    desc: "Win rate > 70%, profit >= 20%, drawdown < 10% in the week, account balance > $100.",
     color: "bg-blue-500/10 border-blue-500/30 text-blue-400",
     textColor: "text-blue-400",
     iconName: "chart",
@@ -85,7 +85,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeInfo> = {
   low_drawdown: {
     id: "low_drawdown",
     title: "Low Drawdown Monthly",
-    desc: "Monthly reward: Volume > 20 lots, drawdown < 5%, capital >= $1000.",
+    desc: "Monthly reward: Volume > 20 lots, drawdown < 5%, account balance > $100.",
     color: "bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-400",
     textColor: "text-fuchsia-400",
     iconName: "down",
@@ -93,7 +93,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeInfo> = {
   trader_of_the_week: {
     id: "trader_of_the_week",
     title: "Trader of the Week",
-    desc: "Recognizing outstanding performance: Profit >= 20%, win rate >= 65%.",
+    desc: "Recognizing outstanding performance: Profit >= 20%, win rate >= 65%, account balance > $100.",
     color: "bg-cyan-500/10 border-cyan-500/30 text-cyan-400",
     textColor: "text-cyan-400",
     iconName: "chart",
@@ -101,7 +101,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeInfo> = {
   best_risk_manager: {
     id: "best_risk_manager",
     title: "Best Risk Manager",
-    desc: "6-month risk award: Win rate > 60%, drawdown < 20%.",
+    desc: "6-month risk award: Win rate > 60%, drawdown < 20%, account balance > $100.",
     color: "bg-rose-500/10 border-rose-500/30 text-rose-400",
     textColor: "text-rose-400",
     iconName: "shield",
