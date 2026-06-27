@@ -3,6 +3,8 @@
  * Keeps Private-Token secure by running on the server side.
  */
 
+import { determineTraderBadges } from "./leaderboardApi";
+
 export interface AlpariApiParams {
   RegistrationFromDate: string;
   RegistrationToDate: string;
@@ -239,7 +241,7 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
     return {
       id: t.id,
       name: t.client_name || `Trader ${String(t.id).substring(0, 6)}`,
-      title: volume > 10 ? "Elite Trader" : volume > 2 ? "Pro Trader" : "Rising Star",
+      title: (volume > 10 || profit > 30) ? "Elite Trader" : (volume > 2 || profit > 15) ? "Pro Trader" : "Rising Star",
       profit: Number(profit.toFixed(2)),
       drawdown: Number(drawdown.toFixed(2)),
       winRate: Math.round(winRate),
@@ -261,11 +263,24 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
   // Sort by profit descending
   tradersList.sort((a, b) => b.profit - a.profit);
 
-  // Assign ranks
-  tradersList = tradersList.map((t, idx) => ({
-    ...t,
-    rank: idx + 1,
-  }));
+  // Assign ranks and determine badges
+  tradersList = tradersList.map((t, idx) => {
+    const rank = idx + 1;
+    const earnedBadges = determineTraderBadges({
+      rank,
+      profit: t.profit,
+      drawdown: t.drawdown,
+      winRate: t.winRate,
+      volume: t.volume,
+      totalBalance: t.totalBalance,
+    });
+    return {
+      ...t,
+      rank,
+      earnedBadges,
+      badges: earnedBadges.length,
+    };
+  });
 
   return tradersList;
 }
@@ -277,5 +292,18 @@ function formatDateForApi(dateStr: string): string {
   if (parts.length !== 3) return "01/01/2000";
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
+
+import { unstable_cache } from "next/cache";
+
+export const getCachedLeaderboard = unstable_cache(
+  async (timeframe: "all" | "monthly" | "weekly" | "daily") => {
+    return getIntegratedLeaderboard(timeframe);
+  },
+  ["leaderboard-data"],
+  {
+    revalidate: 900, // Cache for 15 minutes
+    tags: ["leaderboard"],
+  }
+);
 
 

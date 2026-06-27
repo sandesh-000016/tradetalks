@@ -1,5 +1,4 @@
-import React from "react";
-import { FounderImage } from "@/components/FounderImage";
+import { FounderImage } from "../../components/FounderImage";
 
 export const metadata = {
   title: "About Us | Trade Talks",

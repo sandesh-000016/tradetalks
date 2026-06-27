@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { User } from "lucide-react";
 
 export function FounderImage() {
@@ -12,11 +13,14 @@ export function FounderImage() {
       <div className="absolute inset-0 bg-gradient-to-t from-brand-900/40 via-transparent to-transparent z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
       
       {!imgFailed ? (
-        <img
-          src="/sunil-mathai.png"
+        <Image
+          src="/about.avif"
           alt="Sunil Mathai - Founder"
-          className="w-full h-full object-cover object-center relative z-0 transition-transform duration-500 group-hover:scale-105"
+          fill
+          sizes="(max-width: 768px) 100vw, 256px"
+          className="object-cover object-center relative z-0 transition-transform duration-500 group-hover:scale-105"
           onError={() => setImgFailed(true)}
+          priority
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/90 text-slate-500 group-hover:text-brand-400 transition-colors p-6">
@@ -25,7 +29,7 @@ export function FounderImage() {
           </div>
           <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Photo Placeholder</p>
           <p className="text-[11px] text-slate-500 text-center leading-normal">
-            Upload <code className="text-brand-400">sunil-mathai.png</code> to the <code className="text-slate-400">public/</code> directory
+            Upload <code className="text-brand-400">about.avif</code> to the <code className="text-slate-400">public/</code> directory
           </p>
         </div>
       )}

@@ -12,7 +12,6 @@ export function Navbar() {
 
   const navigation = [
     { name: "Home", href: "/" },
-    { name: "Classes", href: "/classes" },
     { name: "Leaderboard", href: "/leaderboard" },
     { name: "About", href: "/about" },
     { name: "Contact", href: "/contact" },
@@ -24,7 +23,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80">
+    <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Top">
         <div className="w-full py-4 flex items-center justify-between">
           <div className="flex items-center">
@@ -46,21 +45,19 @@ export function Navbar() {
                 {link.name}
               </Link>
             ))}
-            <a
-              href="https://alpari.com/en/?Referral=72725"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/register"
               className="inline-flex items-center justify-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-600/20 transition-all"
             >
               Register Now
-            </a>
+            </Link>
           </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
             <button
               type="button"
-              className="text-slate-300 hover:text-white p-2"
+              className="text-slate-300 hover:text-white p-2 rounded-lg bg-slate-900/50 border border-slate-800/50 hover:bg-slate-800/50 transition-all"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <span className="sr-only">Open menu</span>
@@ -76,31 +73,29 @@ export function Navbar() {
 
       {/* Mobile Navigation */}
       {isMobileMenuOpen && (
-        <div className="md:hidden glass-panel border-t border-slate-800 absolute w-full left-0">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+        <div className="md:hidden bg-slate-950/98 backdrop-blur-lg border-b border-t border-slate-800 absolute w-full left-0 shadow-2xl">
+          <div className="px-4 pt-3 pb-5 space-y-2">
             {navigation.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                className={`block px-3 py-2.5 rounded-xl text-base font-semibold transition-all ${
                   isActive(link.href)
-                    ? "bg-slate-800 text-brand-400"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "bg-brand-600/10 text-brand-400 border border-brand-500/20"
+                    : "text-slate-300 hover:bg-slate-900 hover:text-white"
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {link.name}
               </Link>
             ))}
-            <a
-              href="https://alpari.com/en/?Referral=72725"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full text-center mt-4 px-5 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-brand-600 hover:bg-brand-500"
+            <Link
+              href="/register"
+              className="block w-full text-center mt-6 px-5 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-brand-600 hover:bg-brand-500 shadow-lg shadow-brand-600/20"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Register Now
-            </a>
+            </Link>
           </div>
         </div>
       )}

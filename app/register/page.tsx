@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 const ALPARI_REFERRAL_URL = "https://alpari.com/en/?Referral=72725";
+const REGISTRATION_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSe5FB5CkkrPeVE0CTNhFWTRQ1MOnDWLvSBsn8lgKUMghzbCfA/viewform?usp=publish-editor";
 
 // Challenge Rules Data
 const challengeRules = [
@@ -226,9 +227,14 @@ function RegisterContent() {
                   className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>
-              <button className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-600/20">
+              <a
+                href={REGISTRATION_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-600/20 text-center block"
+              >
                 Submit & Continue
-              </button>
+              </a>
             </div>
 
             {/* Divider */}
@@ -387,12 +393,7 @@ function RegisterContent() {
             </div>
           </div>
 
-          {/* Info Banner */}
-          <div className="mt-6 glass-panel rounded-xl px-5 py-3 border border-brand-500/20 bg-brand-900/10 text-center text-xs text-slate-400">
-            <span className="text-brand-400 font-semibold">✨ </span>
-            Most badges collected will be rewarded with physical badges and gifts like books.
-            Remaining badges will receive a token of appreciation.
-          </div>
+       
         </section>
 
         {/* ═══════════════════════════════════════════════════════════════
@@ -407,7 +408,7 @@ function RegisterContent() {
             Read the rules carefully and begin your journey to the top!
           </p>
           <a
-            href={ALPARI_REFERRAL_URL}
+            href={REGISTRATION_FORM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-base shadow-lg shadow-violet-600/20 transition-all hover:-translate-y-0.5"
