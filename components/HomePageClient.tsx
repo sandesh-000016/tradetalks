@@ -832,19 +832,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 </div>
               </div>
 
-              {/* Bottom Rewards Info Card */}
-              <motion.div
-                variants={itemVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="p-5 rounded-2xl bg-violet-950/20 border border-violet-900/30 flex items-center gap-4 hover:bg-violet-950/30 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 shrink-0">
-                  <Gift className="w-5 h-5" />
-                </div>
-                
-              </motion.div>
+
 
             </div>
 
