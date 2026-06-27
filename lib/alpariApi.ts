@@ -148,11 +148,12 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
 
   // Populate from Performance API
   performances.forEach((p) => {
-    const id = p.clientId || p.id || p.client_id;
+    const id = p.external_client_id || p.clientId || p.id || p.client_id;
     if (!id) return;
     if (!mergedMap[id]) {
       mergedMap[id] = { id };
     }
+    mergedMap[id].external_client_id = id;
     mergedMap[id].client_name = p.client_name || p.name || mergedMap[id].client_name;
     mergedMap[id].country = p.country || mergedMap[id].country;
     mergedMap[id].registration_date = p.registration_date || mergedMap[id].registration_date;
@@ -164,11 +165,12 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
 
   // Populate from Referrals API
   referrals.forEach((r) => {
-    const id = r.clientId || r.id || r.client_id;
+    const id = r.external_client_id || r.clientId || r.id || r.client_id;
     if (!id) return;
     if (!mergedMap[id]) {
       mergedMap[id] = { id };
     }
+    mergedMap[id].external_client_id = mergedMap[id].external_client_id || id;
     mergedMap[id].client_name = r.client_name || r.name || mergedMap[id].client_name;
     mergedMap[id].country = r.country || mergedMap[id].country;
     mergedMap[id].registration_date = r.registration_date || mergedMap[id].registration_date;
@@ -177,11 +179,12 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
 
   // Populate from Insights API
   insights.forEach((i) => {
-    const id = i.clientId || i.id || i.client_id;
+    const id = i.external_client_id || i.clientId || i.id || i.client_id;
     if (!id) return;
     if (!mergedMap[id]) {
       mergedMap[id] = { id };
     }
+    mergedMap[id].external_client_id = mergedMap[id].external_client_id || id;
     mergedMap[id].client_name = i.client_name || i.name || mergedMap[id].client_name;
     mergedMap[id].country = i.country || mergedMap[id].country;
     mergedMap[id].registration_date = i.registration_date || mergedMap[id].registration_date;

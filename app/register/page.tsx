@@ -281,7 +281,7 @@ function RegisterContent() {
                       setErrorMsg(null);
                       setSuccessMsg(null);
                     }}
-                    placeholder="Enter your Client ID starting with f... (e.g. f72725)"
+                    placeholder="Enter your Client ID (e.g. f0a5788d3e6)"
                     className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-mono"
                   />
                 </div>

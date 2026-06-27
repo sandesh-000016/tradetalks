@@ -12,32 +12,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const trimmedId = clientId.trim();
+    const trimmedId = clientId.trim().toLowerCase();
 
-    // Enforce that Client ID must start with 'f' (case-insensitive)
-    if (!/^f/i.test(trimmedId)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid format. Your Client ID must start with 'f' (e.g. f12345678)." },
-        { status: 400 }
-      );
-    }
-
-    // Strip the 'f' prefix to perform a matching check with the raw numeric IDs
-    const numericIdOnly = trimmedId.replace(/^f/i, "");
-
-    // Fetch the consolidated list of traders using the integrated leaderboard helper
+    // Fetch the consolidated list of traders (cached, fast after first load)
     const traders = await getCachedLeaderboard("all");
 
-    // Find the trader in the active list
+    // Match against external_client_id (case-insensitive full match)
     const foundTrader = traders.find((t: any) => {
-      const idStr = String(t.id).trim();
-      return idStr === trimmedId || idStr === numericIdOnly;
+      const extId = String(t.id || "").toLowerCase().trim();
+      return extId === trimmedId;
     });
 
     if (!foundTrader) {
       return NextResponse.json({
         success: false,
-        error: `Client ID '${trimmedId}' was not found in our challenge database. Make sure you opened your account using the official referral link below.`,
+        error: `Client ID '${clientId.trim()}' was not found in our challenge database. Make sure you opened your account using the official referral link below.`,
       });
     }
 
@@ -46,8 +35,8 @@ export async function POST(request: Request) {
       message: "Client verified successfully!",
       client: {
         id: foundTrader.id,
-        name: foundTrader.name || `Trader ${trimmedId}`,
-        balance: foundTrader.totalBalance ?? 100,
+        name: foundTrader.name || `Trader ${clientId.trim()}`,
+        balance: foundTrader.totalBalance ?? 0,
       },
     });
   } catch (error: any) {
