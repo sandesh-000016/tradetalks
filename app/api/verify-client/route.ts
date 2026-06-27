@@ -12,16 +12,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const trimmedId = clientId.trim().toLowerCase();
-
-    // Fetch the consolidated list of traders (cached, fast after first load)
+    const input = clientId.trim().toLowerCase();
     const traders = await getCachedLeaderboard("all");
 
-    // Match against external_client_id (case-insensitive full match)
-    const foundTrader = traders.find((t: any) => {
-      const extId = String(t.id || "").toLowerCase().trim();
-      return extId === trimmedId;
-    });
+    const foundTrader = traders.find((t: any) =>
+      String(t.externalClientId || "").toLowerCase() === input
+    );
 
     if (!foundTrader) {
       return NextResponse.json({
@@ -34,7 +30,7 @@ export async function POST(request: Request) {
       success: true,
       message: "Client verified successfully!",
       client: {
-        id: foundTrader.id,
+        id: foundTrader.externalClientId,
         name: foundTrader.name || `Trader ${clientId.trim()}`,
         balance: foundTrader.totalBalance ?? 0,
       },

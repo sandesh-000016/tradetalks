@@ -148,12 +148,15 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
 
   // Populate from Performance API
   performances.forEach((p) => {
-    const id = p.external_client_id || p.clientId || p.id || p.client_id;
+    const extId = p.external_client_id;
+    const numId = p.id || p.clientId || p.client_id;
+    const id = extId || String(numId); // prefer external_client_id as key
     if (!id) return;
     if (!mergedMap[id]) {
       mergedMap[id] = { id };
     }
-    mergedMap[id].external_client_id = id;
+    mergedMap[id].external_client_id = extId || mergedMap[id].external_client_id;
+    mergedMap[id].numeric_id = numId || mergedMap[id].numeric_id;
     mergedMap[id].client_name = p.client_name || p.name || mergedMap[id].client_name;
     mergedMap[id].country = p.country || mergedMap[id].country;
     mergedMap[id].registration_date = p.registration_date || mergedMap[id].registration_date;
@@ -165,12 +168,15 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
 
   // Populate from Referrals API
   referrals.forEach((r) => {
-    const id = r.external_client_id || r.clientId || r.id || r.client_id;
+    const extId = r.external_client_id;
+    const numId = r.id || r.clientId || r.client_id;
+    const id = extId || String(numId);
     if (!id) return;
     if (!mergedMap[id]) {
       mergedMap[id] = { id };
     }
-    mergedMap[id].external_client_id = mergedMap[id].external_client_id || id;
+    mergedMap[id].external_client_id = extId || mergedMap[id].external_client_id;
+    mergedMap[id].numeric_id = numId || mergedMap[id].numeric_id;
     mergedMap[id].client_name = r.client_name || r.name || mergedMap[id].client_name;
     mergedMap[id].country = r.country || mergedMap[id].country;
     mergedMap[id].registration_date = r.registration_date || mergedMap[id].registration_date;
@@ -179,12 +185,15 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
 
   // Populate from Insights API
   insights.forEach((i) => {
-    const id = i.external_client_id || i.clientId || i.id || i.client_id;
+    const extId = i.external_client_id;
+    const numId = i.id || i.clientId || i.client_id;
+    const id = extId || String(numId);
     if (!id) return;
     if (!mergedMap[id]) {
       mergedMap[id] = { id };
     }
-    mergedMap[id].external_client_id = mergedMap[id].external_client_id || id;
+    mergedMap[id].external_client_id = extId || mergedMap[id].external_client_id;
+    mergedMap[id].numeric_id = numId || mergedMap[id].numeric_id;
     mergedMap[id].client_name = i.client_name || i.name || mergedMap[id].client_name;
     mergedMap[id].country = i.country || mergedMap[id].country;
     mergedMap[id].registration_date = i.registration_date || mergedMap[id].registration_date;
@@ -242,15 +251,17 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
     }
 
     return {
-      id: t.id,
-      name: t.client_name || `Trader ${String(t.id).substring(0, 6)}`,
+      id: t.id,                                    // = external_client_id (e.g. f0a5788d3e6)
+      internalId: t.numeric_id,                    // numeric id from API (e.g. 420785)
+      externalClientId: t.external_client_id || t.id,
+      name: t.client_name || `Trader ${String(t.id).substring(0, 8)}`,
       title: (volume > 10 || profit > 30) ? "Elite Trader" : (volume > 2 || profit > 15) ? "Pro Trader" : "Rising Star",
       profit: Number(profit.toFixed(2)),
       drawdown: Number(drawdown.toFixed(2)),
       winRate: Math.round(winRate),
       badges: badges,
       status: (volume > 0 || totalBalance > 0) ? "online" : "offline",
-      
+
       // Pass raw fields to client for details modal
       country: t.country || "India",
       registrationDate: t.registration_date || "N/A",
@@ -259,7 +270,7 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
       mtNetDeposits: mtNetDeposits,
       totalBalance: totalBalance,
       totalEquity: totalEquity,
-      programName: t.programName || "Scheme 1.0, MT",
+      programName: t.program_name || "Scheme 1.0, MT",
     };
   });
 
