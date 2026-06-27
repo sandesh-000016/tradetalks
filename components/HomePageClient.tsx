@@ -453,19 +453,19 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   <div className="text-center">
                     <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-0.5">Profit</div>
                     <div className="text-xl font-display font-black text-emerald-400">
-                      +{trader.profit.toFixed(2)}%
+                      +{(trader.profit ?? 0).toFixed(2)}%
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 bg-slate-900/40 p-2 rounded-lg border border-slate-900/50 text-center font-medium">
                     <div>
                       <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Win Rate</span>
-                      <span className="text-slate-300">{trader.winRate}%</span>
+                      <span className="text-slate-300">{trader.winRate ?? 0}%</span>
                     </div>
                     <div>
                       <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Drawdown</span>
-                      <span className={`text-slate-300 ${trader.drawdown > 15 ? "text-rose-400" : ""}`}>
-                        {trader.drawdown.toFixed(2)}%
+                      <span className={`text-slate-300 ${(trader.drawdown ?? 0) > 15 ? "text-rose-400" : ""}`}>
+                        {(trader.drawdown ?? 0).toFixed(2)}%
                       </span>
                     </div>
                   </div>
