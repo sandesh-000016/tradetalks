@@ -121,15 +121,15 @@ export function determineTraderBadges(trader: {
   const balance = trader.totalBalance ?? 0;
 
   // Priority 1: Final Winner (6-month challenge)
-  if (trader.winRate >= 50 && trader.profit > 30 && trader.drawdown <= 20) {
+  if (trader.winRate >= 50 && trader.profit > 30 && trader.drawdown <= 20 && balance > 100) {
     earned.push("final_winner");
   }
   // Priority 2: Monthly Top Rank
-  else if (trader.winRate > 70 && trader.profit > 50 && trader.drawdown < 20) {
+  else if (trader.winRate > 70 && trader.profit > 50 && trader.drawdown < 20 && balance > 100) {
     earned.push("top_rank_monthly");
   }
   // Priority 3: Weekly Top
-  else if (trader.winRate > 70 && trader.profit >= 20 && trader.drawdown < 10) {
+  else if (trader.winRate > 70 && trader.profit >= 20 && trader.drawdown < 10 && balance > 100) {
     earned.push("weekly_top");
   }
   // Priority 4: Consistent Trader
@@ -137,15 +137,15 @@ export function determineTraderBadges(trader: {
     earned.push("consistent_trader");
   }
   // Priority 5: Low Drawdown Monthly Award
-  else if (volume > 20 && trader.drawdown < 5 && balance >= 1000) {
+  else if (volume > 20 && trader.drawdown < 5 && balance > 100) {
     earned.push("low_drawdown");
   }
   // Priority 6: Best Risk Manager (6-month)
-  else if (trader.winRate > 60 && trader.drawdown < 20) {
+  else if (trader.winRate > 60 && trader.drawdown < 20 && balance > 100) {
     earned.push("best_risk_manager");
   }
   // Priority 7: Trader of the Week
-  else if (trader.profit >= 20 && trader.winRate >= 65) {
+  else if (trader.profit >= 20 && trader.winRate >= 65 && balance > 100) {
     earned.push("trader_of_the_week");
   }
   return earned;

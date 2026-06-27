@@ -142,6 +142,45 @@ const badges = [
 ];
 
 function RegisterContent() {
+  const [clientId, setClientId] = React.useState("");
+  const [isVerifying, setIsVerifying] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
+  const [verifiedClient, setVerifiedClient] = React.useState<any>(null);
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientId.trim()) {
+      setErrorMsg("Please enter your Client ID.");
+      setSuccessMsg(null);
+      return;
+    }
+
+    setIsVerifying(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await fetch("/api/verify-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(`Welcome, ${data.client.name}! Your account balance of $${data.client.balance} has been successfully verified.`);
+        setVerifiedClient(data.client);
+      } else {
+        setErrorMsg(data.error || "Verification failed. Check your Client ID.");
+      }
+    } catch (err) {
+      setErrorMsg("Connection to verification server failed. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   return (
     <div className="pt-8 pb-24 min-h-screen">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -198,43 +237,75 @@ function RegisterContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Option A — Already have account */}
-            <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-800 space-y-5">
-              <h3 className="font-semibold text-white text-center">
-                Yes, I have an Alpari Account
-              </h3>
-              <p className="text-xs text-slate-400 text-center">
-                Please provide your Alpari account details or submit via Google Form.
-              </p>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Alpari Account Number"
-                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-                <select
-                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500 appearance-none"
-                  defaultValue=""
-                >
-                  <option value="" disabled>Account Type</option>
-                  <option value="standard">Standard</option>
-                  <option value="ecn">ECN</option>
-                  <option value="pro-ecn">Pro ECN</option>
-                  <option value="nano">Nano</option>
-                </select>
-                <input
-                  type="email"
-                  placeholder="Registered Email with Alpari"
-                  className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
+            <div className="bg-slate-950/40 rounded-2xl p-6 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.05)] space-y-5 text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-400 tracking-wider uppercase">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Challenge Access Gate
+                </div>
+                <div className="bg-slate-800/80 border border-slate-700/80 px-2 py-0.5 rounded text-[8px] font-black text-slate-400 tracking-wider uppercase">
+                  Server-Only
+                </div>
               </div>
-              <a
-                href={REGISTRATION_FORM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-600/20 text-center block"
-              >
-                Submit & Continue
-              </a>
+
+              <div>
+                <h3 className="text-xl font-display font-black text-white leading-tight uppercase">
+                  Verify Your Client ID
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed mt-2">
+                  Enter the exact client ID from your Alpari account. Once verified, the challenge portal unlocks and your balance is recorded.
+                </p>
+              </div>
+
+              {/* Inner Alert Box */}
+              <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3.5 flex gap-2.5 items-start">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0 animate-pulse" />
+                <div>
+                 
+                  <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                    New enrollments are blocked after the deadline.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleVerify} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    Client ID
+                  </label>
+                  <input
+                    type="text"
+                    value={clientId}
+                    onChange={(e) => {
+                      setClientId(e.target.value);
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                    }}
+                    placeholder="Enter your Client ID starting with f... (e.g. f72725)"
+                    className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                  />
+                </div>
+
+                {errorMsg && (
+                  <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-3 rounded-xl leading-relaxed">
+                    {errorMsg}
+                  </div>
+                )}
+
+                {successMsg && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-xl leading-relaxed">
+                    {successMsg}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isVerifying}
+                  className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-950/30 disabled:text-slate-600 text-slate-950 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+                >
+                  {isVerifying ? "Verifying..." : "Verify Challenge Access"}
+                </button>
+              </form>
             </div>
 
             {/* Divider */}
