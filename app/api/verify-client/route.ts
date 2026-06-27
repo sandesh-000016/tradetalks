@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getIntegratedLeaderboard } from "@/lib/alpariApi";
+import { getCachedLeaderboard } from "@/lib/alpariApi";
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const numericIdOnly = trimmedId.replace(/^f/i, "");
 
     // Fetch the consolidated list of traders using the integrated leaderboard helper
-    const traders = await getIntegratedLeaderboard("all");
+    const traders = await getCachedLeaderboard("all");
 
     // Find the trader in the active list
     const foundTrader = traders.find((t: any) => {
