@@ -222,8 +222,25 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
     let badges = 0;
 
     if (isActive) {
+      // Generate a deterministic numeric seed from numeric_id or hash the string id
+      const getNumericSeed = (trader: any) => {
+        const num = Number(trader.numeric_id);
+        if (!isNaN(num) && num > 0) return num;
+        
+        // fallback to hashing string id (e.g. hex external_client_id)
+        const str = String(trader.id || "");
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash << 5) - hash + str.charCodeAt(i);
+          hash |= 0; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
+      };
+
+      const seed = getNumericSeed(t);
+
       // Deterministic base factor using user ID
-      const idFactor = (Number(t.id) % 30) + 5; // value between 5 and 35
+      const idFactor = (seed % 30) + 5; // value between 5 and 35
       
       // Profit is driven by volume and rebates, or relative equity growth
       if (mtNetDeposits > 0 && totalEquity > 0) {
@@ -240,10 +257,10 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
       profit = Math.min(250, Math.max(1.5, profit));
 
       // Drawdown is inversely related to win rate, typically between 1% and 25%
-      drawdown = Math.min(25, Math.max(0.5, (Number(t.id) % 15) + (volume > 0 ? 1.5 : 0)));
+      drawdown = Math.min(25, Math.max(0.5, (seed % 15) + (volume > 0 ? 1.5 : 0)));
 
       // Win rate between 45% and 88%
-      winRate = Math.min(92, Math.max(40, 50 + (Number(t.id) % 35) + (volume > 5 ? 5 : 0)));
+      winRate = Math.min(92, Math.max(40, 50 + (seed % 35) + (volume > 5 ? 5 : 0)));
 
       // Badges: 1 badge per 5 lots of volume, plus 1 if they have rebates
       badges = Math.floor(volume / 5) + (settledRebates > 0 ? 1 : 0);
@@ -313,7 +330,7 @@ export const getCachedLeaderboard = unstable_cache(
   async (timeframe: "all" | "monthly" | "weekly" | "daily") => {
     return getIntegratedLeaderboard(timeframe);
   },
-  ["leaderboard-data"],
+  ["leaderboard-data-v3"],
   {
     revalidate: 900, // Cache for 15 minutes
     tags: ["leaderboard"],

@@ -385,7 +385,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
             className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
             onClick={() => setSelectedTrader(null)}
           ></div>
-          <div className="relative w-full max-w-md glass-panel rounded-3xl overflow-hidden shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md glass-panel rounded-3xl overflow-hidden shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="relative h-32 bg-gradient-to-br from-brand-900 to-slate-900">
               <button
@@ -397,7 +397,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
             </div>
 
             {/* Modal Body */}
-            <div className="px-8 pb-8">
+            <div className="px-8 pb-8 overflow-y-auto flex-1">
               <div className="relative -mt-16 mb-4 flex justify-between items-end">
                 <div className="w-32 h-32 rounded-2xl bg-slate-800 border-4 border-slate-900 overflow-hidden shadow-xl">
                   <img
@@ -593,9 +593,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 </div>
               )}
 
-              <button className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium transition-colors">
-                View Full Profile
-              </button>
+
             </div>
           </div>
         </div>
