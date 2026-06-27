@@ -230,7 +230,13 @@ function RegisterContent() {
         <section className="glass-panel rounded-3xl p-8 md:p-10 mb-10 border border-slate-800">
           <h2 className="text-lg font-display font-bold mb-6 text-center">
             Do you have a Traders Account with Alpari?
-                   {/* Option A — Already have account */}
+          </h2>
+          <p className="text-sm text-slate-400 text-center mb-8 max-w-lg mx-auto">
+            This challenge is only open to traders with a valid Alpari trading account.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Option A — Already have account */}
             <div className="bg-slate-950/40 rounded-2xl p-6 border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.05)] space-y-5 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[9px] font-bold text-blue-400 tracking-wider uppercase">
@@ -255,9 +261,7 @@ function RegisterContent() {
               <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-3.5 flex gap-2.5 items-start">
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1 shrink-0 animate-pulse" />
                 <div>
-                  <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">
-                    Registration Closes 10 July 2026
-                  </h4>
+                 
                   <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
                     New enrollments are blocked after the deadline.
                   </p>
@@ -298,6 +302,8 @@ function RegisterContent() {
                   type="submit"
                   disabled={isVerifying}
                   className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-blue-950/30 disabled:text-slate-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-600/10 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+                >
+                  {isVerifying ? "Verifying..." : "Verify Challenge Access"}
                 </button>
               </form>
             </div>
