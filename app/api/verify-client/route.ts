@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCachedLeaderboard } from "@/lib/alpariApi";
+import { getIntegratedLeaderboard } from "@/lib/alpariApi";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     const input = clientId.trim().toLowerCase();
-    const traders = await getCachedLeaderboard("all");
+    const traders = await getIntegratedLeaderboard("all");
 
     const foundTrader = traders.find((t: any) =>
       String(t.externalClientId || "").toLowerCase() === input
