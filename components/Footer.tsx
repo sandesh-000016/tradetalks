@@ -17,69 +17,33 @@ export function Footer() {
               challenges.
             </p>
           </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">
-              Platform
+          <div className="col-span-1">
+            <h3 className="text-sm font-semibold text-slate-200 tracking-wider uppercase mb-4">
+              Kochi Branch
             </h3>
-            <ul className="space-y-3">
-              <li>
-                <Link
-                  href="/classes"
-                  className="text-sm text-slate-400 hover:text-brand-400 transition-colors"
-                >
-                  Learning Programs
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/leaderboard"
-                  className="text-sm text-slate-400 hover:text-brand-400 transition-colors"
-                >
-                  Trading Challenge
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="text-sm text-slate-400 hover:text-brand-400 transition-colors"
-                >
-                  About Us
-                </Link>
-              </li>
-            </ul>
+            <div className="relative w-full h-32 overflow-hidden rounded-xl border border-slate-800/80 shadow-md">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3927.212819308246!2d76.36767917451024!3d10.163349170203691!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3b0807c7b0e94c2b%3A0x5063d5823da7bb9e!2sTrade%20Talks%20Stock%20Market%20Trading%20Courses%20Kochi!5e0!3m2!1sen!2sin!4v1782625191798!5m2!1sen!2sin"
+                className="absolute inset-0 w-full h-full border-0"
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            </div>
           </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-white tracking-wider uppercase mb-4">
-              Support
+          <div className="col-span-1">
+            <h3 className="text-sm font-semibold text-slate-200 tracking-wider uppercase mb-4">
+              Kozhikode Branch
             </h3>
-            <ul className="space-y-3">
-              <li>
-                <Link
-                  href="/contact"
-                  className="text-sm text-slate-400 hover:text-brand-400 transition-colors"
-                >
-                  Contact Us
-                </Link>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-sm text-slate-400 hover:text-brand-400 transition-colors"
-                >
-                  FAQ
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="text-sm text-slate-400 hover:text-brand-400 transition-colors"
-                >
-                  Terms of Service
-                </a>
-              </li>
-            </ul>
+            <div className="relative w-full h-32 overflow-hidden rounded-xl border border-slate-800/80 shadow-md">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3912.9044635197156!2d75.77647617452314!3d11.268432849926953!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba659e0fc895955%3A0xfc623bdd54154e1e!2sTrade%20Talks%20Stock%20Market%20Trading%20Courses%20in%20Kozhikode!5e0!3m2!1sen!2sin!4v1782625282390!5m2!1sen!2sin"
+                className="absolute inset-0 w-full h-full border-0"
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            </div>
           </div>
         </div>
         <div className="mt-12 border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center">

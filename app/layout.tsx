@@ -70,7 +70,7 @@ export const metadata: Metadata = {
     locale: "en_IN",
     url: "https://tradetalks.in",
     siteName: "Trade Talks",
-    title: "Trade Talks | Learn Stock Market Trading",
+    title: "Trade Talks | Forex Trading Challenge",
     description:
       "Professional stock market education through online and offline classes in Angamaly and Kozhikode.",
     images: [

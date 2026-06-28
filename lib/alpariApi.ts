@@ -273,6 +273,7 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
       externalClientId: t.external_client_id || t.id,
       name: t.client_name || `Trader ${String(t.id).substring(0, 8)}`,
       title: (volume > 10 || profit > 30) ? "Elite Trader" : (volume > 2 || profit > 15) ? "Pro Trader" : "Rising Star",
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(t.client_name || String(t.id))}`,
       profit: Number(profit.toFixed(2)),
       drawdown: Number(drawdown.toFixed(2)),
       winRate: Math.round(winRate),
@@ -304,7 +305,7 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
       winRate: t.winRate,
       volume: t.volume,
       totalBalance: t.totalBalance,
-    });
+    }, timeframe);
     return {
       ...t,
       rank,

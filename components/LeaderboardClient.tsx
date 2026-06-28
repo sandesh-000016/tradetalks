@@ -36,6 +36,129 @@ const getBadgeIcon = (iconName: string) => {
   }
 };
 
+const renderCustomBadge = (id: string, className = "w-10 h-10") => {
+  switch (id) {
+    case "final_winner":
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 22 L9 32 L15 29 L21 32 L18 22 Z" fill="#D97706" />
+          <path d="M24 22 L21 32 L27 29 L33 32 L30 22 Z" fill="#B45309" />
+          <circle cx="18" cy="16" r="11" fill="url(#goldGradient)" stroke="#FBBF24" strokeWidth="1.5" />
+          <circle cx="18" cy="16" r="8.5" fill="none" stroke="#F59E0B" strokeWidth="1" strokeDasharray="2 1" />
+          <path d="M13 20 H23 L25 14 L21 17 L18 13 L15 17 L13 14 Z" fill="#78350F" />
+          <circle cx="13" cy="13" r="1" fill="#78350F" />
+          <circle cx="18" cy="12" r="1" fill="#78350F" />
+          <circle cx="23" cy="13" r="1" fill="#78350F" />
+          <defs>
+            <radialGradient id="goldGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 16) rotate(45) scale(11)">
+              <stop offset="0%" stopColor="#FDE047" />
+              <stop offset="70%" stopColor="#F59E0B" />
+              <stop offset="100%" stopColor="#D97706" />
+            </radialGradient>
+          </defs>
+        </svg>
+      );
+    case "top_rank_monthly":
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 22 L9 32 L15 29 L21 32 L18 22 Z" fill="#D97706" />
+          <path d="M24 22 L21 32 L27 29 L33 32 L30 22 Z" fill="#B45309" />
+          <circle cx="18" cy="16" r="11" fill="url(#goldGradient)" stroke="#FBBF24" strokeWidth="1.5" />
+          <circle cx="18" cy="16" r="8.5" fill="none" stroke="#F59E0B" strokeWidth="1" strokeDasharray="2 1" />
+          <text x="18" y="20.5" fill="#78350F" fontSize="13" fontWeight="bold" textAnchor="middle" fontFamily="system-ui, sans-serif">1</text>
+          <defs>
+            <radialGradient id="goldGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 16) rotate(45) scale(11)">
+              <stop offset="0%" stopColor="#FDE047" />
+              <stop offset="70%" stopColor="#F59E0B" />
+              <stop offset="100%" stopColor="#D97706" />
+            </radialGradient>
+          </defs>
+        </svg>
+      );
+    case "weekly_top":
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 22 L9 32 L15 29 L21 32 L18 22 Z" fill="#7C3AED" />
+          <path d="M24 22 L21 32 L27 29 L33 32 L30 22 Z" fill="#6D28D9" />
+          <circle cx="18" cy="16" r="11" fill="url(#purpleGradient)" stroke="#C084FC" strokeWidth="1.5" />
+          <path d="M18 10 L20.2 14.5 L25 15.2 L21.5 18.6 L22.3 23.4 L18 21.1 L13.7 23.4 L14.5 18.6 L11 15.2 L15.8 14.5 Z" fill="#FFFFFF" />
+          <defs>
+            <radialGradient id="purpleGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 16) rotate(45) scale(11)">
+              <stop offset="0%" stopColor="#E9D5FF" />
+              <stop offset="70%" stopColor="#A855F7" />
+              <stop offset="100%" stopColor="#7C3AED" />
+            </radialGradient>
+          </defs>
+        </svg>
+      );
+    case "consistent_trader":
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 4 C24 4 28 6 28 12 C28 20 22 26 18 30 C14 26 8 20 8 12 C8 6 12 4 18 4 Z" fill="url(#greenGradient)" stroke="#34D399" strokeWidth="1.5" />
+          <path d="M18 11 L19.8 14.8 L24 15.4 L21 18.3 L21.7 22.5 L18 20.5 L14.3 22.5 L15 18.3 L12 15.4 L16.2 14.8 Z" fill="#FFFFFF" />
+          <defs>
+            <radialGradient id="greenGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 17) rotate(45) scale(13)">
+              <stop offset="0%" stopColor="#A7F3D0" />
+              <stop offset="70%" stopColor="#10B981" />
+              <stop offset="100%" stopColor="#047857" />
+            </radialGradient>
+          </defs>
+        </svg>
+      );
+    case "low_drawdown":
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 4 C24 4 28 6 28 12 C28 20 22 26 18 30 C14 26 8 20 8 12 C8 6 12 4 18 4 Z" fill="url(#blueGradient)" stroke="#60A5FA" strokeWidth="1.5" />
+          <path d="M18 11 L19.8 14.8 L24 15.4 L21 18.3 L21.7 22.5 L18 20.5 L14.3 22.5 L15 18.3 L12 15.4 L16.2 14.8 Z" fill="#FFFFFF" />
+          <defs>
+            <radialGradient id="blueGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 17) rotate(45) scale(13)">
+              <stop offset="0%" stopColor="#BFDBFE" />
+              <stop offset="70%" stopColor="#3B82F6" />
+              <stop offset="100%" stopColor="#1D4ED8" />
+            </radialGradient>
+          </defs>
+        </svg>
+      );
+    case "trader_of_the_week":
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 22 L9 32 L15 29 L21 32 L18 22 Z" fill="#EA580C" />
+          <path d="M24 22 L21 32 L27 29 L33 32 L30 22 Z" fill="#C2410C" />
+          <circle cx="18" cy="16" r="11" fill="url(#orangeGradient)" stroke="#FDBA74" strokeWidth="1.5" />
+          <path d="M18 10 L20.2 14.5 L25 15.2 L21.5 18.6 L22.3 23.4 L18 21.1 L13.7 23.4 L14.5 18.6 L11 15.2 L15.8 14.5 Z" fill="#FFFFFF" />
+          <defs>
+            <radialGradient id="orangeGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 16) rotate(45) scale(11)">
+              <stop offset="0%" stopColor="#FFEDD5" />
+              <stop offset="70%" stopColor="#F97316" />
+              <stop offset="100%" stopColor="#EA580C" />
+            </radialGradient>
+          </defs>
+        </svg>
+      );
+    case "best_risk_manager":
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 4 C24 4 28 6 28 12 C28 20 22 26 18 30 C14 26 8 20 8 12 C8 6 12 4 18 4 Z" fill="url(#tealGradient)" stroke="#2DD4BF" strokeWidth="1.5" />
+          <path d="M18 11 L19.8 14.8 L24 15.4 L21 18.3 L21.7 22.5 L18 20.5 L14.3 22.5 L15 18.3 L12 15.4 L16.2 14.8 Z" fill="#FFFFFF" />
+          <defs>
+            <radialGradient id="tealGradient" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 17) rotate(45) scale(13)">
+              <stop offset="0%" stopColor="#CCFBF1" />
+              <stop offset="70%" stopColor="#14B8A6" />
+              <stop offset="100%" stopColor="#0F766E" />
+            </radialGradient>
+          </defs>
+        </svg>
+      );
+    default:
+      return (
+        <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="12" fill="#334155" stroke="#475569" strokeWidth="1.5" />
+          <path d="M18 11 L19.8 14.8 L24 15.4 L21 18.3 L21.7 22.5 L18 20.5 L14.3 22.5 L15 18.3 L12 15.4 L16.2 14.8 Z" fill="#94A3B8" />
+        </svg>
+      );
+  }
+};
+
 interface LeaderboardClientProps {
   initialTraders: Trader[];
 }
@@ -50,6 +173,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+  const [selectedBadge, setSelectedBadge] = useState<any | null>(null);
 
   // Listen to timeframe changes and fetch from the API route (which is cached)
   useEffect(() => {
@@ -248,7 +372,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                           <div className="relative">
                             <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
                               <img
-                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${trader.name}`}
+                                src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name)}`}
                                 alt={trader.name}
                                 className="w-full h-full object-cover"
                               />
@@ -285,22 +409,27 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                               winRate: trader.winRate,
                               volume: trader.volume,
                               totalBalance: trader.totalBalance,
-                            });
+                            }, timeframe);
                             if (earnedBadgeIds.length === 0) return <span className="text-slate-600">-</span>;
-                            const badgeId = earnedBadgeIds[0];
-                            const badgeInfo = BADGE_DEFINITIONS[badgeId];
-                            if (!badgeInfo) return <span className="text-slate-600">-</span>;
-                             return (
-                              <div className={`flex items-center gap-1 px-2.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wider ${
-                                badgeId === 'final_winner' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-                                badgeId === 'top_rank_monthly' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' :
-                                badgeId === 'weekly_top' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                                badgeId === 'consistent_trader' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                                badgeId === 'low_drawdown' ? 'bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400' :
-                                badgeId === 'best_risk_manager' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
-                                'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
-                              }`}>
-                                {badgeInfo.title}
+                            return (
+                              <div className="flex items-center justify-center gap-1.5">
+                                {earnedBadgeIds.map((badgeId) => {
+                                  const badgeInfo = BADGE_DEFINITIONS[badgeId];
+                                  if (!badgeInfo) return null;
+                                  return (
+                                    <button
+                                      key={badgeId}
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Stop row click
+                                        setSelectedBadge(badgeInfo);
+                                      }}
+                                      title={`${badgeInfo.title} - Click to see requirements`}
+                                      className="transition-all duration-300 hover:scale-115 active:scale-90 cursor-pointer filter hover:brightness-110 shrink-0"
+                                    >
+                                      {renderCustomBadge(badgeId, "w-8 h-8")}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             );
                           })()}
@@ -382,26 +511,30 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       {selectedTrader && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
             onClick={() => setSelectedTrader(null)}
           ></div>
           <div className="relative w-full max-w-md glass-panel rounded-3xl overflow-hidden shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
-            <div className="relative h-32 bg-gradient-to-br from-brand-900 to-slate-900">
-              <button
-                onClick={() => setSelectedTrader(null)}
-                className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white/70 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            {/* Fixed/Sticky Close Button */}
+            <button
+              onClick={() => setSelectedTrader(null)}
+              className="absolute top-6 right-6 z-50 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-colors shadow-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Scrollable Container */}
+            <div className="overflow-y-auto flex-1 w-full rounded-b-3xl">
+              {/* Modal Header */}
+              <div className="h-32 bg-gradient-to-br from-brand-900 to-slate-900">
+              </div>
 
             {/* Modal Body */}
-            <div className="px-8 pb-8 overflow-y-auto flex-1">
+            <div className="px-8 pb-8">
               <div className="relative -mt-16 mb-4 flex justify-between items-end">
                 <div className="w-32 h-32 rounded-2xl bg-slate-800 border-4 border-slate-900 overflow-hidden shadow-xl">
                   <img
-                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${selectedTrader.name}`}
+                    src={selectedTrader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedTrader.name)}`}
                     alt={selectedTrader.name}
                     className="w-full h-full object-cover"
                   />
@@ -508,7 +641,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     winRate: selectedTrader.winRate,
                     volume: selectedTrader.volume,
                     totalBalance: selectedTrader.totalBalance,
-                  });
+                  }, timeframe);
 
                   if (earnedBadgeIds.length === 0) {
                     return <div className="text-xs text-slate-500 italic">No badges earned yet.</div>;
@@ -525,7 +658,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                             className={`flex gap-3 items-center rounded-xl p-2.5 border ${badgeInfo.color}`}
                           >
                             <div className="shrink-0">
-                              {getBadgeIcon(badgeInfo.iconName)}
+                              {renderCustomBadge(badgeId, "w-8 h-8")}
                             </div>
                             <div className="text-left">
                               <div className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -594,6 +727,66 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
               )}
 
 
+            </div>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* Badge Rules Modal */}
+      {selectedBadge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            onClick={() => setSelectedBadge(null)}
+          />
+          
+          {/* Modal Container */}
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header Glow */}
+            <div className="h-24 bg-gradient-to-b from-slate-950 to-slate-900 flex items-center justify-center border-b border-slate-800/50">
+              <div className="scale-125 hover:rotate-6 transition-transform duration-300">
+                {renderCustomBadge(selectedBadge.id, "w-12 h-12")}
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedBadge(null)}
+              className="absolute top-6 right-6 p-2 rounded-full bg-slate-850 border border-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Body */}
+            <div className="p-6 text-center space-y-4">
+              <div>
+                <h3 className="text-xl font-display font-bold text-white uppercase tracking-wide">
+                  {selectedBadge.title}
+                </h3>
+                {selectedBadge.subtitle && (
+                  <span className="text-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2.5 py-0.5 rounded font-semibold uppercase tracking-widest inline-block mt-2">
+                    {selectedBadge.subtitle}
+                  </span>
+                )}
+              </div>
+
+              <div className="bg-slate-950/50 rounded-2xl p-5 border border-slate-850/50 text-left space-y-3">
+                <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest block">
+                  Requirements
+                </span>
+                <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                  {selectedBadge.desc}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setSelectedBadge(null)}
+                className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm transition-colors border border-slate-700/80"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
