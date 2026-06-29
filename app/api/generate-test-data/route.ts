@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { determineTraderBadges } from "@/lib/leaderboardApi";
+
 
 const MOCK_FILE_PATH = path.join(process.cwd(), "test_alpari_responses.json");
 
@@ -75,15 +75,7 @@ export async function GET() {
       const profit = netDeposits > 0 ? ((balance - netDeposits) / netDeposits) * 100 : 0;
 
       // Determine which badges they qualify for
-      const earnedBadges = determineTraderBadges({
-        rank: i,
-        profit,
-        drawdown,
-        winRate,
-        volume,
-        totalBalance: balance,
-        tradesCount,
-      }, "all");
+      const earnedBadges: string[] = [];
 
       // Add to Performance API response (including settled/unsettled metrics)
       performances.push({

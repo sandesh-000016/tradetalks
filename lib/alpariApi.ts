@@ -3,8 +3,6 @@
  * Keeps Private-Token secure by running on the server side.
  */
 
-import { determineTraderBadges } from "./leaderboardApi";
-
 export interface AlpariApiParams {
   RegistrationFromDate: string;
   RegistrationToDate: string;
@@ -14,8 +12,6 @@ export interface AlpariApiParams {
 export interface AlpariClientPerformance {
   clientId: string;
   profit?: number;
-  drawdown?: number;
-  winRate?: number;
   [key: string]: any;
 }
 
@@ -109,8 +105,7 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
  * Fetches all 3 endpoints, merges the metrics per client, and returns sorted Trader list.
  */
 export async function getIntegratedLeaderboard(
-  timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly",
-  filterBadges: boolean = false
+  timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly"
 ): Promise<any[]> {
   // 1. Calculate dynamic date ranges based on timeframe
   const now = new Date();
@@ -265,12 +260,9 @@ export async function getIntegratedLeaderboard(
     // Check if the user is active (has traded or deposited)
     const isActive = volume > 0 || settledRebates > 0 || mtNetDeposits > 0 || totalEquity > 0 || totalBalance > 0;
 
-    // Calculate a realistic but deterministic profit, drawdown, and win rate
+    // Calculate a realistic but deterministic profit
     // based on their actual trading metrics (so it remains consistent per user)
     let profit = 0;
-    let drawdown = 0;
-    let winRate = 0;
-    let badges = 0;
     let tradesCount = 0;
 
     if (isActive) {
@@ -306,18 +298,8 @@ export async function getIntegratedLeaderboard(
         profit = isNegative ? -baseProfit : baseProfit;
       }
 
-      // Drawdown is inversely related to win rate, typically between 1% and 25%
-      drawdown = Math.min(25, Math.max(0.5, (seed % 15) + (volume > 0 ? 1.5 : 0)));
-
-      // Win rate between 45% and 88%
-      winRate = Math.min(92, Math.max(40, 50 + (seed % 35) + (volume > 5 ? 5 : 0)));
-
       // Estimate trades count based on volume (active traders with volume)
       tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
-
-      // Badges: 1 badge per 5 lots of volume, plus 1 if they have rebates
-      badges = Math.floor(volume / 5) + (settledRebates > 0 ? 1 : 0);
-      if (badges === 0) badges = 1; // At least 1 badge for being active
     }
 
     return {
@@ -328,10 +310,7 @@ export async function getIntegratedLeaderboard(
       title: (volume > 10 || profit > 30) ? "Elite Trader" : (volume > 2 || profit > 15) ? "Pro Trader" : "Rising Star",
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(t.client_name || String(t.id))}`,
       profit: Number(profit.toFixed(2)),
-      drawdown: Number(drawdown.toFixed(2)),
-      winRate: Math.round(winRate),
       tradesCount: tradesCount,
-      badges: badges,
       status: (volume > 0 || totalBalance > 0) ? "online" : "offline",
 
       // Pass raw fields to client for details modal
@@ -349,54 +328,34 @@ export async function getIntegratedLeaderboard(
     };
   });
 
-  // 1. Determine badges with a dummy rank initially
-  tradersList = tradersList
-    .map((t) => {
-      const earnedBadges = determineTraderBadges({
-        rank: 999, // Rank doesn't affect basic badge conditions initially
-        profit: t.profit,
-        drawdown: t.drawdown,
-        winRate: t.winRate,
-        volume: t.volume,
-        totalBalance: t.totalBalance,
-        tradesCount: t.tradesCount,
-        mtNetDeposits: t.mtNetDeposits,
-        totalEquity: t.totalEquity,
-      }, timeframe);
-      return {
-        ...t,
-        earnedBadges,
-        badges: earnedBadges.length,
-      };
-    });
-
-  // Only filter out traders with 0 badges if filterBadges is true
-  if (filterBadges) {
-    tradersList = tradersList.filter((t) => t.badges > 0);
-  }
-
-  // 2. Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
+  // 1. Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
   tradersList.sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0));
 
-  // 3. Assign correct contiguous ranks and re-determine badges using their actual rank
+  // 2. Assign correct contiguous ranks and calculate badges
   tradersList = tradersList.map((t, idx) => {
     const rank = idx + 1;
-    const earnedBadges = determineTraderBadges({
-      rank,
-      profit: t.profit,
-      drawdown: t.drawdown,
-      winRate: t.winRate,
-      volume: t.volume,
-      totalBalance: t.totalBalance,
-      tradesCount: t.tradesCount,
-      mtNetDeposits: t.mtNetDeposits,
-      totalEquity: t.totalEquity,
-    }, timeframe);
+    const earnedBadges: string[] = [];
+
+    if (rank === 1) {
+      earnedBadges.push("Top Rank Monthly");
+    }
+    if (rank <= 3) {
+      earnedBadges.push("Trader of the Week");
+    }
+    if ((t.tradesCount ?? 0) >= 12) {
+      earnedBadges.push("Consistent Trader");
+    }
+    if ((t.volume ?? 0) >= 8) {
+      earnedBadges.push("Most Active Trader");
+    }
+    if (t.profit > 12 && (t.tradesCount ?? 0) >= 10) {
+      earnedBadges.push("Best Risk Manager");
+    }
+
     return {
       ...t,
       rank,
       earnedBadges,
-      badges: earnedBadges.length,
     };
   });
 

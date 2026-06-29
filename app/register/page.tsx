@@ -28,6 +28,15 @@ import {
 const ALPARI_REFERRAL_URL = "https://alpari.com/en/?Referral=72725";
 const REGISTRATION_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSe5FB5CkkrPeVE0CTNhFWTRQ1MOnDWLvSBsn8lgKUMghzbCfA/viewform?usp=publish-editor";
 
+import {
+  TopRankBadge,
+  WeeklyTopBadge,
+  ConsistentTraderBadge,
+  MostActiveTraderBadge,
+  TraderOfWeekBadge,
+  BestRiskManagerBadge
+} from "@/components/BadgeIcons";
+
 // Challenge Rules Data
 const challengeRules = [
   {
@@ -40,22 +49,6 @@ const challengeRules = [
   },
   {
     num: 2,
-    icon: <Scale className="w-5 h-5" />,
-    color: "text-blue-400 border-blue-500/30 bg-blue-500/10",
-    title: "Risk Reward Ratio",
-    value: "1:1 Minimum RR",
-    desc: "Maintain at least 1:1 risk to reward ratio.",
-  },
-  {
-    num: 3,
-    icon: <Shield className="w-5 h-5" />,
-    color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
-    title: "TP & SL Mandatory",
-    value: "Required",
-    desc: "Take Profit and Stop Loss must be maintained for every trade.",
-  },
-  {
-    num: 4,
     icon: <Target className="w-5 h-5" />,
     color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
     title: "Starting Balance",
@@ -63,7 +56,7 @@ const challengeRules = [
     desc: "Every participant will start with a $100 balance.",
   },
   {
-    num: 5,
+    num: 3,
     icon: <Trophy className="w-5 h-5" />,
     color: "text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10",
     title: "Winner",
@@ -71,77 +64,20 @@ const challengeRules = [
     desc: "Trader with the highest percentage return at the end wins.",
   },
   {
-    num: 6,
-    icon: <TrendingDown className="w-5 h-5" />,
-    color: "text-rose-400 border-rose-500/30 bg-rose-500/10",
-    title: "Daily Drawdown",
-    value: "25%",
-    desc: "Maximum daily drawdown allowed is 25%.",
-  },
-  {
-    num: 7,
-    icon: <BarChart3 className="w-5 h-5" />,
-    color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
-    title: "Maximum Drawdown",
-    value: "100%",
-    desc: "Account washout at 100% drawdown.",
-  },
-  {
-    num: 8,
+    num: 4,
     icon: <Clock className="w-5 h-5" />,
     color: "text-orange-400 border-orange-500/30 bg-orange-500/10",
     title: "Challenge Duration",
     value: "Fixed Period",
-    desc: "Challenge runs for a fixed duration of 6 months",
+    desc: "Challenge runs for a fixed duration of 6 months.",
   },
   {
-    num: 9,
+    num: 5,
     icon: <Activity className="w-5 h-5" />,
     color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
     title: "Minimum Trading Activity",
     value: "10 Trades",
     desc: "At least 10 trades must be placed in a month.",
-  },
-];
-
-// Badges Data
-const badges = [
-  {
-    icon: <Medal className="w-5 h-5" />,
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
-    title: "Top Rank Monthly",
-    subtitle: "BEST BADGE",
-    desc: "Awarded to the top ranked trader each month.",
-  },
-  {
-    icon: <Star className="w-5 h-5" />,
-    color: "text-violet-400 bg-violet-500/10 border-violet-500/30",
-    title: "Weekly Top",
-    desc: "Awarded to the top performer of the week.",
-  },
-  {
-    icon: <CheckCircle2 className="w-5 h-5" />,
-    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
-    title: "Consistent Trader",
-    desc: "Awarded for consistent performance throughout the challenge duration of 6 months.",
-  },
-  {
-    icon: <TrendingDown className="w-5 h-5" />,
-    color: "text-blue-400 bg-blue-500/10 border-blue-500/30",
-    title: "Low Drawdown Trader",
-    desc: "Awarded for maintaining low drawdown.",
-  },
-  {
-    icon: <BarChart3 className="w-5 h-5" />,
-    color: "text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/30",
-    title: "Trader of the Week",
-    desc: "Recognizing outstanding trading performance of the week.",
-  },
-  {
-    icon: <Shield className="w-5 h-5" />,
-    color: "text-rose-400 bg-rose-500/10 border-rose-500/30",
-    title: "Best Risk Manager",
-    desc: "Awarded for excellent risk management and discipline.",
   },
 ];
 
@@ -509,43 +445,76 @@ function RegisterContent() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 {/* Final Winner Highlight */}
-                <div className="lg:col-span-4 glass-panel rounded-3xl p-6 border border-amber-500/20 bg-gradient-to-br from-slate-900/60 to-slate-950/60 text-center flex flex-col justify-center items-center space-y-4">
-                  <div className="w-20 h-20 rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center">
-                    <Trophy className="w-10 h-10 text-amber-400" />
+                <div className="lg:col-span-4 glass-panel rounded-3xl p-6 border border-amber-500/20 bg-gradient-to-br from-slate-900/60 to-slate-950/60 text-center flex flex-col justify-between items-center space-y-4">
+                  <div className="w-full flex flex-col items-center">
+                    <div className="w-20 h-20 rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center mb-4">
+                      <Trophy className="w-10 h-10 text-amber-400" />
+                    </div>
+                    <h3 className="text-xl font-display font-bold text-white">FINAL WINNER</h3>
+                    <p className="text-xs text-slate-400 max-w-[200px] leading-relaxed mt-2">
+                      The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
+                    </p>
                   </div>
-                  <h3 className="text-xl font-display font-bold text-white">FINAL WINNER</h3>
-                  <p className="text-xs text-slate-400 max-w-[200px] leading-relaxed">
-                    The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
-                  </p>
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2 text-amber-400 text-xs font-semibold">
-                    🏆 Exclusive Rewards
-                  </div>
-                  <div className="flex items-center gap-4 text-[10px] text-slate-500 pt-2">
-                    <span className="flex items-center gap-1"><Award className="w-3 h-3" /> Physical Badge</span>
-                    <span className="flex items-center gap-1"><Gift className="w-3 h-3" /> Books & Premium Gifts</span>
+                  <div className="w-full border-t border-slate-800/60 pt-4 mt-2">
+                    <div className="text-[10px] text-amber-500 uppercase tracking-widest font-black mb-3">
+                      Exclusive Rewards
+                    </div>
+                    <div className="flex justify-center gap-4 text-[10px] text-slate-400">
+                      <span className="flex items-center gap-1"><Award className="w-4.5 h-4.5 text-amber-400" /> Physical Badge</span>
+                      <span className="flex items-center gap-1"><Gift className="w-4.5 h-4.5 text-amber-400" /> Premium Gifts</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Badges Grid */}
-                <div className="lg:col-span-8">
-                  <h3 className="font-semibold text-white mb-4 text-sm uppercase tracking-wider">
-                    Achievements & Badges
-                  </h3>
+                {/* Achievements & Badges Grid */}
+                <div className="lg:col-span-8 bg-slate-950/40 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {badges.map((badge, i) => (
+                    {[
+                      {
+                        icon: <TopRankBadge className="w-9 h-9" />,
+                        title: "Top Rank Monthly",
+                        subtitle: "BEST BADGE",
+                        desc: "Awarded to the top ranked trader each month.",
+                      },
+                      {
+                        icon: <WeeklyTopBadge className="w-9 h-9" />,
+                        title: "Weekly Top",
+                        desc: "Awarded to the top performer of the week.",
+                      },
+                      {
+                        icon: <ConsistentTraderBadge className="w-9 h-9" />,
+                        title: "Consistent Trader",
+                        desc: "Awarded for consistent performance throughout the challenge.",
+                      },
+                      {
+                        icon: <MostActiveTraderBadge className="w-9 h-9" />,
+                        title: "Most Active Trader",
+                        desc: "Awarded for highest active volume (settled + unsettled).",
+                      },
+                      {
+                        icon: <TraderOfWeekBadge className="w-9 h-9" />,
+                        title: "Trader of the Week",
+                        desc: "Recognizing outstanding trading performance of the week.",
+                      },
+                      {
+                        icon: <BestRiskManagerBadge className="w-9 h-9" />,
+                        title: "Best Risk Manager",
+                        desc: "Awarded for excellent risk management and discipline.",
+                      },
+                    ].map((badge, i) => (
                       <div
                         key={i}
-                        className="glass-panel rounded-xl p-4 border border-slate-800 flex gap-3 items-start hover:border-slate-700 transition-colors"
+                        className="glass-panel rounded-xl p-4 border border-slate-900 flex gap-3 items-start hover:border-slate-800 transition-colors"
                       >
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center border shrink-0 ${badge.color}`}>
+                        <div className="shrink-0">
                           {badge.icon}
                         </div>
                         <div>
                           <h4 className="font-semibold text-white text-xs">{badge.title}</h4>
                           {badge.subtitle && (
-                            <span className="text-[9px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
+                            <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
                               {badge.subtitle}
                             </span>
                           )}
