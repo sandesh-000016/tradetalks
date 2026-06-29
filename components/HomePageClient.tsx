@@ -531,7 +531,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   </div>
                   <div>
                     <div className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Total Rewards</div>
-                    <div className="text-lg font-bold font-display text-white">$50,000+</div>
+                    <div className="text-lg font-bold font-display text-white">Rs 10,000+</div>
                   </div>
                 </div>
 

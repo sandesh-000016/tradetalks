@@ -146,12 +146,35 @@ export async function getIntegratedLeaderboard(
   };
 
 
-  // 2. Fetch from all three APIs in parallel
-  const [performances, referrals, insights] = await Promise.all([
-    fetchClientPerformance(params),
-    fetchClientReferralDetails(params),
-    fetchClientInsights(params),
-  ]);
+  let performances: any[] = [];
+  let referrals: any[] = [];
+  let insights: any[] = [];
+
+  if (process.env.USE_MOCK_DATA === "true") {
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
+      if (fs.existsSync(mockFilePath)) {
+        const mockData = JSON.parse(fs.readFileSync(mockFilePath, "utf8"));
+        performances = mockData.performance || [];
+        referrals = mockData.referrals || [];
+        insights = mockData.insights || [];
+      }
+    } catch (err) {
+      console.error("Error reading mock data:", err);
+    }
+  } else {
+    // 2. Fetch from all three APIs in parallel
+    const [perfRes, refRes, insRes] = await Promise.all([
+      fetchClientPerformance(params),
+      fetchClientReferralDetails(params),
+      fetchClientInsights(params),
+    ]);
+    performances = perfRes;
+    referrals = refRes;
+    insights = insRes;
+  }
 
   const mergedMap: Record<string, any> = {};
 
