@@ -110,11 +110,12 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
   const now = new Date();
   const toDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
   
-  let fromDate = "2000-01-01"; // default for 'all'
+  const SEASON_START_DATE = "2026-06-29"; // Next challenge season starts from June 29, 2026 (after June 28)
+  let fromDate = SEASON_START_DATE; 
   let customToDate = toDate;
 
   if (timeframe === "all") {
-    fromDate = "2000-01-01";
+    fromDate = SEASON_START_DATE;
     customToDate = toDate; // Dynamic up to today's date
   } else if (timeframe === "daily") {
     const date = new Date();
@@ -128,6 +129,11 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
     const date = new Date();
     date.setDate(now.getDate() - 30);
     fromDate = date.toISOString().split("T")[0];
+  }
+
+  // Enforce that fromDate is never earlier than the start of the season
+  if (fromDate < SEASON_START_DATE) {
+    fromDate = SEASON_START_DATE;
   }
 
   const params: AlpariApiParams = {
@@ -204,7 +210,29 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
   });
 
   // Convert map to list and compile real values
-  let tradersList = Object.values(mergedMap).map((t: any) => {
+  let tradersList = Object.values(mergedMap)
+    .filter((t: any) => {
+      // 1. Must be registered after season start
+      if (!t.registration_date) return false;
+      const regDate = new Date(t.registration_date);
+      // Cutoff: June 28, 2026 23:59:59 (so only registrations on or after June 29, 2026)
+      const cutoffDate = new Date("2026-06-28T23:59:59");
+      if (regDate <= cutoffDate) return false;
+
+      // 2. Washout Check (100% drawdown)
+      const mtNetDeposits = Number(t.mt_net_deposits ?? 0);
+      const totalEquity = Number(t.total_equity ?? 0);
+      const totalBalance = Number(t.total_balance ?? 0);
+
+      // If they have deposited capital but their current balance or equity has been completely wiped out (<= 0),
+      // they are considered washed out and excluded from the leaderboard.
+      if (mtNetDeposits > 0 && (totalEquity <= 0 || totalBalance <= 0)) {
+        return false;
+      }
+
+      return true;
+    })
+    .map((t: any) => {
     const volume = t.volume ?? 0;
     const settledRebates = t.settled_rebates ?? 0;
     const mtNetDeposits = t.mt_net_deposits ?? 0;
@@ -220,6 +248,7 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
     let drawdown = 0;
     let winRate = 0;
     let badges = 0;
+    let tradesCount = 0;
 
     if (isActive) {
       // Generate a deterministic numeric seed from numeric_id or hash the string id
@@ -253,14 +282,17 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
         profit = (volume * 2.5) + (settledRebates * 0.8) + (idFactor * 0.4);
       }
 
-      // Keep it within a premium, high-performance range (e.g. 5% to 250%)
-      profit = Math.min(250, Math.max(1.5, profit));
+      // Keep a minimum profit percentage of 1.5% for active status, but do not cap the upper limit
+      profit = Math.max(1.5, profit);
 
       // Drawdown is inversely related to win rate, typically between 1% and 25%
       drawdown = Math.min(25, Math.max(0.5, (seed % 15) + (volume > 0 ? 1.5 : 0)));
 
       // Win rate between 45% and 88%
       winRate = Math.min(92, Math.max(40, 50 + (seed % 35) + (volume > 5 ? 5 : 0)));
+
+      // Estimate trades count based on volume (active traders with volume)
+      tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
 
       // Badges: 1 badge per 5 lots of volume, plus 1 if they have rebates
       badges = Math.floor(volume / 5) + (settledRebates > 0 ? 1 : 0);
@@ -277,6 +309,7 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
       profit: Number(profit.toFixed(2)),
       drawdown: Number(drawdown.toFixed(2)),
       winRate: Math.round(winRate),
+      tradesCount: tradesCount,
       badges: badges,
       status: (volume > 0 || totalBalance > 0) ? "online" : "offline",
 
@@ -305,6 +338,7 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
       winRate: t.winRate,
       volume: t.volume,
       totalBalance: t.totalBalance,
+      tradesCount: t.tradesCount,
     }, timeframe);
     return {
       ...t,
@@ -331,7 +365,7 @@ export const getCachedLeaderboard = unstable_cache(
   async (timeframe: "all" | "monthly" | "weekly" | "daily") => {
     return getIntegratedLeaderboard(timeframe);
   },
-  ["leaderboard-data-v3"],
+  ["leaderboard-season-2"],
   {
     revalidate: 900, // Cache for 15 minutes
     tags: ["leaderboard"],

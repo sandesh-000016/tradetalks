@@ -346,6 +346,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
   const [verifiedClient, setVerifiedClient] = React.useState<any>(null);
   const [referralChecked, setReferralChecked] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(1);
+  const [showPlaylistModal, setShowPlaylistModal] = React.useState(false);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,6 +376,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
       if (data.success) {
         setSuccessMsg(`Welcome, ${data.client.name}! Your account balance of $${data.client.balance} has been successfully verified.`);
         setVerifiedClient(data.client);
+        setShowPlaylistModal(true);
       } else {
         setErrorMsg(data.error || "Verification failed. Check your Client ID.");
       }
@@ -410,6 +412,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
           winRate: trader.winRate,
           volume: trader.volume,
           totalBalance: trader.totalBalance,
+          tradesCount: trader.tradesCount,
         });
         return {
           ...trader,
@@ -665,6 +668,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                         winRate: trader.winRate,
                         volume: trader.volume,
                         totalBalance: trader.totalBalance,
+                        tradesCount: trader.tradesCount,
                       }, "monthly");
                       if (earnedBadges.length === 0) return null;
                       const badgeId = earnedBadges[0];
@@ -1592,12 +1596,108 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 </p>
               </div>
 
+              <div className="bg-slate-900/50 rounded-xl p-4 text-left border border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                  ⚠️ Global Season Rules (Applies to all Badges)
+                </span>
+                <ul className="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+                  <li>Minimum of <b>10 trades</b> required.</li>
+                  <li>Volume requirement: <b>0.6 lots per $100</b> of account balance (e.g., 1.2 lots for $200, 3.0 lots for $500).</li>
+                  <li>Washed out accounts (balance/equity reaching $0) are disqualified.</li>
+                </ul>
+              </div>
+
               <button
                 onClick={() => setSelectedBadge(null)}
                 className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm transition-colors border border-slate-700/80"
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* YouTube Playlist Modal */}
+      {showPlaylistModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-950/85 backdrop-blur-md"
+            onClick={() => setShowPlaylistModal(false)}
+          />
+
+          {/* Modal Container */}
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowPlaylistModal(false)}
+              className="absolute top-6 right-6 p-2 rounded-full bg-slate-850 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors z-20"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Body */}
+            <div className="p-6 md:p-8 space-y-6">
+              <div className="text-center space-y-2">
+                <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <h3 className="text-2xl font-display font-extrabold text-white uppercase tracking-wide">
+                  Verification Successful!
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Your Client ID is verified. As a participant in the challenge, you have unlocked our curated Forex trading educational series.
+                </p>
+              </div>
+
+              {/* YouTube Playlist Thumbnail Card */}
+              <div className="relative rounded-2xl overflow-hidden border border-slate-800 group shadow-lg">
+                {/* Thumbnail Image */}
+                <img
+                  src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80"
+                  alt="Forex Trading Playlist"
+                  className="w-full h-56 object-cover filter brightness-75 group-hover:scale-105 transition-transform duration-700"
+                />
+
+                {/* Play Button Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 group-hover:bg-slate-950/40 transition-colors">
+                  <a
+                    href="https://www.youtube.com/playlist?list=PLm218z4JbA6E3B878d6S1DqSdf5b10oH_"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-xl shadow-red-600/30 hover:scale-110 active:scale-95 transition-all duration-300"
+                  >
+                    <Play className="w-6 h-6 fill-current translate-x-0.5" />
+                  </a>
+                </div>
+
+                {/* Playlist Label */}
+                <div className="absolute bottom-4 left-4 bg-slate-950/80 border border-slate-800 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  TradeTalks Forex Bootcamp
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <a
+                  href="https://www.youtube.com/playlist?list=PLm218z4JbA6E3B878d6S1DqSdf5b10oH_"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-widest text-center shadow-lg shadow-red-650/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  Watch Playlist Now
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPlaylistModal(false)}
+                  className="sm:px-6 py-3.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs uppercase tracking-widest transition-colors hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                >
+                  Close & Proceed
+                </button>
+              </div>
             </div>
           </div>
         </div>

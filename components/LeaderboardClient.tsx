@@ -250,13 +250,44 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
     <div className="pt-12 pb-24 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <div className="text-center max-w-3xl mx-auto mb-8">
           <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 uppercase tracking-tight">
             Leaderboard
           </h1>
           <p className="text-lg text-slate-400">
             Top traders ranked by overall performance
           </p>
+        </div>
+
+        {/* Season Info Banner */}
+        <div className="max-w-4xl mx-auto mb-10 bg-slate-900/40 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
+            <div className="p-3 bg-brand-500/10 rounded-xl text-brand-400 border border-brand-500/20 shrink-0">
+              <Shield className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="flex-1 text-center md:text-left">
+              <h3 className="font-display font-bold text-white text-base uppercase tracking-wider mb-1">
+                New Season Rules & Eligibility
+              </h3>
+              <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                To keep the challenge fair, all participants must comply with the following global season rules to be eligible for any rankings, badges, or rewards:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                <div className="bg-slate-950/40 rounded-xl p-3 border border-slate-850/50">
+                  <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">Min Trades</div>
+                  <div className="text-white text-sm font-semibold">10 Trades Required</div>
+                </div>
+                <div className="bg-slate-950/40 rounded-xl p-3 border border-slate-850/50">
+                  <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">Volume Scale</div>
+                  <div className="text-white text-sm font-semibold">0.6 Lots per $100 Balance</div>
+                </div>
+                <div className="bg-slate-950/40 rounded-xl p-3 border border-slate-850/50">
+                  <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">Risk Limit</div>
+                  <div className="text-white text-sm font-semibold">Washout (100% Drawdown) = Out</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Controls */}
@@ -409,6 +440,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                               winRate: trader.winRate,
                               volume: trader.volume,
                               totalBalance: trader.totalBalance,
+                              tradesCount: trader.tradesCount,
                             }, timeframe);
                             if (earnedBadgeIds.length === 0) return <span className="text-slate-600">-</span>;
                             return (
@@ -605,6 +637,10 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     <span className="text-white font-medium">{selectedTrader.volume?.toFixed(2) ?? "0.00"} Lots</span>
                   </div>
                   <div>
+                    <span className="text-slate-500 block text-xs">Total Trades</span>
+                    <span className="text-white font-medium">{selectedTrader.tradesCount ?? 0}</span>
+                  </div>
+                  <div>
                     <span className="text-slate-500 block text-xs">Net Deposits</span>
                     <span className="text-white font-medium">${selectedTrader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
                   </div>
@@ -641,6 +677,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     winRate: selectedTrader.winRate,
                     volume: selectedTrader.volume,
                     totalBalance: selectedTrader.totalBalance,
+                    tradesCount: selectedTrader.tradesCount,
                   }, timeframe);
 
                   if (earnedBadgeIds.length === 0) {
@@ -779,6 +816,17 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
                   {selectedBadge.desc}
                 </p>
+              </div>
+
+              <div className="bg-slate-900/50 rounded-xl p-4 text-left border border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                  ⚠️ Global Season Rules (Applies to all Badges)
+                </span>
+                <ul className="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+                  <li>Minimum of <b>10 trades</b> required.</li>
+                  <li>Volume requirement: <b>0.6 lots per $100</b> of account balance (e.g., 1.2 lots for $200, 3.0 lots for $500).</li>
+                  <li>Washed out accounts (balance/equity reaching $0) are disqualified.</li>
+                </ul>
               </div>
 
               <button

@@ -24,6 +24,7 @@ export interface Trader {
   profit: number; // %
   drawdown: number; // %
   winRate: number; // %
+  tradesCount?: number;
   badges: number;
   status: "online" | "offline";
   activity?: TradeActivity[];
@@ -116,12 +117,25 @@ export function determineTraderBadges(
     winRate: number;
     volume?: number;
     totalBalance?: number;
+    tradesCount?: number;
   },
   timeframe: string = "all"
 ): string[] {
-  const earned: string[] = [];
-  const volume = trader.volume ?? 0;
+  // At least 10 trades required for any badge
+  if (trader.tradesCount !== undefined && trader.tradesCount < 10) {
+    return [];
+  }
+
   const balance = trader.totalBalance ?? 0;
+  const volume = trader.volume ?? 0;
+
+  // Trading volume rule: 0.6 lots required per $100 of account balance (e.g. 1.2 lots for $200)
+  const requiredVolume = (balance / 100) * 0.6;
+  if (volume < requiredVolume) {
+    return [];
+  }
+
+  const earned: string[] = [];
 
   const tf = timeframe.toLowerCase();
 
