@@ -117,12 +117,13 @@ export async function getIntegratedLeaderboard(
   const toDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
   
   const SEASON_START_DATE = "2026-01-01"; // Challenge season starts from Jan 1, 2026
+  const SEASON_END_DATE = "2026-12-30";   // Challenge season ends on Dec 30, 2026
   let fromDate = SEASON_START_DATE; 
-  let customToDate = toDate;
+  let customToDate = SEASON_END_DATE;
 
   if (timeframe === "all") {
     fromDate = SEASON_START_DATE;
-    customToDate = toDate; // Dynamic up to today's date
+    customToDate = SEASON_END_DATE;
   } else if (timeframe === "daily") {
     const date = new Date();
     date.setDate(now.getDate() - 1);
@@ -245,12 +246,12 @@ export async function getIntegratedLeaderboard(
   // Convert map to list and compile real values
   let tradersList = Object.values(mergedMap)
     .filter((t: any) => {
-      // 1. Must be registered after season start
+      // 1. Must be registered within the season: January 1, 2026 to December 30, 2026
       if (!t.registration_date) return false;
       const regDate = new Date(t.registration_date);
-      // Cutoff: December 31, 2025 23:59:59 (so only registrations on or after January 1, 2026)
       const cutoffDate = new Date("2025-12-31T23:59:59");
-      if (regDate <= cutoffDate) return false;
+      const endCutoffDate = new Date("2026-12-30T23:59:59");
+      if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
       // 2. Washout Check (100% drawdown)
       const mtNetDeposits = Number(t.mt_net_deposits ?? 0);

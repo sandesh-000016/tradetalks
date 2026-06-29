@@ -13,7 +13,7 @@ console.log("Private Token:", PRIVATE_TOKEN.substring(0, 8) + "...");
 
 const params = {
   RegistrationFromDate: "01/01/2026",
-  RegistrationToDate: new Date().toISOString().split("T")[0].split("-").reverse().join("/"), // DD/MM/YYYY
+  RegistrationToDate: "30/12/2026",
   DirectPartner: PARTNER_ID
 };
 

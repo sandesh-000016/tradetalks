@@ -767,7 +767,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 <Gift className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="text-lg font-bold text-white font-display">$50,000+</h4>
+                <h4 className="text-lg font-bold text-white font-display">Rs.10,000</h4>
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mt-1">Monthly Rewards</p>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">Earn prizes based on profit, drawdown & consistency.</p>
               </div>

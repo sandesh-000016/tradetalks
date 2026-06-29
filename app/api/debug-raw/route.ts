@@ -19,7 +19,7 @@ function formatDate(d: Date) {
 export async function GET() {
   const params = {
     RegistrationFromDate: "01/01/2026",
-    RegistrationToDate: formatDate(new Date()),
+    RegistrationToDate: "30/12/2026",
     DirectPartner: PARTNER_ID,
   };
 
