@@ -107,13 +107,13 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
  */
 export async function getIntegratedLeaderboard(
   timeframe: "all" | "monthly" | "weekly" | "daily",
-  filterBadges: boolean = true
+  filterBadges: boolean = false
 ): Promise<any[]> {
   // 1. Calculate dynamic date ranges based on timeframe
   const now = new Date();
   const toDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
   
-  const SEASON_START_DATE = "2026-06-29"; // Next challenge season starts from June 29, 2026 (after June 28)
+  const SEASON_START_DATE = "2026-01-01"; // Challenge season starts from Jan 1, 2026
   let fromDate = SEASON_START_DATE; 
   let customToDate = toDate;
 
@@ -242,8 +242,8 @@ export async function getIntegratedLeaderboard(
       // 1. Must be registered after season start
       if (!t.registration_date) return false;
       const regDate = new Date(t.registration_date);
-      // Cutoff: June 28, 2026 23:59:59 (so only registrations on or after June 29, 2026)
-      const cutoffDate = new Date("2026-06-28T23:59:59");
+      // Cutoff: December 31, 2025 23:59:59 (so only registrations on or after January 1, 2026)
+      const cutoffDate = new Date("2025-12-31T23:59:59");
       if (regDate <= cutoffDate) return false;
 
       // 2. Washout Check (100% drawdown)
@@ -298,19 +298,17 @@ export async function getIntegratedLeaderboard(
       // Deterministic base factor using user ID
       const idFactor = (seed % 30) + 5; // value between 5 and 35
       
-      // Profit is driven by volume and rebates, or relative equity growth
+      // Profit is driven by relative equity growth if deposit data is available,
+      // otherwise generated deterministically from volume/rebates.
       if (mtNetDeposits > 0 && totalEquity > 0) {
         profit = ((totalEquity - mtNetDeposits) / mtNetDeposits) * 100;
-        // If profit is negative or zero, let's give a small positive active trading profit
-        if (profit <= 0) {
-          profit = (volume * 1.2) + (settledRebates * 0.5) + (idFactor * 0.3);
-        }
       } else {
-        profit = (volume * 2.5) + (settledRebates * 0.8) + (idFactor * 0.4);
+        // Fallback for mock or missing data
+        // For a mock trader without deposits/equity data, we can make it positive or negative based on the seed
+        const isNegative = (seed % 3) === 0; // 33% chance of being negative
+        const baseProfit = (volume * 1.5) + (settledRebates * 0.5) + (idFactor * 0.2);
+        profit = isNegative ? -baseProfit : baseProfit;
       }
-
-      // Keep a minimum profit percentage of 1.5% for active status, but do not cap the upper limit
-      profit = Math.max(1.5, profit);
 
       // Drawdown is inversely related to win rate, typically between 1% and 25%
       drawdown = Math.min(25, Math.max(0.5, (seed % 15) + (volume > 0 ? 1.5 : 0)));
@@ -373,6 +371,20 @@ export async function getIntegratedLeaderboard(
         badges: earnedBadges.length,
       };
     });
+
+  // Filter by global eligibility rules:
+  // 1. Min 10 trades required
+  // 2. Volume Scale: 0.6 Lots per $100 of total balance
+  tradersList = tradersList.filter((t) => {
+    // 1. Minimum trades check
+    if (t.tradesCount < 10) return false;
+
+    // 2. Volume scale check (0.6 lots per $100 balance)
+    const requiredVolume = ((t.totalBalance ?? 0) / 100) * 0.6;
+    if ((t.volume ?? 0) < requiredVolume) return false;
+
+    return true;
+  });
 
   // Only filter out traders with 0 badges if filterBadges is true
   if (filterBadges) {

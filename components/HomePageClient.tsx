@@ -530,7 +530,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     <Trophy className="w-5 h-5 fill-current" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Total Rewards</div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Monthly Rewards</div>
                     <div className="text-lg font-bold font-display text-white">Rs 10,000+</div>
                   </div>
                 </div>
@@ -714,8 +714,8 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 <div className="pt-4 border-t border-slate-900/60 mt-auto space-y-3">
                   <div className="text-center">
                     <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-0.5">Profit</div>
-                    <div className="text-xl font-display font-black text-emerald-400">
-                      +{(trader.profit ?? 0).toFixed(2)}%
+                    <div className={`text-xl font-display font-black ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
                     </div>
                   </div>
 

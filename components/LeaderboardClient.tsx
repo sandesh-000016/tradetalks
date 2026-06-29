@@ -418,8 +418,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <span className="text-emerald-400 font-display font-bold">
-                          +{(trader.profit ?? 0).toFixed(2)}%
+                        <span className={`font-display font-bold ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -595,8 +595,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
 
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
-                  <div className="text-emerald-400 font-display font-bold text-xl mb-1">
-                    +{(selectedTrader.profit ?? 0).toFixed(2)}%
+                  <div className={`font-display font-bold text-xl mb-1 ${selectedTrader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {selectedTrader.profit >= 0 ? "+" : ""}{(selectedTrader.profit ?? 0).toFixed(2)}%
                   </div>
                   <div className="text-xs text-slate-500 uppercase">Profit</div>
                 </div>
