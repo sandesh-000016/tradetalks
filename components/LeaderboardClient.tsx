@@ -275,7 +275,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                 <div className="bg-slate-950/40 rounded-xl p-3 border border-slate-850/50">
                   <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">Min Trades</div>
-                  <div className="text-white text-sm font-semibold">10 Trades Required</div>
+                  <div className="text-white text-sm font-semibold">10 Trades Required / Month</div>
                 </div>
                 <div className="bg-slate-950/40 rounded-xl p-3 border border-slate-850/50">
                   <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-0.5">Volume Scale</div>

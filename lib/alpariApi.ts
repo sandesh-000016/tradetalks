@@ -109,7 +109,7 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
  * Fetches all 3 endpoints, merges the metrics per client, and returns sorted Trader list.
  */
 export async function getIntegratedLeaderboard(
-  timeframe: "all" | "monthly" | "weekly" | "daily",
+  timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly",
   filterBadges: boolean = false
 ): Promise<any[]> {
   // 1. Calculate dynamic date ranges based on timeframe
@@ -253,17 +253,6 @@ export async function getIntegratedLeaderboard(
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      // 2. Washout Check (100% drawdown)
-      const mtNetDeposits = Number(t.mt_net_deposits ?? 0);
-      const totalEquity = Number(t.total_equity ?? 0);
-      const totalBalance = Number(t.total_balance ?? 0);
-
-      // If they have deposited capital but their current balance or equity has been completely wiped out (<= 0),
-      // they are considered washed out and excluded from the leaderboard.
-      if (mtNetDeposits > 0 && (totalEquity <= 0 || totalBalance <= 0)) {
-        return false;
-      }
-
       return true;
     })
     .map((t: any) => {
@@ -360,7 +349,7 @@ export async function getIntegratedLeaderboard(
     };
   });
 
-  // 1. Determine badges with a dummy rank to filter out those who do not qualify for any badges
+  // 1. Determine badges with a dummy rank initially
   tradersList = tradersList
     .map((t) => {
       const earnedBadges = determineTraderBadges({
@@ -371,6 +360,8 @@ export async function getIntegratedLeaderboard(
         volume: t.volume,
         totalBalance: t.totalBalance,
         tradesCount: t.tradesCount,
+        mtNetDeposits: t.mtNetDeposits,
+        totalEquity: t.totalEquity,
       }, timeframe);
       return {
         ...t,
@@ -378,20 +369,6 @@ export async function getIntegratedLeaderboard(
         badges: earnedBadges.length,
       };
     });
-
-  // Filter by global eligibility rules:
-  // 1. Min 10 trades required
-  // 2. Volume Scale: 0.6 Lots per $100 of total balance
-  tradersList = tradersList.filter((t) => {
-    // 1. Minimum trades check
-    if (t.tradesCount < 10) return false;
-
-    // 2. Volume scale check (0.6 lots per $100 balance)
-    const requiredVolume = ((t.totalBalance ?? 0) / 100) * 0.6;
-    if ((t.volume ?? 0) < requiredVolume) return false;
-
-    return true;
-  });
 
   // Only filter out traders with 0 badges if filterBadges is true
   if (filterBadges) {
@@ -412,6 +389,8 @@ export async function getIntegratedLeaderboard(
       volume: t.volume,
       totalBalance: t.totalBalance,
       tradesCount: t.tradesCount,
+      mtNetDeposits: t.mtNetDeposits,
+      totalEquity: t.totalEquity,
     }, timeframe);
     return {
       ...t,

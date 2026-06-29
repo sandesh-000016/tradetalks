@@ -118,18 +118,27 @@ export function determineTraderBadges(
     volume?: number;
     totalBalance?: number;
     tradesCount?: number;
+    mtNetDeposits?: number;
+    totalEquity?: number;
   },
   timeframe: string = "all"
 ): string[] {
-  // At least 10 trades required for any badge
+  const balance = trader.totalBalance ?? 0;
+  const volume = trader.volume ?? 0;
+
+  // 1. Washout Check (100% drawdown)
+  const mtNetDeposits = Number(trader.mtNetDeposits ?? 0);
+  const totalEquity = Number(trader.totalEquity ?? trader.totalBalance ?? 0);
+  if (mtNetDeposits > 0 && (totalEquity <= 0 || balance <= 0)) {
+    return [];
+  }
+
+  // 2. At least 10 trades required for any badge
   if (trader.tradesCount !== undefined && trader.tradesCount < 10) {
     return [];
   }
 
-  const balance = trader.totalBalance ?? 0;
-  const volume = trader.volume ?? 0;
-
-  // Trading volume rule: 0.6 lots required per $100 of account balance (e.g. 1.2 lots for $200)
+  // 3. Trading volume rule: 0.6 lots required per $100 of account balance
   const requiredVolume = (balance / 100) * 0.6;
   if (volume < requiredVolume) {
     return [];
