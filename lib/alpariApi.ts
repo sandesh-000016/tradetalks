@@ -105,7 +105,10 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
  * Method 4: Consolidated Leaderboard compiler
  * Fetches all 3 endpoints, merges the metrics per client, and returns sorted Trader list.
  */
-export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "weekly" | "daily"): Promise<any[]> {
+export async function getIntegratedLeaderboard(
+  timeframe: "all" | "monthly" | "weekly" | "daily",
+  filterBadges: boolean = true
+): Promise<any[]> {
   // 1. Calculate dynamic date ranges based on timeframe
   const now = new Date();
   const toDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
@@ -342,8 +345,12 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
         earnedBadges,
         badges: earnedBadges.length,
       };
-    })
-    .filter((t) => t.badges > 0);
+    });
+
+  // Only filter out traders with 0 badges if filterBadges is true
+  if (filterBadges) {
+    tradersList = tradersList.filter((t) => t.badges > 0);
+  }
 
   // 2. Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
   tradersList.sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0));
