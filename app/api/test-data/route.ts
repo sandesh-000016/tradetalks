@@ -19,8 +19,13 @@ export async function GET() {
 
     const fileContent = fs.readFileSync(MOCK_FILE_PATH, "utf8");
     const data = JSON.parse(fileContent);
+    const prettyJson = JSON.stringify(data, null, 2);
 
-    return NextResponse.json(data);
+    return new Response(prettyJson, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   } catch (error: any) {
     console.error("GET test-data error:", error);
     return NextResponse.json(

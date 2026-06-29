@@ -195,6 +195,7 @@ export async function getIntegratedLeaderboard(
     mergedMap[id].mt_net_deposits = Number(p.mt_net_deposits ?? 0);
     mergedMap[id].settled_rebates = Number(p.settled_rebates ?? 0);
     mergedMap[id].volume = Number(p.volume ?? 0);
+    mergedMap[id].unsettled_volume = Number(p.unsettled_volume ?? 0);
     mergedMap[id].turnover = Number(p.turnover ?? 0);
   });
 
@@ -343,7 +344,10 @@ export async function getIntegratedLeaderboard(
       country: t.country || "India",
       registrationDate: t.registration_date || "N/A",
       volume: volume,
+      unsettledVolume: Number(t.unsettled_volume ?? 0),
       settledRebates: settledRebates,
+      unsettledRebates: Number(t.unsettled_rebates ?? 0),
+      turnover: Number(t.turnover ?? 0),
       mtNetDeposits: mtNetDeposits,
       totalBalance: totalBalance,
       totalEquity: totalEquity,
