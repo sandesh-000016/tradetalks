@@ -672,6 +672,7 @@ function RegisterContent() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

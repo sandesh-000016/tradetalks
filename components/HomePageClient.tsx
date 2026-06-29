@@ -391,8 +391,6 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
   const topTraders = React.useMemo(() => {
     const list = initialTraders && initialTraders.length > 0 ? initialTraders : fallbackTraders;
     return list
-      .sort((a, b) => b.profit - a.profit)
-      .slice(0, 5)
       .map((trader, index) => {
         let calculatedTitle = trader.title;
         if (!calculatedTitle) {
@@ -420,7 +418,10 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
           title: calculatedTitle,
           earnedBadges,
         };
-      });
+      })
+      .filter((trader) => trader.earnedBadges && trader.earnedBadges.length > 0)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 5);
   }, [initialTraders]);
 
   return (

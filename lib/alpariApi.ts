@@ -325,10 +325,30 @@ export async function getIntegratedLeaderboard(timeframe: "all" | "monthly" | "w
     };
   });
 
-  // Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
+  // 1. Determine badges with a dummy rank to filter out those who do not qualify for any badges
+  tradersList = tradersList
+    .map((t) => {
+      const earnedBadges = determineTraderBadges({
+        rank: 999, // Rank doesn't affect basic badge conditions initially
+        profit: t.profit,
+        drawdown: t.drawdown,
+        winRate: t.winRate,
+        volume: t.volume,
+        totalBalance: t.totalBalance,
+        tradesCount: t.tradesCount,
+      }, timeframe);
+      return {
+        ...t,
+        earnedBadges,
+        badges: earnedBadges.length,
+      };
+    })
+    .filter((t) => t.badges > 0);
+
+  // 2. Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
   tradersList.sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0));
 
-  // Assign ranks and determine badges
+  // 3. Assign correct contiguous ranks and re-determine badges using their actual rank
   tradersList = tradersList.map((t, idx) => {
     const rank = idx + 1;
     const earnedBadges = determineTraderBadges({
