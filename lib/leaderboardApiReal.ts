@@ -54,7 +54,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeInfo> = {
     id: "final_winner",
     title: "Final Winner",
     subtitle: "GRAND PRIZE",
-    desc: "Overall 6-month winner: Win rate >= 50%, profit > 30%, drawdown <= 20%, account balance > $100.",
+    desc: "Overall 6-month winner: Win rate >= 50%, profit > 30%, drawdown <= 20%, account balance > $100, volume > 60 lots.",
     color: "bg-amber-500/10 border-amber-500/30 text-amber-400",
     textColor: "text-amber-400",
     iconName: "medal",
@@ -150,7 +150,7 @@ export function determineTraderBadges(
 
   if (tf === "all") {
     // Priority 1: Final Winner (6-month challenge) - only for Rank 1
-    if (trader.rank === 1 && trader.winRate >= 50 && trader.profit > 30 && trader.drawdown <= 20 && balance > 100) {
+    if (trader.rank === 1 && trader.winRate >= 50 && trader.profit > 30 && trader.drawdown <= 20 && balance > 100 && volume > 60) {
       earned.push("final_winner");
     }
     // Priority 2: Consistent Trader (Challenge-wide)
