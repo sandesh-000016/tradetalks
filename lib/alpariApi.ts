@@ -49,6 +49,7 @@ export async function fetchClientPerformance(params: AlpariApiParams): Promise<A
       "Private-Token": getPrivateToken(),
     },
     body: JSON.stringify(params),
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -70,6 +71,7 @@ export async function fetchClientReferralDetails(params: AlpariApiParams): Promi
       "Private-Token": getPrivateToken(),
     },
     body: JSON.stringify(params),
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -91,6 +93,7 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
       "Private-Token": getPrivateToken(),
     },
     body: JSON.stringify(params),
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -150,7 +153,10 @@ export async function getIntegratedLeaderboard(
   let referrals: any[] = [];
   let insights: any[] = [];
 
-  if (process.env.USE_MOCK_DATA === "true") {
+  const useMock = process.env.USE_MOCK_DATA === "true";
+  console.log(`[Leaderboard API] Fetching "${timeframe}". USE_MOCK_DATA="${process.env.USE_MOCK_DATA}" (resolved: ${useMock}), NODE_ENV="${process.env.NODE_ENV}"`);
+
+  if (useMock) {
     try {
       const fs = require("fs");
       const path = require("path");
@@ -431,7 +437,7 @@ export const getCachedLeaderboard = unstable_cache(
   async (timeframe: "all" | "monthly" | "weekly" | "daily") => {
     return getIntegratedLeaderboard(timeframe);
   },
-  ["leaderboard-season-2"],
+  ["leaderboard-season-2-live"],
   {
     revalidate: 900, // Cache for 15 minutes
     tags: ["leaderboard"],
