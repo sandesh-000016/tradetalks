@@ -256,7 +256,7 @@ export async function getIntegratedLeaderboard(
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      // 2. Only traders with active metrics (Volume > 0, Settled/Unsettled Rebates > 0, Net Deposits > 100, Equity > 0, and Balance > 0) are considered.
+      // 2. Only traders with active metrics (Volume > 0, Settled/Unsettled Rebates > 0, Equity > 0, and Balance > 0) are considered.
       const volume = Number(t.volume ?? 0);
       const settledRebates = Number(t.settled_rebates ?? 0);
       const unsettledRebates = Number(t.unsettled_rebates ?? 0);
@@ -266,7 +266,6 @@ export async function getIntegratedLeaderboard(
 
       const isActive = volume > 0 &&
                        (settledRebates > 0 || unsettledRebates > 0) &&
-                       mtNetDeposits > 100 &&
                        totalEquity > 0 &&
                        totalBalance > 0;
 
@@ -283,7 +282,6 @@ export async function getIntegratedLeaderboard(
     // Check if the user is active (has traded or deposited)
     const isActive = volume > 0 &&
                      (settledRebates > 0 || unsettledRebates > 0) &&
-                     mtNetDeposits > 100 &&
                      totalEquity > 0 &&
                      totalBalance > 0;
 

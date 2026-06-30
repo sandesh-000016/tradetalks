@@ -35,104 +35,86 @@ export async function GET() {
     const refList = Array.isArray(referrals) ? referrals : (referrals.data || []);
     const insList = Array.isArray(insights) ? insights : (insights.data || []);
 
-    // Create a merged, easily searchable list of all clients
+    // Create a merged list of all clients without duplication
     const mergedClientsMap: Record<string, any> = {};
 
-    const getCleanId = (c: any) => {
-      const numId = c.id || c.clientId || c.client_id;
-      if (numId) return String(numId);
-      const extId = c.external_client_id || c.externalClientId;
+    const getClientKey = (item: any): string => {
+      const extId = item.external_client_id || item.externalClientId;
       if (extId) return String(extId);
+      const numId = item.id || item.clientId || item.client_id;
+      if (numId) return String(numId);
       return "";
     };
 
     perfList.forEach((p: any) => {
-      const id = getCleanId(p);
-      if (!id) return;
-      if (!mergedClientsMap[id]) mergedClientsMap[id] = { id };
-      const extId = p.external_client_id || p.externalClientId;
-      const numId = p.id || p.clientId || p.client_id;
-      mergedClientsMap[id] = {
-        ...mergedClientsMap[id],
-        name: p.client_name || p.name || mergedClientsMap[id].name,
-        externalClientId: extId || mergedClientsMap[id].externalClientId,
-        numericId: numId || mergedClientsMap[id].numericId,
-        country: p.country || mergedClientsMap[id].country,
-        registrationDate: p.registration_date || mergedClientsMap[id].registrationDate,
-        mtNetDeposits: p.mt_net_deposits,
-        settledRebates: p.settled_rebates,
-        volume: p.volume,
-        turnover: p.turnover,
+      const key = getClientKey(p);
+      if (!key) return;
+      if (!mergedClientsMap[key]) mergedClientsMap[key] = {};
+      const extId = p.external_client_id || p.externalClientId || key;
+      const numId = Number(p.id || p.clientId || p.client_id || 0);
+
+      mergedClientsMap[key] = {
+        ...mergedClientsMap[key],
+        id: extId,
+        name: p.client_name || p.name || mergedClientsMap[key].name,
+        externalClientId: extId,
+        numericId: numId || mergedClientsMap[key].numericId,
+        country: p.country || mergedClientsMap[key].country,
+        registrationDate: p.registration_date || mergedClientsMap[key].registrationDate,
+        mtNetDeposits: Number(p.mt_net_deposits ?? 0),
+        settledRebates: Number(p.settled_rebates ?? 0),
+        volume: Number(p.volume ?? 0),
+        turnover: Number(p.turnover ?? 0),
       };
     });
 
     refList.forEach((r: any) => {
-      const id = getCleanId(r);
-      if (!id) return;
-      if (!mergedClientsMap[id]) mergedClientsMap[id] = { id };
-      const extId = r.external_client_id || r.externalClientId;
-      const numId = r.id || r.clientId || r.client_id;
-      mergedClientsMap[id] = {
-        ...mergedClientsMap[id],
-        name: r.client_name || r.name || mergedClientsMap[id].name,
-        externalClientId: extId || mergedClientsMap[id].externalClientId,
-        numericId: numId || mergedClientsMap[id].numericId,
-        country: r.country || mergedClientsMap[id].country,
-        registrationDate: r.registration_date || mergedClientsMap[id].registrationDate,
-        programName: r.program_name || mergedClientsMap[id].programName,
+      const key = getClientKey(r);
+      if (!key) return;
+      if (!mergedClientsMap[key]) mergedClientsMap[key] = {};
+      const extId = r.external_client_id || r.externalClientId || key;
+      const numId = Number(r.id || r.clientId || r.client_id || 0);
+
+      mergedClientsMap[key] = {
+        ...mergedClientsMap[key],
+        id: extId,
+        name: r.client_name || r.name || mergedClientsMap[key].name,
+        externalClientId: extId,
+        numericId: numId || mergedClientsMap[key].numericId,
+        country: r.country || mergedClientsMap[key].country,
+        registrationDate: r.registration_date || mergedClientsMap[key].registrationDate,
+        programName: r.program_name || mergedClientsMap[key].programName,
       };
     });
 
     insList.forEach((i: any) => {
-      const id = getCleanId(i);
-      if (!id) return;
-      if (!mergedClientsMap[id]) mergedClientsMap[id] = { id };
-      const extId = i.external_client_id || i.externalClientId;
-      const numId = i.id || i.clientId || i.client_id;
-      mergedClientsMap[id] = {
-        ...mergedClientsMap[id],
-        name: i.client_name || i.name || mergedClientsMap[id].name,
-        externalClientId: extId || mergedClientsMap[id].externalClientId,
-        numericId: numId || mergedClientsMap[id].numericId,
-        country: i.country || mergedClientsMap[id].country,
-        registrationDate: i.registration_date || mergedClientsMap[id].registrationDate,
-        totalBalance: i.total_balance,
-        totalEquity: i.total_equity,
-        unsettledRebates: i.unsettled_rebates,
-        status: i.status || mergedClientsMap[id].status,
+      const key = getClientKey(i);
+      if (!key) return;
+      if (!mergedClientsMap[key]) mergedClientsMap[key] = {};
+      const extId = i.external_client_id || i.externalClientId || key;
+      const numId = Number(i.id || i.clientId || i.client_id || 0);
+
+      mergedClientsMap[key] = {
+        ...mergedClientsMap[key],
+        id: extId,
+        name: i.client_name || i.name || mergedClientsMap[key].name,
+        externalClientId: extId,
+        numericId: numId || mergedClientsMap[key].numericId,
+        country: i.country || mergedClientsMap[key].country,
+        registrationDate: i.registration_date || mergedClientsMap[key].registrationDate,
+        totalBalance: Number(i.total_balance ?? 0),
+        totalEquity: Number(i.total_equity ?? 0),
+        unsettledRebates: Number(i.unsettled_rebates ?? 0),
       };
     });
 
     const mergedClients = Object.values(mergedClientsMap);
 
-    const fullResponse = {
-      metadata: {
-        fetchedAt: new Date().toISOString(),
-        params,
-        counts: {
-          performance: perfList.length,
-          referrals: refList.length,
-          insights: insList.length,
-          merged: mergedClients.length,
-        }
-      },
-      mergedClients,
-      raw: {
-        performance: performances,
-        referrals: referrals,
-        insights: insights,
-      }
-    };
-
-    // Save the file to the project root directory
+    // Save the file to the project root directory as a clean array
     const outputFilePath = path.join(process.cwd(), "alpari_responses.json");
-    fs.writeFileSync(outputFilePath, JSON.stringify(fullResponse, null, 2), "utf8");
+    fs.writeFileSync(outputFilePath, JSON.stringify(mergedClients, null, 2), "utf8");
 
-    return NextResponse.json({
-      success: true,
-      message: `Full response written to ${outputFilePath}`,
-      ...fullResponse
-    });
+    return NextResponse.json(mergedClients);
   } catch (error: any) {
     return NextResponse.json({
       success: false,
