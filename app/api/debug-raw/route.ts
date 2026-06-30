@@ -39,20 +39,24 @@ export async function GET() {
     const mergedClientsMap: Record<string, any> = {};
 
     const getCleanId = (c: any) => {
-      const extId = c.external_client_id;
       const numId = c.id || c.clientId || c.client_id;
-      return extId || (numId ? String(numId) : null);
+      if (numId) return String(numId);
+      const extId = c.external_client_id || c.externalClientId;
+      if (extId) return String(extId);
+      return "";
     };
 
     perfList.forEach((p: any) => {
       const id = getCleanId(p);
       if (!id) return;
       if (!mergedClientsMap[id]) mergedClientsMap[id] = { id };
+      const extId = p.external_client_id || p.externalClientId;
+      const numId = p.id || p.clientId || p.client_id;
       mergedClientsMap[id] = {
         ...mergedClientsMap[id],
         name: p.client_name || p.name || mergedClientsMap[id].name,
-        externalClientId: p.external_client_id || mergedClientsMap[id].externalClientId,
-        numericId: p.id || p.clientId || p.client_id || mergedClientsMap[id].numericId,
+        externalClientId: extId || mergedClientsMap[id].externalClientId,
+        numericId: numId || mergedClientsMap[id].numericId,
         country: p.country || mergedClientsMap[id].country,
         registrationDate: p.registration_date || mergedClientsMap[id].registrationDate,
         mtNetDeposits: p.mt_net_deposits,
@@ -66,11 +70,13 @@ export async function GET() {
       const id = getCleanId(r);
       if (!id) return;
       if (!mergedClientsMap[id]) mergedClientsMap[id] = { id };
+      const extId = r.external_client_id || r.externalClientId;
+      const numId = r.id || r.clientId || r.client_id;
       mergedClientsMap[id] = {
         ...mergedClientsMap[id],
         name: r.client_name || r.name || mergedClientsMap[id].name,
-        externalClientId: r.external_client_id || mergedClientsMap[id].externalClientId,
-        numericId: r.id || r.clientId || r.client_id || mergedClientsMap[id].numericId,
+        externalClientId: extId || mergedClientsMap[id].externalClientId,
+        numericId: numId || mergedClientsMap[id].numericId,
         country: r.country || mergedClientsMap[id].country,
         registrationDate: r.registration_date || mergedClientsMap[id].registrationDate,
         programName: r.program_name || mergedClientsMap[id].programName,
@@ -81,11 +87,13 @@ export async function GET() {
       const id = getCleanId(i);
       if (!id) return;
       if (!mergedClientsMap[id]) mergedClientsMap[id] = { id };
+      const extId = i.external_client_id || i.externalClientId;
+      const numId = i.id || i.clientId || i.client_id;
       mergedClientsMap[id] = {
         ...mergedClientsMap[id],
         name: i.client_name || i.name || mergedClientsMap[id].name,
-        externalClientId: i.external_client_id || mergedClientsMap[id].externalClientId,
-        numericId: i.id || i.clientId || i.client_id || mergedClientsMap[id].numericId,
+        externalClientId: extId || mergedClientsMap[id].externalClientId,
+        numericId: numId || mergedClientsMap[id].numericId,
         country: i.country || mergedClientsMap[id].country,
         registrationDate: i.registration_date || mergedClientsMap[id].registrationDate,
         totalBalance: i.total_balance,

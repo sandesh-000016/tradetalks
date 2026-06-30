@@ -231,6 +231,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                   <th className="px-6 py-4 font-medium">Trader</th>
                   <th className="px-6 py-4 font-medium text-center">Badges</th>
                   <th className="px-6 py-4 font-medium text-right">Current Balance</th>
+                  <th className="px-6 py-4 font-medium text-right">Net Deposit</th>
                   <th className="px-6 py-4 font-medium text-right">Profit %</th>
                   <th className="px-6 py-4"></th>
                 </tr>
@@ -239,7 +240,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 {error ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-6 py-20 text-center text-rose-400"
                     >
                       {error}
@@ -248,7 +249,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 ) : isLoading ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-6 py-20 text-center text-slate-500"
                     >
                       <div className="flex flex-col items-center justify-center">
@@ -260,7 +261,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 ) : paginatedData.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-6 py-20 text-center text-slate-500 font-medium"
                     >
                       No traders found matching your criteria.
@@ -340,6 +341,9 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
                         ${(trader.totalBalance ?? 0).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
+                        ${(trader.mtNetDeposits ?? 0).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <span className={`font-display font-bold ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
@@ -469,9 +473,29 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                       <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                     )}
                   </h2>
-                  <p className="text-brand-400 text-sm">
+                  <p className="text-brand-400 text-sm mb-3">
                     {selectedTrader.title ?? "Trader"}
                   </p>
+
+                  {/* Badges Display */}
+                  {selectedTrader.earnedBadges && selectedTrader.earnedBadges.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {selectedTrader.earnedBadges.map((badgeName, idx) => {
+                        const badge = BADGE_DETAILS[badgeName];
+                        if (!badge) return null;
+                        return (
+                          <div
+                            key={idx}
+                            title={`${badgeName}: ${badge.desc}`}
+                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 transition-colors"
+                          >
+                            <span className="w-4 h-4 flex items-center justify-center shrink-0">{badge.icon}</span>
+                            <span className="font-medium">{badgeName}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-8">
@@ -518,8 +542,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                       <span className="text-white font-medium">${selectedTrader.totalEquity?.toFixed(2) ?? "0.00"}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-xs">Settled Rebates</span>
-                      <span className="text-emerald-400 font-medium">${selectedTrader.settledRebates?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-slate-500 block text-xs">Net Deposit</span>
+                      <span className="text-white font-medium">${selectedTrader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
                     </div>
                   </div>
                 </div>

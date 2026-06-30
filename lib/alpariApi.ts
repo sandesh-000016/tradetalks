@@ -178,64 +178,72 @@ export async function getIntegratedLeaderboard(
     insights = insRes;
   }
 
+  const getClientKey = (item: any): string => {
+    const numId = item.id || item.clientId || item.client_id;
+    if (numId) return String(numId);
+    const extId = item.external_client_id || item.externalClientId;
+    if (extId) return String(extId);
+    return "";
+  };
+
   const mergedMap: Record<string, any> = {};
 
   // Populate from Performance API
   performances.forEach((p) => {
-    const extId = p.external_client_id;
-    const numId = p.id || p.clientId || p.client_id;
-    const id = extId || String(numId); // prefer external_client_id as key
-    if (!id) return;
-    if (!mergedMap[id]) {
-      mergedMap[id] = { id };
+    const key = getClientKey(p);
+    if (!key) return;
+    if (!mergedMap[key]) {
+      mergedMap[key] = { id: key };
     }
-    mergedMap[id].external_client_id = extId || mergedMap[id].external_client_id;
-    mergedMap[id].numeric_id = numId || mergedMap[id].numeric_id;
-    mergedMap[id].client_name = p.client_name || p.name || mergedMap[id].client_name;
-    mergedMap[id].country = p.country || mergedMap[id].country;
-    mergedMap[id].registration_date = p.registration_date || mergedMap[id].registration_date;
-    mergedMap[id].mt_net_deposits = Number(p.mt_net_deposits ?? 0);
-    mergedMap[id].settled_rebates = Number(p.settled_rebates ?? 0);
-    mergedMap[id].volume = Number(p.volume ?? 0);
-    mergedMap[id].unsettled_volume = Number(p.unsettled_volume ?? 0);
-    mergedMap[id].turnover = Number(p.turnover ?? 0);
+    const extId = p.external_client_id || p.externalClientId;
+    const numId = p.id || p.clientId || p.client_id;
+    if (extId) mergedMap[key].external_client_id = extId;
+    if (numId) mergedMap[key].numeric_id = numId;
+    mergedMap[key].client_name = p.client_name || p.name || mergedMap[key].client_name;
+    mergedMap[key].country = p.country || mergedMap[key].country;
+    mergedMap[key].registration_date = p.registration_date || mergedMap[key].registration_date;
+    mergedMap[key].mt_net_deposits = Number(p.mt_net_deposits ?? 0);
+    mergedMap[key].settled_rebates = Number(p.settled_rebates ?? 0);
+    mergedMap[key].volume = Number(p.volume ?? 0);
+    mergedMap[key].unsettled_volume = Number(p.unsettled_volume ?? 0);
+    mergedMap[key].turnover = Number(p.turnover ?? 0);
   });
 
   // Populate from Referrals API
   referrals.forEach((r) => {
-    const extId = r.external_client_id;
-    const numId = r.id || r.clientId || r.client_id;
-    const id = extId || String(numId);
-    if (!id) return;
-    if (!mergedMap[id]) {
-      mergedMap[id] = { id };
+    const key = getClientKey(r);
+    if (!key) return;
+    if (!mergedMap[key]) {
+      mergedMap[key] = { id: key };
     }
-    mergedMap[id].external_client_id = extId || mergedMap[id].external_client_id;
-    mergedMap[id].numeric_id = numId || mergedMap[id].numeric_id;
-    mergedMap[id].client_name = r.client_name || r.name || mergedMap[id].client_name;
-    mergedMap[id].country = r.country || mergedMap[id].country;
-    mergedMap[id].registration_date = r.registration_date || mergedMap[id].registration_date;
-    if (r.program_name) mergedMap[id].program_name = r.program_name;
+    const extId = r.external_client_id || r.externalClientId;
+    const numId = r.id || r.clientId || r.client_id;
+    if (extId) mergedMap[key].external_client_id = extId;
+    if (numId) mergedMap[key].numeric_id = numId;
+    mergedMap[key].client_name = r.client_name || r.name || mergedMap[key].client_name;
+    mergedMap[key].country = r.country || mergedMap[key].country;
+    mergedMap[key].registration_date = r.registration_date || mergedMap[key].registration_date;
+    if (r.program_name) mergedMap[key].program_name = r.program_name;
   });
 
   // Populate from Insights API
   insights.forEach((i) => {
-    const extId = i.external_client_id;
-    const numId = i.id || i.clientId || i.client_id;
-    const id = extId || String(numId);
-    if (!id) return;
-    if (!mergedMap[id]) {
-      mergedMap[id] = { id };
+    const key = getClientKey(i);
+    if (!key) return;
+    if (!mergedMap[key]) {
+      mergedMap[key] = { id: key };
     }
-    mergedMap[id].external_client_id = extId || mergedMap[id].external_client_id;
-    mergedMap[id].numeric_id = numId || mergedMap[id].numeric_id;
-    mergedMap[id].client_name = i.client_name || i.name || mergedMap[id].client_name;
-    mergedMap[id].country = i.country || mergedMap[id].country;
-    mergedMap[id].registration_date = i.registration_date || mergedMap[id].registration_date;
-    mergedMap[id].total_balance = Number(i.total_balance ?? 0);
-    mergedMap[id].total_equity = Number(i.total_equity ?? 0);
-    if (i.settled_rebates) mergedMap[id].settled_rebates = Number(i.settled_rebates);
-    mergedMap[id].unsettled_rebates = Number(i.unsettled_rebates ?? 0);
+    const extId = i.external_client_id || i.externalClientId;
+    const numId = i.id || i.clientId || i.client_id;
+    if (extId) mergedMap[key].external_client_id = extId;
+    if (numId) mergedMap[key].numeric_id = numId;
+    mergedMap[key].client_name = i.client_name || i.name || mergedMap[key].client_name;
+    mergedMap[key].country = i.country || mergedMap[key].country;
+    mergedMap[key].registration_date = i.registration_date || mergedMap[key].registration_date;
+    mergedMap[key].total_balance = Number(i.total_balance ?? 0);
+    mergedMap[key].total_equity = Number(i.total_equity ?? 0);
+    if (i.settled_rebates) mergedMap[key].settled_rebates = Number(i.settled_rebates);
+    mergedMap[key].unsettled_rebates = Number(i.unsettled_rebates ?? 0);
   });
 
   // Convert map to list and compile real values
@@ -248,17 +256,36 @@ export async function getIntegratedLeaderboard(
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      return true;
+      // 2. Only traders with active metrics (Volume > 0, Settled/Unsettled Rebates > 0, Net Deposits > 100, Equity > 0, and Balance > 0) are considered.
+      const volume = Number(t.volume ?? 0);
+      const settledRebates = Number(t.settled_rebates ?? 0);
+      const unsettledRebates = Number(t.unsettled_rebates ?? 0);
+      const mtNetDeposits = Number(t.mt_net_deposits ?? 0);
+      const totalEquity = Number(t.total_equity ?? 0);
+      const totalBalance = Number(t.total_balance ?? 0);
+
+      const isActive = volume > 0 &&
+                       (settledRebates > 0 || unsettledRebates > 0) &&
+                       mtNetDeposits > 100 &&
+                       totalEquity > 0 &&
+                       totalBalance > 0;
+
+      return isActive;
     })
     .map((t: any) => {
     const volume = t.volume ?? 0;
     const settledRebates = t.settled_rebates ?? 0;
+    const unsettledRebates = t.unsettled_rebates ?? 0;
     const mtNetDeposits = t.mt_net_deposits ?? 0;
     const totalEquity = t.total_equity ?? 0;
     const totalBalance = t.total_balance ?? 0;
 
     // Check if the user is active (has traded or deposited)
-    const isActive = volume > 0 || settledRebates > 0 || mtNetDeposits > 0 || totalEquity > 0 || totalBalance > 0;
+    const isActive = volume > 0 &&
+                     (settledRebates > 0 || unsettledRebates > 0) &&
+                     mtNetDeposits > 100 &&
+                     totalEquity > 0 &&
+                     totalBalance > 0;
 
     // Calculate a realistic but deterministic profit
     // based on their actual trading metrics (so it remains consistent per user)
