@@ -19,8 +19,8 @@ interface CacheEntry {
 }
 
 const leaderboardCache: Record<string, CacheEntry> = {};
-const FRESH_TTL_MS = 15 * 60 * 1000;  // 15 min — served without revalidation
-const STALE_TTL_MS = 60 * 60 * 1000;  // 60 min — served stale while revalidating
+const FRESH_TTL_MS = 60 * 1000;  // 1 min — served without revalidation
+const STALE_TTL_MS = 5 * 60 * 1000;  // 5 min — served stale while revalidating
 
 // Track in-flight revalidations to avoid duplicate fetches
 const revalidating: Record<string, boolean> = {};

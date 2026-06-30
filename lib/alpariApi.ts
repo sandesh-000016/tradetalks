@@ -403,9 +403,9 @@ export const getCachedLeaderboard = unstable_cache(
   async (timeframe: "all" | "monthly" | "weekly" | "daily") => {
     return getIntegratedLeaderboard(timeframe);
   },
-  ["leaderboard-season-2-live"],
+  ["leaderboard-season-2-live-v4"],
   {
-    revalidate: 900, // Cache for 15 minutes
+    revalidate: 60, // Cache for 1 minute
     tags: ["leaderboard"],
   }
 );
