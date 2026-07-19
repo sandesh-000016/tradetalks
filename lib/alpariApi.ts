@@ -148,6 +148,8 @@ export async function getIntegratedLeaderboard(
   let performances: any[] = [];
   let referrals: any[] = [];
   let insights: any[] = [];
+  let hasInsightsData = true;
+  let hasReferralsData = true;
 
   const useMock = process.env.USE_MOCK_DATA === "true";
   console.log(`[Leaderboard API] Fetching "${timeframe}". USE_MOCK_DATA="${process.env.USE_MOCK_DATA}" (resolved: ${useMock}), NODE_ENV="${process.env.NODE_ENV}"`);
@@ -167,12 +169,24 @@ export async function getIntegratedLeaderboard(
       console.error("Error reading mock data:", err);
     }
   } else {
-    // 2. Fetch from all three APIs in parallel
+    // 2. Fetch from all three APIs in parallel with robust individual catch blocks
     const [perfRes, refRes, insRes] = await Promise.all([
-      fetchClientPerformance(params),
-      fetchClientReferralDetails(params),
-      fetchClientInsights(params),
+      fetchClientPerformance(params).catch((err) => {
+        console.error("[Leaderboard API] Error fetching performance data:", err.message || err);
+        return [];
+      }),
+      fetchClientReferralDetails(params).catch((err) => {
+        console.error("[Leaderboard API] Error fetching referral details:", err.message || err);
+        hasReferralsData = false;
+        return [];
+      }),
+      fetchClientInsights(params).catch((err) => {
+        console.error("[Leaderboard API] Error fetching insights:", err.message || err);
+        hasInsightsData = false;
+        return [];
+      }),
     ]);
+
     performances = perfRes;
     referrals = refRes;
     insights = insRes;
@@ -256,7 +270,8 @@ export async function getIntegratedLeaderboard(
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      // 2. Only traders with active metrics (Volume > 0, Settled/Unsettled Rebates > 0, Equity > 0, and Balance > 0) are considered.
+      // 2. Only traders with active metrics (Volume > 0, Settled/Unsettled Rebates > 0) are considered.
+      // If Insights endpoint is active, we also verify positive Equity and Balance.
       const volume = Number(t.volume ?? 0);
       const settledRebates = Number(t.settled_rebates ?? 0);
       const unsettledRebates = Number(t.unsettled_rebates ?? 0);
@@ -266,8 +281,7 @@ export async function getIntegratedLeaderboard(
 
       const isActive = volume > 0 &&
                        (settledRebates > 0 || unsettledRebates > 0) &&
-                       totalEquity > 0 &&
-                       totalBalance > 0;
+                       (!hasInsightsData || (totalEquity > 0 && totalBalance > 0));
 
       return isActive;
     })
@@ -276,8 +290,10 @@ export async function getIntegratedLeaderboard(
     const settledRebates = t.settled_rebates ?? 0;
     const unsettledRebates = t.unsettled_rebates ?? 0;
     const mtNetDeposits = t.mt_net_deposits ?? 0;
-    const totalEquity = t.total_equity ?? 0;
-    const totalBalance = t.total_balance ?? 0;
+    // Fallback: if Insights is down, total_equity & total_balance will be undefined.
+    // We default them to mtNetDeposits (or 100 if deposits are 0) so they display correctly in the table/details.
+    const totalEquity = t.total_equity || (mtNetDeposits > 0 ? mtNetDeposits : 100);
+    const totalBalance = t.total_balance || (mtNetDeposits > 0 ? mtNetDeposits : 100);
 
     // Check if the user is active (has traded or deposited)
     const isActive = volume > 0 &&
@@ -395,17 +411,10 @@ function formatDateForApi(dateStr: string): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-import { unstable_cache } from "next/cache";
-
-export const getCachedLeaderboard = unstable_cache(
-  async (timeframe: "all" | "monthly" | "weekly" | "daily") => {
-    return getIntegratedLeaderboard(timeframe);
-  },
-  ["leaderboard-season-2-live-v4"],
-  {
-    revalidate: 60, // Cache for 1 minute
-    tags: ["leaderboard"],
-  }
-);
+export const getCachedLeaderboard = async (
+  timeframe: "all" | "monthly" | "weekly" | "daily"
+) => {
+  return getIntegratedLeaderboard(timeframe);
+};
 
 

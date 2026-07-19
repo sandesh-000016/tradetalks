@@ -6,6 +6,51 @@ const API_BASE = "https://api.alpariportal.com";
 const PRIVATE_TOKEN = "03764376-ec54-4a11-94aa-7c63d39d1f2f";
 const PARTNER_ID = 417398;
 
+async function fetchEndpoint(name, url, params) {
+  console.log(`\n--- Fetching ${name} from ${url} ---`);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Private-Token": PRIVATE_TOKEN,
+      },
+      body: JSON.stringify(params),
+    });
+
+    console.log(`Status: ${res.status} ${res.statusText}`);
+    const contentType = res.headers.get("content-type") || "";
+    console.log(`Content-Type: ${contentType}`);
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      console.error(`Error: Response was not OK (status ${res.status})`);
+      console.error(`Body snippet: ${text.substring(0, 500)}`);
+      return null;
+    }
+
+    if (!contentType.includes("application/json")) {
+      console.error(`Error: Content-type is not JSON!`);
+      console.error(`Body snippet: ${text.substring(0, 500)}`);
+      return null;
+    }
+
+    try {
+      const data = JSON.parse(text);
+      console.log(`Successfully parsed JSON. Item count: ${Array.isArray(data) ? data.length : (data.Data || data.data || data.clients || []).length || 'unknown'}`);
+      return data;
+    } catch (e) {
+      console.error(`JSON Parse Error: ${e.message}`);
+      console.error(`Body snippet: ${text.substring(0, 500)}`);
+      return null;
+    }
+  } catch (err) {
+    console.error(`Fetch exception for ${name}: ${err.message}`);
+    return null;
+  }
+}
+
 async function checkApi() {
   const params = {
     RegistrationFromDate: "01/01/2026",
@@ -13,41 +58,18 @@ async function checkApi() {
     DirectPartner: PARTNER_ID,
   };
 
-  console.log("Fetching performance data...");
-  const perfRes = await fetch(`${API_BASE}/v1/External/client/performance`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Private-Token": PRIVATE_TOKEN,
-    },
-    body: JSON.stringify(params),
-  });
-  const perfData = await perfRes.json();
-  const performances = Array.isArray(perfData) ? perfData : (perfData.Data || perfData.data || perfData.clients || []);
+  const perfData = await fetchEndpoint("Performance Data", `${API_BASE}/v1/External/client/performance`, params);
+  const refData = await fetchEndpoint("Referral Details", `${API_BASE}/v1/External/client/referral_details`, params);
+  const insData = await fetchEndpoint("Insights", `${API_BASE}/v1/External/client/insights`, params);
 
-  console.log("Fetching referral details...");
-  const refRes = await fetch(`${API_BASE}/v1/External/client/referral_details`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Private-Token": PRIVATE_TOKEN,
-    },
-    body: JSON.stringify(params),
-  });
-  const refData = await refRes.json();
-  const referrals = Array.isArray(refData) ? refData : (refData.Data || refData.data || refData.clients || []);
+  const performances = perfData ? (Array.isArray(perfData) ? perfData : (perfData.Data || perfData.data || perfData.clients || [])) : [];
+  const referrals = refData ? (Array.isArray(refData) ? refData : (refData.Data || refData.data || refData.clients || [])) : [];
+  const insights = insData ? (Array.isArray(insData) ? insData : (insData.Data || insData.data || insData.clients || [])) : [];
 
-  console.log("Fetching insights...");
-  const insRes = await fetch(`${API_BASE}/v1/External/client/insights`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Private-Token": PRIVATE_TOKEN,
-    },
-    body: JSON.stringify(params),
-  });
-  const insData = await insRes.json();
-  const insights = Array.isArray(insData) ? insData : (insData.Data || insData.data || insData.clients || []);
+  console.log(`\n--- Summary of Fetched Data ---`);
+  console.log(`Performance records: ${performances.length}`);
+  console.log(`Referral records: ${referrals.length}`);
+  console.log(`Insights records: ${insights.length}`);
 
   const getClientKey = (item) => {
     const extId = item.external_client_id || item.externalClientId;
@@ -58,6 +80,8 @@ async function checkApi() {
   };
 
   const mergedClientsMap = {};
+
+  const outputFilePath = path.join(process.cwd(), "live_api_results.json");
 
   performances.forEach((p) => {
     const key = getClientKey(p);
@@ -123,9 +147,12 @@ async function checkApi() {
 
   const mergedList = Object.values(mergedClientsMap);
 
-  const outputFilePath = path.join(process.cwd(), "live_api_results.json");
-  fs.writeFileSync(outputFilePath, JSON.stringify(mergedList, null, 2), "utf8");
-  console.log(`Successfully wrote ${mergedList.length} unique client records to ${outputFilePath}`);
+  if (mergedList.length > 0) {
+    fs.writeFileSync(outputFilePath, JSON.stringify(mergedList, null, 2), "utf8");
+    console.log(`Successfully wrote ${mergedList.length} unique client records to ${outputFilePath}`);
+  } else {
+    console.log("No data was successfully fetched, skipping writing live_api_results.json to preserve existing file.");
+  }
 }
 
 checkApi().catch(console.error);
