@@ -3,6 +3,8 @@
  * Keeps Private-Token secure by running on the server side.
  */
 
+import clientPromise from "./mongodb";
+
 export interface AlpariApiParams {
   RegistrationFromDate: string;
   RegistrationToDate: string;
@@ -107,8 +109,8 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
 export async function getIntegratedLeaderboard(
   timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly"
 ): Promise<any[]> {
-  // 1. Always use the full challenge season range (Jan to Dec) to show all data
-  const SEASON_START_DATE = "2026-01-01"; // Challenge season starts from Jan 1, 2026
+  // 1. Always use the custom season range starting from July 23, 2026
+  const SEASON_START_DATE = "2026-07-23"; // Challenge season starts from July 23, 2026
   const SEASON_END_DATE = "2026-12-30";   // Challenge season ends on Dec 30, 2026
   const fromDate = SEASON_START_DATE; 
   const customToDate = SEASON_END_DATE;
@@ -177,6 +179,19 @@ export async function getIntegratedLeaderboard(
 
   const mergedMap: Record<string, any> = {};
 
+  // Load local deposit overrides if file exists (allows manual correction of API's 0 net deposits)
+  let depositOverrides: Record<string, number> = {};
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const overridesPath = path.join(process.cwd(), "deposits_overrides.json");
+    if (fs.existsSync(overridesPath)) {
+      depositOverrides = JSON.parse(fs.readFileSync(overridesPath, "utf8"));
+    }
+  } catch (err) {
+    console.error("[Leaderboard API] Error reading deposits_overrides.json:", err);
+  }
+
   // Populate from Performance API
   performances.forEach((p) => {
     const key = getClientKey(p);
@@ -191,7 +206,27 @@ export async function getIntegratedLeaderboard(
     mergedMap[key].client_name = p.client_name || p.name || mergedMap[key].client_name;
     mergedMap[key].country = p.country || mergedMap[key].country;
     mergedMap[key].registration_date = p.registration_date || mergedMap[key].registration_date;
-    mergedMap[key].mt_net_deposits = Number(p.mt_net_deposits ?? 0);
+    
+    // Check local overrides map for manually corrected net deposits
+    let netDeposit = Number(p.mt_net_deposits ?? 0);
+    let hasOverride = false;
+    if (extId && depositOverrides[extId] !== undefined) {
+      netDeposit = Number(depositOverrides[extId]);
+      hasOverride = true;
+    } else if (numId && depositOverrides[String(numId)] !== undefined) {
+      netDeposit = Number(depositOverrides[String(numId)]);
+      hasOverride = true;
+    } else if (key && depositOverrides[key] !== undefined) {
+      netDeposit = Number(depositOverrides[key]);
+      hasOverride = true;
+    }
+
+    // Default to 100 if API is 0 and no overrides are specified
+    if (netDeposit === 0 && !hasOverride) {
+      netDeposit = 100;
+    }
+
+    mergedMap[key].mt_net_deposits = netDeposit;
     mergedMap[key].settled_rebates = Number(p.settled_rebates ?? 0);
     mergedMap[key].volume = Number(p.volume ?? 0);
     mergedMap[key].unsettled_volume = Number(p.unsettled_volume ?? 0);
@@ -235,17 +270,126 @@ export async function getIntegratedLeaderboard(
     mergedMap[key].unsettled_rebates = Number(i.unsettled_rebates ?? 0);
   });
 
+  // 1. Sync data with MongoDB if MONGODB_URI is provided
+  let useDb = false;
+  let mongoClient = null;
+
+  if (clientPromise) {
+    try {
+      mongoClient = await clientPromise;
+      useDb = true;
+    } catch (err) {
+      console.error("[Leaderboard API] Failed to connect to MongoDB, running without DB synchronization:", err);
+    }
+  }
+
+  if (useDb && mongoClient) {
+    try {
+      const db = mongoClient.db("tradetalks");
+      const tradersCol = db.collection("traders");
+      
+      // Fetch current database state
+      const dbList = await tradersCol.find({}).toArray();
+      const dbMap = new Map(dbList.map((d: any) => [d.clientId || d._id, d]));
+      
+      const bulkOps: any[] = [];
+      
+      for (const key of Object.keys(mergedMap)) {
+        const trader = mergedMap[key];
+        const clientId = trader.external_client_id || key;
+        const dbTrader = dbMap.get(clientId);
+        
+        const apiBalance = trader.total_balance ?? 0;
+        const apiEquity = trader.total_equity ?? 0;
+        const apiDepositDate = trader.last_deposit_date || null;
+        const volume = trader.volume ?? 0;
+        
+        let totalNetDeposits = 100;
+        let isWashedOut = false;
+        
+        if (!dbTrader) {
+          // New trader: if no volume yet, balance is the initial deposit
+          if (volume === 0 && apiBalance > 0) {
+            totalNetDeposits = apiBalance;
+          } else {
+            totalNetDeposits = 100;
+          }
+          isWashedOut = apiEquity <= 1.00;
+        } else {
+          // Existing trader
+          totalNetDeposits = dbTrader.totalNetDeposits ?? 100;
+          isWashedOut = dbTrader.isWashedOut || (apiEquity <= 1.00);
+          
+          // Detect new deposit
+          if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
+            const depositDiff = apiBalance - (dbTrader.lastRecordedBalance ?? 0);
+            if (depositDiff > 0) {
+              totalNetDeposits += depositDiff;
+            }
+          }
+        }
+        
+        // Priority: local json file overrides (if defined, they win)
+        let netDeposit = totalNetDeposits;
+        const extId = trader.external_client_id;
+        const numId = trader.numeric_id;
+        
+        if (extId && depositOverrides[extId] !== undefined) {
+          netDeposit = Number(depositOverrides[extId]);
+        } else if (numId && depositOverrides[String(numId)] !== undefined) {
+          netDeposit = Number(depositOverrides[String(numId)]);
+        } else if (key && depositOverrides[key] !== undefined) {
+          netDeposit = Number(depositOverrides[key]);
+        }
+        
+        trader.mt_net_deposits = netDeposit;
+        trader.is_washed_out = isWashedOut;
+        
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: clientId },
+            update: {
+              $set: {
+                clientId,
+                numericId: Number(numId ?? 0),
+                clientName: trader.client_name || "",
+                totalNetDeposits: netDeposit,
+                lastRecordedBalance: apiBalance,
+                lastDepositDate: apiDepositDate,
+                isWashedOut,
+                lastUpdated: new Date()
+              }
+            },
+            upsert: true
+          }
+        });
+      }
+      
+      if (bulkOps.length > 0) {
+        await tradersCol.bulkWrite(bulkOps);
+      }
+    } catch (dbErr) {
+      console.error("[Leaderboard API] MongoDB synchronization error:", dbErr);
+    }
+  }
+
   // Convert map to list and compile real values
   let tradersList = Object.values(mergedMap)
     .filter((t: any) => {
-      // 1. Must be registered within the season: January 1, 2026 to December 30, 2026
+      // 1. Must be registered within the season: July 23, 2026 to December 30, 2026
       if (!t.registration_date) return false;
       const regDate = new Date(t.registration_date);
-      const cutoffDate = new Date("2025-12-31T23:59:59");
+      const cutoffDate = new Date("2026-07-22T23:59:59");
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      // 2. All activity metric filters (Volume, Rebates, Balance, Equity checks) have been removed
+      // 2. Washout Filter: If a trader is washed out, they are disqualified and out of the leaderboard
+      if (t.is_washed_out) return false;
+
+      // 3. Minimum Deposit Filter: Must have deposited at least $100
+      if ((t.mt_net_deposits ?? 0) < 100) return false;
+
+      // 4. All activity metric filters (Volume, Rebates, Balance, Equity checks) have been removed
       // to display all registered traders from Jan to Dec.
       return true;
     })
