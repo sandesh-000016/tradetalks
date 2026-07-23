@@ -107,36 +107,11 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
 export async function getIntegratedLeaderboard(
   timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly"
 ): Promise<any[]> {
-  // 1. Calculate dynamic date ranges based on timeframe
-  const now = new Date();
-  const toDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
-  
+  // 1. Always use the full challenge season range (Jan to Dec) to show all data
   const SEASON_START_DATE = "2026-01-01"; // Challenge season starts from Jan 1, 2026
   const SEASON_END_DATE = "2026-12-30";   // Challenge season ends on Dec 30, 2026
-  let fromDate = SEASON_START_DATE; 
-  let customToDate = SEASON_END_DATE;
-
-  if (timeframe === "all") {
-    fromDate = SEASON_START_DATE;
-    customToDate = SEASON_END_DATE;
-  } else if (timeframe === "daily") {
-    const date = new Date();
-    date.setDate(now.getDate() - 1);
-    fromDate = date.toISOString().split("T")[0];
-  } else if (timeframe === "weekly") {
-    const date = new Date();
-    date.setDate(now.getDate() - 7);
-    fromDate = date.toISOString().split("T")[0];
-  } else if (timeframe === "monthly") {
-    const date = new Date();
-    date.setDate(now.getDate() - 30);
-    fromDate = date.toISOString().split("T")[0];
-  }
-
-  // Enforce that fromDate is never earlier than the start of the season
-  if (fromDate < SEASON_START_DATE) {
-    fromDate = SEASON_START_DATE;
-  }
+  const fromDate = SEASON_START_DATE; 
+  const customToDate = SEASON_END_DATE;
 
   const params: AlpariApiParams = {
     RegistrationFromDate: formatDateForApi(fromDate),
@@ -270,20 +245,9 @@ export async function getIntegratedLeaderboard(
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      // 2. Only traders with active metrics (Volume > 0, Settled/Unsettled Rebates > 0) are considered.
-      // If Insights endpoint is active, we also verify positive Equity and Balance.
-      const volume = Number(t.volume ?? 0);
-      const settledRebates = Number(t.settled_rebates ?? 0);
-      const unsettledRebates = Number(t.unsettled_rebates ?? 0);
-      const mtNetDeposits = Number(t.mt_net_deposits ?? 0);
-      const totalEquity = Number(t.total_equity ?? 0);
-      const totalBalance = Number(t.total_balance ?? 0);
-
-      const isActive = volume > 0 &&
-                       (settledRebates > 0 || unsettledRebates > 0) &&
-                       (!hasInsightsData || (totalEquity > 0 && totalBalance > 0));
-
-      return isActive;
+      // 2. All activity metric filters (Volume, Rebates, Balance, Equity checks) have been removed
+      // to display all registered traders from Jan to Dec.
+      return true;
     })
     .map((t: any) => {
     const volume = t.volume ?? 0;
