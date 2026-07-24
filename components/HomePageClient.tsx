@@ -41,69 +41,6 @@ import {
   BestRiskManagerBadge
 } from "@/components/BadgeIcons";
 
-// Hardcoded fallback data in case the API is empty or fails
-const fallbackTraders: Trader[] = [
-  {
-    id: "fallback-1",
-    rank: 1,
-    name: "Alex Trader",
-    title: "Elite Trader",
-    profit: 32.45,
-    volume: 15.00,
-    mtNetDeposits: 500,
-    totalBalance: 662.25,
-    status: "online",
-    country: "India",
-  },
-  {
-    id: "fallback-2",
-    rank: 2,
-    name: "Sophia FX",
-    title: "Elite Trader",
-    profit: 28.17,
-    volume: 12.50,
-    mtNetDeposits: 400,
-    totalBalance: 512.68,
-    status: "online",
-    country: "United Kingdom",
-  },
-  {
-    id: "fallback-3",
-    rank: 3,
-    name: "Trader Max",
-    title: "Pro Trader",
-    profit: 24.38,
-    volume: 8.40,
-    mtNetDeposits: 300,
-    totalBalance: 373.14,
-    status: "offline",
-    country: "United States",
-  },
-  {
-    id: "fallback-4",
-    rank: 4,
-    name: "Nina Pro",
-    title: "Pro Trader",
-    profit: 21.09,
-    volume: 6.80,
-    mtNetDeposits: 250,
-    totalBalance: 302.73,
-    status: "online",
-    country: "Canada",
-  },
-  {
-    id: "fallback-5",
-    rank: 5,
-    name: "Jay Capital",
-    title: "Rising Star",
-    profit: 18.76,
-    volume: 4.50,
-    mtNetDeposits: 200,
-    totalBalance: 237.52,
-    status: "offline",
-    country: "Germany",
-  }
-];
 
 // Challenge Rules Data
 const challengeRules = [
@@ -241,9 +178,9 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
     }
   };
 
-  // Use server-loaded data or fallback if empty
+  // Use server-loaded data or empty if none
   const topTraders = React.useMemo(() => {
-    const list = initialTraders && initialTraders.length > 0 ? initialTraders : fallbackTraders;
+    const list = initialTraders && initialTraders.length > 0 ? initialTraders : [];
     return list
       .map((trader, index) => {
         let calculatedTitle = trader.title;
@@ -473,85 +410,93 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
           </div>
 
           {/* Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-            {topTraders.map((trader, idx) => (
-              <motion.div
-                key={trader.id}
-                variants={itemVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.15 }}
-                className={`glass-panel p-6 rounded-2xl relative overflow-hidden group transition-all duration-300 flex flex-col justify-between border backdrop-blur-md ${trader.rank === 1 ? "border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-amber-400/80 hover:shadow-[0_0_25px_rgba(245,158,11,0.35)] hover:bg-amber-950/5" :
-                    trader.rank === 2 ? "border-slate-400/30 shadow-[0_0_15px_rgba(148,163,184,0.15)] hover:border-slate-300/80 hover:shadow-[0_0_25px_rgba(148,163,184,0.35)] hover:bg-slate-900/10" :
-                      trader.rank === 3 ? "border-amber-700/30 shadow-[0_0_15px_rgba(180,83,9,0.15)] hover:border-amber-600/80 hover:shadow-[0_0_25px_rgba(180,83,9,0.35)] hover:bg-amber-950/5" :
-                        "border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.1)] hover:border-violet-400/70 hover:shadow-[0_0_25px_rgba(139,92,246,0.3)] hover:bg-violet-950/5"
-                  }`}
-              >
-                {/* Card Subtle Top Color Bar */}
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${trader.rank === 1 ? "from-amber-400 to-yellow-500" :
-                    trader.rank === 2 ? "from-slate-300 to-slate-400" :
-                      trader.rank === 3 ? "from-amber-700 to-amber-800" :
-                        "from-slate-800 to-slate-700"
-                  }`}></div>
+          {topTraders.length === 0 ? (
+            <div className="py-16 text-center text-slate-500 font-medium bg-slate-900/10 border border-slate-900/40 rounded-3xl backdrop-blur-sm">
+              <Trophy className="w-12 h-12 text-slate-700 mx-auto mb-4" />
+              <p className="text-base text-slate-400">No active traders ranked this month yet.</p>
+              <p className="text-xs text-slate-600 mt-1">Be the first to join the challenge and claim the top rank!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+              {topTraders.map((trader, idx) => (
+                <motion.div
+                  key={trader.id}
+                  variants={itemVariants}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, amount: 0.15 }}
+                  className={`glass-panel p-6 rounded-2xl relative overflow-hidden group transition-all duration-300 flex flex-col justify-between border backdrop-blur-md ${trader.rank === 1 ? "border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-amber-400/80 hover:shadow-[0_0_25px_rgba(245,158,11,0.35)] hover:bg-amber-950/5" :
+                      trader.rank === 2 ? "border-slate-400/30 shadow-[0_0_15px_rgba(148,163,184,0.15)] hover:border-slate-300/80 hover:shadow-[0_0_25px_rgba(148,163,184,0.35)] hover:bg-slate-900/10" :
+                        trader.rank === 3 ? "border-amber-700/30 shadow-[0_0_15px_rgba(180,83,9,0.15)] hover:border-amber-600/80 hover:shadow-[0_0_25px_rgba(180,83,9,0.35)] hover:bg-amber-950/5" :
+                          "border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.1)] hover:border-violet-400/70 hover:shadow-[0_0_25px_rgba(139,92,246,0.3)] hover:bg-violet-950/5"
+                    }`}
+                >
+                  {/* Card Subtle Top Color Bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${trader.rank === 1 ? "from-amber-400 to-yellow-500" :
+                      trader.rank === 2 ? "from-slate-300 to-slate-400" :
+                        trader.rank === 3 ? "from-amber-700 to-amber-800" :
+                          "from-slate-800 to-slate-700"
+                    }`}></div>
 
-                <div>
-                  {/* Top Row: Rank */}
-                  <div className="flex justify-between items-center mb-6">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-display font-black text-sm border ${trader.rank === 1 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
-                        trader.rank === 2 ? "bg-slate-300/10 border-slate-300/30 text-slate-300" :
-                          trader.rank === 3 ? "bg-amber-700/10 border-amber-700/30 text-amber-600" :
-                            "bg-slate-800/50 border-slate-700/50 text-slate-400"
-                      }`}>
-                      {trader.rank === 1 ? "1st" : trader.rank === 2 ? "2nd" : trader.rank === 3 ? "3rd" : trader.rank}
-                    </div>
-                  </div>
-
-                  {/* Trader Core Info */}
-                  <div className="flex flex-col items-center text-center mb-6">
-                    <div className="relative mb-3">
-                      <div className="w-16 h-16 rounded-full bg-slate-800 overflow-hidden border-2 border-slate-700/80 group-hover:border-violet-500/50 transition-colors">
-                        <img
-                          src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name)}`}
-                          alt={trader.name}
-                          className="w-full h-full object-cover"
-                        />
+                  <div>
+                    {/* Top Row: Rank */}
+                    <div className="flex justify-between items-center mb-6">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-display font-black text-sm border ${trader.rank === 1 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
+                          trader.rank === 2 ? "bg-slate-300/10 border-slate-300/30 text-slate-300" :
+                            trader.rank === 3 ? "bg-amber-700/10 border-amber-700/30 text-amber-600" :
+                              "bg-slate-800/50 border-slate-700/50 text-slate-400"
+                        }`}>
+                        {trader.rank === 1 ? "1st" : trader.rank === 2 ? "2nd" : trader.rank === 3 ? "3rd" : trader.rank}
                       </div>
-                      {trader.status === "online" && (
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#050814] rounded-full"></div>
-                      )}
                     </div>
-                    <h4 className="font-bold text-white font-display text-base tracking-wide group-hover:text-violet-300 transition-colors truncate w-full px-2" title={trader.name}>
-                      {trader.name}
-                    </h4>
-                    <p className="text-xs text-slate-400 mt-1 font-medium bg-slate-900/80 px-2.5 py-0.5 rounded-full border border-slate-800">
-                      {trader.title}
-                    </p>
-                  </div>
-                </div>
 
-                {/* Profit Metric & Details */}
-                <div className="pt-4 border-t border-slate-900/60 mt-auto space-y-3">
-                  <div className="text-center">
-                    <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-0.5">Profit</div>
-                    <div className={`text-xl font-display font-black ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
+                    {/* Trader Core Info */}
+                    <div className="flex flex-col items-center text-center mb-6">
+                      <div className="relative mb-3">
+                        <div className="w-16 h-16 rounded-full bg-slate-800 overflow-hidden border-2 border-slate-700/80 group-hover:border-violet-500/50 transition-colors">
+                          <img
+                            src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name)}`}
+                            alt={trader.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        {trader.status === "online" && (
+                          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#050814] rounded-full"></div>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-white font-display text-base tracking-wide group-hover:text-violet-300 transition-colors truncate w-full px-2" title={trader.name}>
+                        {trader.name}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1 font-medium bg-slate-900/80 px-2.5 py-0.5 rounded-full border border-slate-800">
+                        {trader.title}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 bg-slate-900/40 p-2 rounded-lg border border-slate-900/50 text-center font-medium">
-                    <div>
-                      <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Volume</span>
-                      <span className="text-slate-300">{(trader.volume ?? 0).toFixed(2)} Lots</span>
+                  {/* Profit Metric & Details */}
+                  <div className="pt-4 border-t border-slate-900/60 mt-auto space-y-3">
+                    <div className="text-center">
+                      <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-0.5">Profit</div>
+                      <div className={`text-xl font-display font-black ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
+                      </div>
                     </div>
-                    <div>
-                      <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Deposits</span>
-                      <span className="text-slate-300">${(trader.mtNetDeposits ?? 0).toFixed(2)}</span>
+
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 bg-slate-900/40 p-2 rounded-lg border border-slate-900/50 text-center font-medium">
+                      <div>
+                        <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Volume</span>
+                        <span className="text-slate-300">{(trader.volume ?? 0).toFixed(2)} Lots</span>
+                      </div>
+                      <div>
+                        <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Deposits</span>
+                        <span className="text-slate-300">${(trader.mtNetDeposits ?? 0).toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
 
           {/* Stats Bar */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-16 border-t border-slate-900 pt-16">
