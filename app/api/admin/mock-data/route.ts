@@ -4,6 +4,18 @@ import path from "path";
 
 const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
 
+// Helper to check authorization
+function isAuthorized(request: Request): boolean {
+  const authHeader = request.headers.get("authorization");
+  const token = process.env.ADMIN_TOKEN || process.env.ALPARI_PRIVATE_TOKEN;
+  
+  if (!token) {
+    console.error("[Admin API] Auth Token configuration missing.");
+    return false;
+  }
+  return authHeader === `Bearer ${token}`;
+}
+
 // Helper to get raw file content
 async function readMockData() {
   try {
@@ -19,8 +31,12 @@ async function saveMockData(data: any) {
   await fs.writeFile(mockFilePath, JSON.stringify(data, null, 2), "utf8");
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    if (!isAuthorized(request)) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const data = await readMockData();
     return NextResponse.json(data);
   } catch (error: any) {
@@ -33,6 +49,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    if (!isAuthorized(request)) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -65,3 +85,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

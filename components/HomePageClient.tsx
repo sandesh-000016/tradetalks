@@ -1207,7 +1207,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 {/* Play Button Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 group-hover:bg-slate-950/40 transition-colors">
                   <a
-                    href="https://www.youtube.com/playlist?list=PLm218z4JbA6E3B878d6S1DqSdf5b10oH_"
+                    href="https://www.youtube.com/playlist?list=PLVJieetYrKAw"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-xl shadow-red-600/30 hover:scale-110 active:scale-95 transition-all duration-300"
@@ -1226,7 +1226,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <a
-                  href="https://www.youtube.com/playlist?list=PLm218z4JbA6E3B878d6S1DqSdf5b10oH_"
+                  href="https://www.youtube.com/playlist?list=PLVJieetYrKAw"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-widest text-center shadow-lg shadow-red-650/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"

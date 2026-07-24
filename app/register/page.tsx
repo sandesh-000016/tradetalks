@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 
 const ALPARI_REFERRAL_URL = "https://alpari.com/en/?Referral=72725";
-const REGISTRATION_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSe5FB5CkkrPeVE0CTNhFWTRQ1MOnDWLvSBsn8lgKUMghzbCfA/viewform?usp=publish-editor";
 
 import {
   TopRankBadge,
@@ -89,7 +88,7 @@ function RegisterContent() {
   const [verifiedClient, setVerifiedClient] = React.useState<any>(null);
   const [referralChecked, setReferralChecked] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(1);
-  const [showPlaylistModal, setShowPlaylistModal] = React.useState(false);
+  const [selectedVideoId, setSelectedVideoId] = React.useState("lmtgjAD18nE");
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +118,6 @@ function RegisterContent() {
       if (data.success) {
         setSuccessMsg(`Welcome, ${data.client.name}! Your account balance of $${data.client.balance} has been successfully verified.`);
         setVerifiedClient(data.client);
-        setShowPlaylistModal(true);
       } else {
         setErrorMsg(data.error || "Verification failed. Check your Client ID.");
       }
@@ -152,16 +150,18 @@ function RegisterContent() {
         </div>
 
         {/* ── Step Indicator ── */}
-        <div className="flex items-center justify-center gap-4 sm:gap-8 mb-16">
+        <div className="flex items-center justify-center gap-3 md:gap-5 mb-16 flex-wrap">
           {[
             { num: 1, label: "Verify Account", sub: "Enter Client ID" },
-            { num: 2, label: "Fill Form", sub: "Google Form registration" },
-            { num: 3, label: "Rules & Rewards", sub: "Review requirements" },
+            { num: 2, label: "Submit Form", sub: "Google Form Details" },
+            { num: 3, label: "Complete Verification", sub: "Verification Success" },
+            { num: 4, label: "Challenge Rules", sub: "Rules & Conditions" },
+            { num: 5, label: "Forex Bootcamp", sub: "Educational Videos" },
           ].map((step, i) => {
             const isActive = currentStep === step.num;
             const isCompleted = currentStep > step.num;
             return (
-              <div key={step.num} className="flex items-center gap-4">
+              <div key={step.num} className="flex items-center gap-3 md:gap-5">
                 <div className="flex flex-col items-center text-center">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm mb-2 transition-all duration-300 ${
                     isActive 
@@ -172,14 +172,14 @@ function RegisterContent() {
                   }`}>
                     {isCompleted ? "✓" : step.num}
                   </div>
-                  <div className={`text-xs sm:text-sm font-semibold transition-colors ${
+                  <div className={`text-xs md:text-sm font-semibold transition-colors ${
                     isActive ? "text-violet-400 font-bold" : isCompleted ? "text-emerald-400" : "text-slate-500"
                   }`}>{step.label}</div>
                   <div className="text-[10px] text-slate-500 hidden sm:block">{step.sub}</div>
                 </div>
-                {i < 2 && (
-                  <div className={`w-12 sm:w-20 h-px mb-6 transition-colors duration-300 ${
-                    currentStep > step.num ? "bg-emerald-500" : "bg-slate-800"
+                {i < 4 && (
+                  <div className={`w-6 md:w-10 h-px mb-6 transition-colors duration-300 ${
+                    currentStep > step.num ? "bg-emerald-500" : "bg-slate-850"
                   }`}></div>
                 )}
               </div>
@@ -191,7 +191,7 @@ function RegisterContent() {
             STEP 1: Alpari Account Verification
         ═══════════════════════════════════════════════════════════════ */}
         {currentStep === 1 && (
-          <section className="glass-panel rounded-3xl p-8 md:p-10 mb-10 border border-slate-800">
+          <section className="glass-panel rounded-3xl p-8 md:p-10 mb-10 border border-slate-800 animate-in fade-in duration-300">
             <h2 className="text-lg font-display font-bold mb-6 text-center">
               Step 1: Verify Your Alpari Account
             </h2>
@@ -311,7 +311,7 @@ function RegisterContent() {
                       "Competitive spreads",
                       "Secure & reliable deposits",
                     ].map((perk, i) => (
-                      <li key={i} className="flex items-center gap-3 text-sm text-slate-350">
+                      <li key={i} className="flex items-center gap-3 text-sm text-slate-355">
                         <span className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xs font-bold shrink-0">✓</span>
                         {perk}
                       </li>
@@ -341,7 +341,7 @@ function RegisterContent() {
             STEP 2: Embedded Google Form
         ═══════════════════════════════════════════════════════════════ */}
         {currentStep === 2 && (
-          <section className="glass-panel rounded-3xl p-6 md:p-8 mb-10 border border-slate-800 bg-slate-950/40 relative overflow-hidden flex flex-col items-center">
+          <section className="glass-panel rounded-3xl p-6 md:p-8 mb-10 border border-slate-800 bg-slate-950/40 relative overflow-hidden flex flex-col items-center animate-in fade-in duration-300">
             <div className="text-center mb-6 space-y-2">
               <h2 className="text-xl font-display font-black text-white uppercase tracking-wider">
                 Step 2: Fill the Google Form
@@ -375,7 +375,7 @@ function RegisterContent() {
                 onClick={() => setCurrentStep(3)}
                 className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/10 flex items-center gap-2 cursor-pointer"
               >
-                Continue to Rules & Rewards
+                Complete Verification
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -383,10 +383,45 @@ function RegisterContent() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════
-            STEP 3: Rules & Rewards Dashboard
+            STEP 3: Complete Verification Page
         ═══════════════════════════════════════════════════════════════ */}
         {currentStep === 3 && (
-          <div className="space-y-12">
+          <section className="glass-panel rounded-3xl p-8 md:p-10 mb-10 border border-slate-800 text-center space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center text-emerald-400 mx-auto">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl md:text-2xl font-display font-bold uppercase tracking-wide">Verification Successful!</h2>
+              <p className="text-slate-400 text-sm max-w-md mx-auto">
+                Your Client ID and registration details are verified. As a participant in the challenge, you have unlocked the Forex trading educational series and leaderboard listing.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 border-t border-slate-900/60 w-full max-w-md mx-auto">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(2)}
+                className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Form
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(4)}
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Continue to Challenge Rules
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════
+            STEP 4: Rules & Rewards Dashboard
+        ═══════════════════════════════════════════════════════════════ */}
+        {currentStep === 4 && (
+          <div className="space-y-12 mb-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {/* Rules Section */}
             <section className="space-y-6">
               <div className="text-center">
@@ -527,120 +562,154 @@ function RegisterContent() {
               </div>
             </section>
 
-            {/* Bottom Final CTA */}
-            <section className="glass-panel rounded-3xl p-8 md:p-10 border border-slate-800 text-center space-y-4">
-              <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center text-emerald-400 mx-auto">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl md:text-2xl font-display font-bold">Registration Completed!</h2>
-              <p className="text-slate-400 text-sm max-w-md mx-auto">
-                You are all set! Ensure you trade using your verified Alpari Client ID.
-              </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Form
-                </button>
-                <Link
-                  href="/leaderboard"
-                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2"
-                >
-                  Go to Leaderboard
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </section>
+            <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(3)}
+                className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentStep(5)}
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/10 flex items-center gap-2 cursor-pointer"
+              >
+                Continue to Forex Bootcamp
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
-      {/* YouTube Playlist Modal */}
-      {showPlaylistModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-slate-950/85 backdrop-blur-md"
-            onClick={() => setShowPlaylistModal(false)}
-          />
+        {/* ═══════════════════════════════════════════════════════════════
+            STEP 5: Forex Bootcamp Video Playlist Player
+        ═══════════════════════════════════════════════════════════════ */}
+        {currentStep === 5 && (
+          <section className="glass-panel rounded-3xl p-6 md:p-8 mb-10 border border-slate-800 bg-slate-950/40 relative overflow-hidden flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="text-center mb-6 space-y-2">
+              <h2 className="text-xl font-display font-black text-white uppercase tracking-wider">
+                Step 5: Educational Forex Playlist
+              </h2>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Watch our curated educational Bootcamp. Select any video from the list below to learn trading basics.
+              </p>
+            </div>
 
-          {/* Modal Container */}
-          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowPlaylistModal(false)}
-              className="absolute top-6 right-6 p-2 rounded-full bg-slate-850 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors z-20"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Body */}
-            <div className="p-6 md:p-8 space-y-6">
-              <div className="text-center space-y-2">
-                <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <CheckCircle2 className="w-6 h-6" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full mt-2">
+              {/* Embedded Player */}
+              <div className="lg:col-span-7 flex flex-col gap-3">
+                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-xl">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&rel=0`}
+                    className="absolute inset-0 w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title="Forex Bootcamp Video Player"
+                  ></iframe>
                 </div>
-                <h3 className="text-2xl font-display font-extrabold text-white uppercase tracking-wide">
-                  Verification Successful!
-                </h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Your Client ID is verified. As a participant in the challenge, you have unlocked our curated Forex trading educational series.
-                </p>
-              </div>
-
-              {/* YouTube Playlist Thumbnail Card */}
-              <div className="relative rounded-2xl overflow-hidden border border-slate-800 group shadow-lg">
-                {/* Thumbnail Image */}
-                <img
-                  src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80"
-                  alt="Forex Trading Playlist"
-                  className="w-full h-56 object-cover filter brightness-75 group-hover:scale-105 transition-transform duration-700"
-                />
-
-                {/* Play Button Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 group-hover:bg-slate-950/40 transition-colors">
-                  <a
-                    href="https://www.youtube.com/playlist?list=PLm218z4JbA6E3B878d6S1DqSdf5b10oH_"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-xl shadow-red-600/30 hover:scale-110 active:scale-95 transition-all duration-300"
-                  >
-                    <Play className="w-6 h-6 fill-current translate-x-0.5" />
-                  </a>
-                </div>
-
-                {/* Playlist Label */}
-                <div className="absolute bottom-4 left-4 bg-slate-950/80 border border-slate-800 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  TradeTalks Forex Bootcamp
+                <div className="p-3 bg-slate-900/40 border border-slate-850 rounded-xl w-full">
+                  <h4 className="text-sm font-semibold text-white font-display">
+                    Now Playing: {
+                      [
+                        { id: "lmtgjAD18nE", title: "Forex-ൽ ഏതു സമയത്ത് Trade ചെയ്യണം ?" },
+                        { id: "yTJWlNjsW_M", title: "Forex Trading Basics: Pip എന്താണ്? & Pip Calculation" },
+                        { id: "XhpFBVHNULI", title: "Choosing a Forex Broker ." },
+                        { id: "JQcjFIVgKAE", title: "മൊബൈൽ ഉപയോഗിച്ച് Forex Trading ചെയ്യാം 📈💰┃simple ആണ്" },
+                        { id: "eEgQmAxBozQ", title: "Forex ഇന്ത്യയിൽ Legal ആണോ? Legal ആയി എങ്ങനെ Trade ചെയ്യാം?" },
+                        { id: "v4UpfDusRf8", title: "Forex Market Basics , Currency Pairs & Pips Explained in Malayalam" },
+                        { id: "5rmY0LRszk8", title: "Forex Market Part 2 — Account opening Explained in Malayalam" },
+                        { id: "vi1Z1_ic1Gc", title: "Forex Market Part 1 — Introduction Explained in Malayalam" }
+                      ].find(v => v.id === selectedVideoId)?.title
+                    }
+                  </h4>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <a
-                  href="https://www.youtube.com/playlist?list=PLm218z4JbA6E3B878d6S1DqSdf5b10oH_"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-widest text-center shadow-lg shadow-red-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  Watch Playlist Now
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setShowPlaylistModal(false)}
-                  className="sm:px-6 py-3.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs uppercase tracking-widest transition-colors hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                >
-                  Close & Proceed
-                </button>
+              {/* Selection Column */}
+              <div className="lg:col-span-5 flex flex-col h-[320px] lg:h-[400px] w-full">
+                <div className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider px-1">
+                  Playlist Videos ({
+                    [
+                      { id: "lmtgjAD18nE", title: "Forex-ൽ ഏതു സമയത്ത് Trade ചെയ്യണം ?" },
+                      { id: "yTJWlNjsW_M", title: "Forex Trading Basics: Pip എന്താണ്? & Pip Calculation" },
+                      { id: "XhpFBVHNULI", title: "Choosing a Forex Broker ." },
+                      { id: "JQcjFIVgKAE", title: "മൊബൈൽ ഉപയോഗിച്ച് Forex Trading ചെയ്യാം 📈💰┃simple ആണ്" },
+                      { id: "eEgQmAxBozQ", title: "Forex ഇന്ത്യയിൽ Legal ആണോ? Legal ആയി എങ്ങനെ Trade ചെയ്യാം?" },
+                      { id: "v4UpfDusRf8", title: "Forex Market Basics , Currency Pairs & Pips Explained in Malayalam" },
+                      { id: "5rmY0LRszk8", title: "Forex Market Part 2 — Account opening Explained in Malayalam" },
+                      { id: "vi1Z1_ic1Gc", title: "Forex Market Part 1 — Introduction Explained in Malayalam" }
+                    ].length
+                  })
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {[
+                    { id: "lmtgjAD18nE", title: "Forex-ൽ ഏതു സമയത്ത് Trade ചെയ്യണം ?" },
+                    { id: "yTJWlNjsW_M", title: "Forex Trading Basics: Pip എന്താണ്? & Pip Calculation" },
+                    { id: "XhpFBVHNULI", title: "Choosing a Forex Broker ." },
+                    { id: "JQcjFIVgKAE", title: "മൊബൈൽ ഉപയോഗിച്ച് Forex Trading ചെയ്യാം 📈💰┃simple ആണ്" },
+                    { id: "eEgQmAxBozQ", title: "Forex ഇന്ത്യയിൽ Legal ആണോ? Legal ആയി എങ്ങനെ Trade ചെയ്യാം?" },
+                    { id: "v4UpfDusRf8", title: "Forex Market Basics , Currency Pairs & Pips Explained in Malayalam" },
+                    { id: "5rmY0LRszk8", title: "Forex Market Part 2 — Account opening Explained in Malayalam" },
+                    { id: "vi1Z1_ic1Gc", title: "Forex Market Part 1 — Introduction Explained in Malayalam" }
+                  ].map((video, index) => {
+                    const isActive = video.id === selectedVideoId;
+                    return (
+                      <button
+                        key={video.id}
+                        onClick={() => setSelectedVideoId(video.id)}
+                        className={`w-full flex gap-3 p-2.5 rounded-xl border text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
+                          isActive
+                            ? "bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-500/5"
+                            : "bg-slate-900/30 border-slate-850 hover:border-slate-800 hover:bg-slate-900/50"
+                        }`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative w-20 aspect-video rounded-lg overflow-hidden border border-slate-800 shrink-0 bg-slate-950">
+                          <img
+                            src={`https://img.youtube.com/vi/${video.id}/mqdefault.jpg`}
+                            alt={video.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
+                            <Play className={`w-4 h-4 ${isActive ? "text-violet-400 fill-current" : "text-white"}`} />
+                          </div>
+                        </div>
+
+                        {/* Title */}
+                        <div className="flex flex-col justify-center min-w-0">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Video {index + 1}</span>
+                          <p className="text-xs font-semibold text-slate-200 leading-snug mt-0.5 line-clamp-2" title={video.title}>
+                            {video.title}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+
+            <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(4)}
+                className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+              <Link
+                href="/leaderboard"
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center gap-2 cursor-pointer"
+              >
+                Go to Leaderboard
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
