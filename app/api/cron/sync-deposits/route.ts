@@ -10,7 +10,6 @@ export async function GET(request: Request) {
     if (process.env.NODE_ENV === "production" && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return new Response("Unauthorized", { status: 401 });
     }
-
     console.log("[Cron Job] Starting sync-deposits background worker...");
     
     // Fetching the full season forces the compiler to sync all records in MongoDB
