@@ -110,8 +110,8 @@ export async function getIntegratedLeaderboard(
   timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly",
   forVerification = false
 ): Promise<any[]> {
-  // 1. Always use the custom season range starting from July 23, 2026
-  const SEASON_START_DATE = "2026-07-23"; // Challenge season starts from July 23, 2026
+  // 1. Always use the custom season range starting from October 1, 2025
+  const SEASON_START_DATE = "2025-10-01"; // Challenge season starts from Oct 1, 2025
   const SEASON_END_DATE = "2026-12-30";   // Challenge season ends on Dec 30, 2026
   const fromDate = SEASON_START_DATE; 
   const customToDate = SEASON_END_DATE;
@@ -129,7 +129,7 @@ export async function getIntegratedLeaderboard(
   let hasInsightsData = true;
   let hasReferralsData = true;
 
-  const useMock = process.env.USE_MOCK_DATA === "true";
+  const useMock = process.env.USE_MOCK_DATA === "true" && !forVerification;
   console.log(`[Leaderboard API] Fetching "${timeframe}". USE_MOCK_DATA="${process.env.USE_MOCK_DATA}" (resolved: ${useMock}), NODE_ENV="${process.env.NODE_ENV}"`);
 
   if (useMock) {
@@ -377,21 +377,23 @@ export async function getIntegratedLeaderboard(
   // Convert map to list and compile real values
   let tradersList = Object.values(mergedMap)
     .filter((t: any) => {
-      // 1. Must be registered within the season: July 23, 2026 to December 30, 2026
+      // For verification, we bypass all date, washout, and deposit filters
+      if (forVerification) {
+        return true;
+      }
+
+      // 1. Must be registered within the season: October 1, 2025 to December 30, 2026
       if (!t.registration_date) return false;
       const regDate = new Date(t.registration_date);
-      const cutoffDate = new Date("2026-07-22T23:59:59");
+      const cutoffDate = new Date("2025-09-30T23:59:59");
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      // Other filtrations (washout & minimum deposit) are only for leaderboard display, not for verification
-      if (!forVerification) {
-        // 2. Washout Filter: If a trader is washed out, they are disqualified and out of the leaderboard
-        if (t.is_washed_out) return false;
+      // 2. Washout Filter: If a trader is washed out, they are disqualified and out of the leaderboard
+      if (t.is_washed_out) return false;
 
-        // 3. Minimum Deposit Filter: Must have deposited at least $100
-        if ((t.mt_net_deposits ?? 0) < 100) return false;
-      }
+      // 3. Minimum Deposit Filter: Must have deposited at least $100
+      if ((t.mt_net_deposits ?? 0) < 100) return false;
 
       // 4. All activity metric filters (Volume, Rebates, Balance, Equity checks) have been removed
       // to display all registered traders from Jan to Dec.
