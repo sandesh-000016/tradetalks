@@ -134,14 +134,32 @@ export async function getIntegratedLeaderboard(
 
   if (useMock) {
     try {
-      const fs = require("fs");
-      const path = require("path");
-      const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
-      if (fs.existsSync(mockFilePath)) {
-        const mockData = JSON.parse(fs.readFileSync(mockFilePath, "utf8"));
+      let mockData: any = null;
+      if (clientPromise) {
+        try {
+          const mongoClient = await clientPromise;
+          const db = mongoClient.db("tradetalks");
+          mockData = await db.collection("mock_data").findOne({ _id: "current_mock_data" });
+        } catch (dbErr) {
+          console.error("[Leaderboard API] Failed to fetch mock data from MongoDB:", dbErr);
+        }
+      }
+
+      if (mockData) {
         performances = mockData.performance || [];
         referrals = mockData.referrals || [];
         insights = mockData.insights || [];
+      } else {
+        // Fallback to local json file
+        const fs = require("fs");
+        const path = require("path");
+        const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
+        if (fs.existsSync(mockFilePath)) {
+          const fileData = JSON.parse(fs.readFileSync(mockFilePath, "utf8"));
+          performances = fileData.performance || [];
+          referrals = fileData.referrals || [];
+          insights = fileData.insights || [];
+        }
       }
     } catch (err) {
       console.error("Error reading mock data:", err);

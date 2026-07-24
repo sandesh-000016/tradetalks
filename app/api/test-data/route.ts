@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import clientPromise from "@/lib/mongodb";
 
 const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
 
-// Helper to get raw file content
+// Helper to get raw file content / DB content
 async function readMockData() {
+  if (clientPromise) {
+    try {
+      const mongoClient = await clientPromise;
+      const db = mongoClient.db("tradetalks");
+      const dbData = await db.collection("mock_data").findOne({ _id: "current_mock_data" });
+      if (dbData) {
+        return dbData;
+      }
+    } catch (dbErr) {
+      console.error("[API test-data] DB Read failed, falling back to file:", dbErr);
+    }
+  }
+
+  // Fallback to filesystem
   try {
     const data = await fs.readFile(mockFilePath, "utf8");
     return JSON.parse(data);
@@ -16,6 +31,25 @@ async function readMockData() {
 
 // Helper to save data
 async function saveMockData(data: any) {
+  if (clientPromise) {
+    const mongoClient = await clientPromise;
+    const db = mongoClient.db("tradetalks");
+    await db.collection("mock_data").updateOne(
+      { _id: "current_mock_data" },
+      {
+        $set: {
+          performance: data.performance,
+          referrals: data.referrals,
+          insights: data.insights,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+    return;
+  }
+
+  // Fallback to file system (local development without DB)
   await fs.writeFile(mockFilePath, JSON.stringify(data, null, 2), "utf8");
 }
 
