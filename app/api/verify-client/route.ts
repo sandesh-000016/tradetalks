@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     const input = clientId.trim().toLowerCase();
-    const traders = await getIntegratedLeaderboard("all");
+    const traders = await getIntegratedLeaderboard("all", true);
 
     const foundTrader = traders.find((t: any) =>
       String(t.externalClientId || "").toLowerCase() === input

@@ -107,7 +107,8 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
  * Fetches all 3 endpoints, merges the metrics per client, and returns sorted Trader list.
  */
 export async function getIntegratedLeaderboard(
-  timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly"
+  timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly",
+  forVerification = false
 ): Promise<any[]> {
   // 1. Always use the custom season range starting from July 23, 2026
   const SEASON_START_DATE = "2026-07-23"; // Challenge season starts from July 23, 2026
@@ -383,11 +384,14 @@ export async function getIntegratedLeaderboard(
       const endCutoffDate = new Date("2026-12-30T23:59:59");
       if (regDate <= cutoffDate || regDate > endCutoffDate) return false;
 
-      // 2. Washout Filter: If a trader is washed out, they are disqualified and out of the leaderboard
-      if (t.is_washed_out) return false;
+      // Other filtrations (washout & minimum deposit) are only for leaderboard display, not for verification
+      if (!forVerification) {
+        // 2. Washout Filter: If a trader is washed out, they are disqualified and out of the leaderboard
+        if (t.is_washed_out) return false;
 
-      // 3. Minimum Deposit Filter: Must have deposited at least $100
-      if ((t.mt_net_deposits ?? 0) < 100) return false;
+        // 3. Minimum Deposit Filter: Must have deposited at least $100
+        if ((t.mt_net_deposits ?? 0) < 100) return false;
+      }
 
       // 4. All activity metric filters (Volume, Rebates, Balance, Equity checks) have been removed
       // to display all registered traders from Jan to Dec.
@@ -520,9 +524,10 @@ function formatDateForApi(dateStr: string): string {
 }
 
 export const getCachedLeaderboard = async (
-  timeframe: "all" | "monthly" | "weekly" | "daily"
+  timeframe: "all" | "monthly" | "weekly" | "daily",
+  forVerification = false
 ) => {
-  return getIntegratedLeaderboard(timeframe);
+  return getIntegratedLeaderboard(timeframe, forVerification);
 };
 
 
