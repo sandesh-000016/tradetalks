@@ -607,50 +607,6 @@ export const getCachedLeaderboard = async (
 
 export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any | null> {
   const input = clientIdStr.trim().toLowerCase();
-  const useMock = process.env.USE_MOCK_DATA === "true";
-
-  if (useMock) {
-    console.log(`[Verify Direct] Running in Mock mode. Searching mock data...`);
-    try {
-      let mockData: any = null;
-      if (clientPromise) {
-        try {
-          const mongoClient = await clientPromise;
-          const db = mongoClient.db("tradetalks");
-          mockData = await db.collection<any>("mock_data").findOne({ _id: "current_mock_data" });
-        } catch (dbErr) {
-          console.error("[Verify Direct] Failed to fetch mock data from MongoDB:", dbErr);
-        }
-      }
-      if (!mockData) {
-        const fs = require("fs");
-        const path = require("path");
-        const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
-        if (fs.existsSync(mockFilePath)) {
-          mockData = JSON.parse(fs.readFileSync(mockFilePath, "utf8"));
-        }
-      }
-
-      if (mockData && mockData.insights) {
-        const foundInsight = mockData.insights.find((i: any) => {
-          const extId = i.external_client_id || i.externalClientId || i.clientId || i.id;
-          const numId = i.id || i.clientId || i.client_id;
-          return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
-        });
-
-        if (foundInsight) {
-          return {
-            id: foundInsight.external_client_id || foundInsight.externalClientId || foundInsight.clientId || foundInsight.id || input,
-            name: foundInsight.client_name || foundInsight.name || "Mock Trader",
-            balance: Number(foundInsight.total_balance ?? 100)
-          };
-        }
-      }
-    } catch (mockErr) {
-      console.error("[Verify Direct] Error searching mock data:", mockErr);
-    }
-    return null;
-  }
 
   // 1. Query MongoDB first
   if (clientPromise) {
