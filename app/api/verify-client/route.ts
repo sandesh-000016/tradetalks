@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getIntegratedLeaderboard } from "@/lib/alpariApi";
+import { verifyAlpariClientDirect } from "@/lib/alpariApi";
 
 export async function POST(request: Request) {
   try {
@@ -12,14 +12,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const input = clientId.trim().toLowerCase();
-    const traders = await getIntegratedLeaderboard("all", true);
+    const foundClient = await verifyAlpariClientDirect(clientId);
 
-    const foundTrader = traders.find((t: any) =>
-      String(t.externalClientId || "").toLowerCase() === input
-    );
-
-    if (!foundTrader) {
+    if (!foundClient) {
       return NextResponse.json({
         success: false,
         error: `Client ID '${clientId.trim()}' was not found in our challenge database. Make sure you opened your account using the official referral link below.`,
@@ -30,9 +25,9 @@ export async function POST(request: Request) {
       success: true,
       message: "Client verified successfully!",
       client: {
-        id: foundTrader.externalClientId,
-        name: foundTrader.name || `Trader ${clientId.trim()}`,
-        balance: foundTrader.totalBalance ?? 0,
+        id: foundClient.id,
+        name: foundClient.name,
+        balance: foundClient.balance,
       },
     });
   } catch (error: any) {

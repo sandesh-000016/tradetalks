@@ -138,6 +138,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
   const [referralChecked, setReferralChecked] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(1);
   const [showPlaylistModal, setShowPlaylistModal] = React.useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,9 +166,8 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
 
       const data = await res.json();
       if (data.success) {
-        setSuccessMsg(`Welcome, ${data.client.name}! Your account balance of $${data.client.balance} has been successfully verified.`);
         setVerifiedClient(data.client);
-        setShowPlaylistModal(true);
+        setCurrentStep(2);
       } else {
         setErrorMsg(data.error || "Verification failed. Check your Client ID.");
       }
@@ -650,23 +650,6 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                       </p>
                     </div>
 
-                    <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 space-y-3">
-                      <label className="flex items-start gap-3 cursor-pointer group text-xs text-slate-350">
-                        <input
-                          type="checkbox"
-                          checked={referralChecked}
-                          onChange={(e) => {
-                            setReferralChecked(e.target.checked);
-                            setErrorMsg(null);
-                          }}
-                          className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-950 text-violet-600 focus:ring-violet-600/50 cursor-pointer"
-                        />
-                        <span className="leading-snug select-none text-slate-300">
-                          I confirm that I have registered my Alpari account using referral ID <strong className="text-amber-400">72725</strong> to join in the challenge.
-                        </span>
-                      </label>
-                    </div>
-
                     <form onSubmit={handleVerify} className="space-y-4">
                       <div className="space-y-1.5">
                         <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
@@ -684,17 +667,30 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                           className="w-full bg-slate-950/60 border border-slate-850 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-mono"
                         />
                       </div>
+
+                      {/* Referral Verification Checkbox */}
+                      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                        <label className="flex items-start gap-3 cursor-pointer group text-xs text-slate-350">
+                          <input
+                            type="checkbox"
+                            checked={referralChecked}
+                            onChange={(e) => {
+                              setReferralChecked(e.target.checked);
+                              setErrorMsg(null);
+                            }}
+                            className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-950 text-violet-600 focus:ring-violet-600/50 cursor-pointer"
+                          />
+                          <span className="leading-snug select-none text-slate-300">
+                            I confirm that I have registered my Alpari account using referral ID <strong className="text-amber-400">72725</strong> to join in the challenge.
+                          </span>
+                        </label>
+                      </div>
                       {errorMsg && (
                         <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-3 rounded-xl leading-relaxed">
                           {errorMsg}
                         </div>
                       )}
-                      {successMsg && (
-                        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 text-xs px-4 py-3 rounded-xl leading-relaxed font-semibold">
-                          {successMsg}
-                        </div>
-                      )}
-                      <button
+                       <button
                         type="submit"
                         disabled={isVerifying || !referralChecked}
                         className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-blue-950/20 disabled:text-slate-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-600/10 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
@@ -703,19 +699,6 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                       </button>
                     </form>
                   </div>
-
-                  {verifiedClient && (
-                    <div className="pt-4 mt-4 border-t border-slate-900 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(2)}
-                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-violet-600/20 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        Continue to Google Form
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 {/* Account opening card */}
@@ -788,7 +771,10 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => {
+                    setCurrentStep(3);
+                    setShowWelcomeModal(true);
+                  }}
                   className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/10 flex items-center gap-2 cursor-pointer"
                 >
                   Continue to Rules & Rewards
@@ -1240,6 +1226,57 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   className="sm:px-6 py-3.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 text-slate-300 font-bold text-xs uppercase tracking-widest transition-colors hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   Close & Proceed
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Welcome & Balance Verification Modal */}
+      {showWelcomeModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-950/85 backdrop-blur-md"
+            onClick={() => setShowWelcomeModal(false)}
+          />
+
+          {/* Modal Container */}
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowWelcomeModal(false)}
+              className="absolute top-6 right-6 p-2 rounded-full bg-slate-850 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors z-20"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Body */}
+            <div className="p-6 md:p-8 space-y-6 text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <CheckCircle2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-display font-extrabold text-white uppercase tracking-wide">
+                  Welcome, {verifiedClient?.name || "Trader"}!
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Your Alpari account balance of <strong className="text-emerald-400 font-mono">${verifiedClient?.balance ?? "100"}</strong> has been successfully verified.
+                </p>
+                <p className="text-xs text-slate-450 leading-relaxed pt-1">
+                  You have successfully unlocked access to the trading challenge and our Forex educational series.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowWelcomeModal(false)}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-violet-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                >
+                  Perfect, Let&apos;s Start!
                 </button>
               </div>
             </div>

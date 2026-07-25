@@ -36,6 +36,10 @@ const getApiBase = () => process.env.ALPARI_API_BASE_URL || "https://api.alparip
 const getPrivateToken = () => process.env.ALPARI_PRIVATE_TOKEN || "03764376-ec54-4a11-94aa-7c63d39d1f2f";
 const getDirectPartnerId = () => Number(process.env.ALPARI_DIRECT_PARTNER_ID || "72725");
 
+// Memory cache state for leaderboard data
+let memoryCache: { timestamp: number; traders: any[] } | null = null;
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Method 1: Fetch Client Performance
  */
@@ -108,292 +112,343 @@ export async function fetchClientInsights(params: AlpariApiParams): Promise<Alpa
  */
 export async function getIntegratedLeaderboard(
   timeframe: "all" | "monthly" | "weekly" | "daily" = "monthly",
-  forVerification = false
+  forVerification = false,
+  bypassCache = false
 ): Promise<any[]> {
-  // 1. Always use the custom season range starting from October 1, 2025
-  const SEASON_START_DATE = "2025-10-01"; // Challenge season starts from Oct 1, 2025
-  const SEASON_END_DATE = "2026-12-30";   // Challenge season ends on Dec 30, 2026
-  const fromDate = SEASON_START_DATE; 
-  const customToDate = SEASON_END_DATE;
-
-  const params: AlpariApiParams = {
-    RegistrationFromDate: formatDateForApi(fromDate),
-    RegistrationToDate: formatDateForApi(customToDate),
-    DirectPartner: getDirectPartnerId(),
-  };
-
-
-  let performances: any[] = [];
-  let referrals: any[] = [];
-  let insights: any[] = [];
-  let hasInsightsData = true;
-  let hasReferralsData = true;
-
   const useMock = process.env.USE_MOCK_DATA === "true" && !forVerification;
-  console.log(`[Leaderboard API] Fetching "${timeframe}". USE_MOCK_DATA="${process.env.USE_MOCK_DATA}" (resolved: ${useMock}), NODE_ENV="${process.env.NODE_ENV}"`);
+  console.log(`[Leaderboard API] Fetching "${timeframe}". USE_MOCK_DATA="${process.env.USE_MOCK_DATA}" (resolved: ${useMock}), NODE_ENV="${process.env.NODE_ENV}", bypassCache=${bypassCache}`);
 
-  if (useMock) {
-    try {
-      let mockData: any = null;
+  let rawClients: any[] = [];
+  let cacheHit = false;
+
+  if (!useMock && !bypassCache) {
+    // 1. Try memory cache first
+    if (memoryCache && (Date.now() - memoryCache.timestamp < CACHE_DURATION_MS)) {
+      console.log("[Leaderboard API] Serving from memory cache.");
+      rawClients = memoryCache.traders;
+      cacheHit = true;
+    } else {
+      // 2. Try MongoDB cache next
       if (clientPromise) {
         try {
           const mongoClient = await clientPromise;
           const db = mongoClient.db("tradetalks");
-          mockData = await db.collection("mock_data").findOne({ _id: "current_mock_data" });
-        } catch (dbErr) {
-          console.error("[Leaderboard API] Failed to fetch mock data from MongoDB:", dbErr);
-        }
-      }
-
-      if (mockData) {
-        performances = mockData.performance || [];
-        referrals = mockData.referrals || [];
-        insights = mockData.insights || [];
-      } else {
-        // Fallback to local json file
-        const fs = require("fs");
-        const path = require("path");
-        const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
-        if (fs.existsSync(mockFilePath)) {
-          const fileData = JSON.parse(fs.readFileSync(mockFilePath, "utf8"));
-          performances = fileData.performance || [];
-          referrals = fileData.referrals || [];
-          insights = fileData.insights || [];
-        }
-      }
-    } catch (err) {
-      console.error("Error reading mock data:", err);
-    }
-  } else {
-    // 2. Fetch from all three APIs in parallel with robust individual catch blocks
-    const [perfRes, refRes, insRes] = await Promise.all([
-      fetchClientPerformance(params).catch((err) => {
-        console.error("[Leaderboard API] Error fetching performance data:", err.message || err);
-        return [];
-      }),
-      fetchClientReferralDetails(params).catch((err) => {
-        console.error("[Leaderboard API] Error fetching referral details:", err.message || err);
-        hasReferralsData = false;
-        return [];
-      }),
-      fetchClientInsights(params).catch((err) => {
-        console.error("[Leaderboard API] Error fetching insights:", err.message || err);
-        hasInsightsData = false;
-        return [];
-      }),
-    ]);
-
-    performances = perfRes;
-    referrals = refRes;
-    insights = insRes;
-  }
-
-  const getClientKey = (item: any): string => {
-    const numId = item.id || item.clientId || item.client_id;
-    if (numId) return String(numId);
-    const extId = item.external_client_id || item.externalClientId;
-    if (extId) return String(extId);
-    return "";
-  };
-
-  const mergedMap: Record<string, any> = {};
-
-  // Load local deposit overrides if file exists (allows manual correction of API's 0 net deposits)
-  let depositOverrides: Record<string, number> = {};
-  try {
-    const fs = require("fs");
-    const path = require("path");
-    const overridesPath = path.join(process.cwd(), "deposits_overrides.json");
-    if (fs.existsSync(overridesPath)) {
-      depositOverrides = JSON.parse(fs.readFileSync(overridesPath, "utf8"));
-    }
-  } catch (err) {
-    console.error("[Leaderboard API] Error reading deposits_overrides.json:", err);
-  }
-
-  // Populate from Performance API
-  performances.forEach((p) => {
-    const key = getClientKey(p);
-    if (!key) return;
-    if (!mergedMap[key]) {
-      mergedMap[key] = { id: key };
-    }
-    const extId = p.external_client_id || p.externalClientId;
-    const numId = p.id || p.clientId || p.client_id;
-    if (extId) mergedMap[key].external_client_id = extId;
-    if (numId) mergedMap[key].numeric_id = numId;
-    mergedMap[key].client_name = p.client_name || p.name || mergedMap[key].client_name;
-    mergedMap[key].country = p.country || mergedMap[key].country;
-    mergedMap[key].registration_date = p.registration_date || mergedMap[key].registration_date;
-    
-    // Check local overrides map for manually corrected net deposits
-    let netDeposit = Number(p.mt_net_deposits ?? 0);
-    let hasOverride = false;
-    if (extId && depositOverrides[extId] !== undefined) {
-      netDeposit = Number(depositOverrides[extId]);
-      hasOverride = true;
-    } else if (numId && depositOverrides[String(numId)] !== undefined) {
-      netDeposit = Number(depositOverrides[String(numId)]);
-      hasOverride = true;
-    } else if (key && depositOverrides[key] !== undefined) {
-      netDeposit = Number(depositOverrides[key]);
-      hasOverride = true;
-    }
-
-    // Default to 100 if API is 0 and no overrides are specified
-    if (netDeposit === 0 && !hasOverride) {
-      netDeposit = 100;
-    }
-
-    mergedMap[key].mt_net_deposits = netDeposit;
-    mergedMap[key].settled_rebates = Number(p.settled_rebates ?? 0);
-    mergedMap[key].volume = Number(p.volume ?? 0);
-    mergedMap[key].unsettled_volume = Number(p.unsettled_volume ?? 0);
-    mergedMap[key].turnover = Number(p.turnover ?? 0);
-  });
-
-  // Populate from Referrals API
-  referrals.forEach((r) => {
-    const key = getClientKey(r);
-    if (!key) return;
-    if (!mergedMap[key]) {
-      mergedMap[key] = { id: key };
-    }
-    const extId = r.external_client_id || r.externalClientId;
-    const numId = r.id || r.clientId || r.client_id;
-    if (extId) mergedMap[key].external_client_id = extId;
-    if (numId) mergedMap[key].numeric_id = numId;
-    mergedMap[key].client_name = r.client_name || r.name || mergedMap[key].client_name;
-    mergedMap[key].country = r.country || mergedMap[key].country;
-    mergedMap[key].registration_date = r.registration_date || mergedMap[key].registration_date;
-    if (r.program_name) mergedMap[key].program_name = r.program_name;
-  });
-
-  // Populate from Insights API
-  insights.forEach((i) => {
-    const key = getClientKey(i);
-    if (!key) return;
-    if (!mergedMap[key]) {
-      mergedMap[key] = { id: key };
-    }
-    const extId = i.external_client_id || i.externalClientId;
-    const numId = i.id || i.clientId || i.client_id;
-    if (extId) mergedMap[key].external_client_id = extId;
-    if (numId) mergedMap[key].numeric_id = numId;
-    mergedMap[key].client_name = i.client_name || i.name || mergedMap[key].client_name;
-    mergedMap[key].country = i.country || mergedMap[key].country;
-    mergedMap[key].registration_date = i.registration_date || mergedMap[key].registration_date;
-    mergedMap[key].total_balance = Number(i.total_balance ?? 0);
-    mergedMap[key].total_equity = Number(i.total_equity ?? 0);
-    if (i.settled_rebates) mergedMap[key].settled_rebates = Number(i.settled_rebates);
-    mergedMap[key].unsettled_rebates = Number(i.unsettled_rebates ?? 0);
-  });
-
-  // 1. Sync data with MongoDB if MONGODB_URI is provided
-  let useDb = false;
-  let mongoClient = null;
-
-  if (clientPromise) {
-    try {
-      mongoClient = await clientPromise;
-      useDb = true;
-    } catch (err) {
-      console.error("[Leaderboard API] Failed to connect to MongoDB, running without DB synchronization:", err);
-    }
-  }
-
-  if (useDb && mongoClient) {
-    try {
-      const db = mongoClient.db("tradetalks");
-      const tradersCol = db.collection("traders");
-      
-      // Fetch current database state
-      const dbList = await tradersCol.find({}).toArray();
-      const dbMap = new Map(dbList.map((d: any) => [d.clientId || d._id, d]));
-      
-      const bulkOps: any[] = [];
-      
-      for (const key of Object.keys(mergedMap)) {
-        const trader = mergedMap[key];
-        const clientId = trader.external_client_id || key;
-        const dbTrader = dbMap.get(clientId);
-        
-        const apiBalance = trader.total_balance ?? 0;
-        const apiEquity = trader.total_equity ?? 0;
-        const apiDepositDate = trader.last_deposit_date || null;
-        const volume = trader.volume ?? 0;
-        
-        let totalNetDeposits = 100;
-        let isWashedOut = false;
-        
-        if (!dbTrader) {
-          // New trader: if no volume yet, balance is the initial deposit
-          if (volume === 0 && apiBalance > 0) {
-            totalNetDeposits = apiBalance;
-          } else {
-            totalNetDeposits = 100;
+          const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
+          if (cacheDoc && cacheDoc.updatedAt && (Date.now() - new Date(cacheDoc.updatedAt).getTime() < CACHE_DURATION_MS)) {
+            console.log("[Leaderboard API] Serving from MongoDB cache.");
+            rawClients = cacheDoc.traders;
+            memoryCache = { timestamp: new Date(cacheDoc.updatedAt).getTime(), traders: rawClients };
+            cacheHit = true;
           }
-          isWashedOut = apiEquity <= 1.00;
+        } catch (err) {
+          console.error("[Leaderboard API] Error reading MongoDB cache:", err);
+        }
+      }
+    }
+  }
+
+  if (!cacheHit) {
+    // 1. Always use the custom season range starting from October 1, 2025
+    const SEASON_START_DATE = "2025-10-01"; // Challenge season starts from Oct 1, 2025
+    const SEASON_END_DATE = "2026-12-30";   // Challenge season ends on Dec 30, 2026
+    const fromDate = SEASON_START_DATE; 
+    const customToDate = SEASON_END_DATE;
+
+    const params: AlpariApiParams = {
+      RegistrationFromDate: formatDateForApi(fromDate),
+      RegistrationToDate: formatDateForApi(customToDate),
+      DirectPartner: getDirectPartnerId(),
+    };
+
+    let performances: any[] = [];
+    let referrals: any[] = [];
+    let insights: any[] = [];
+    let hasInsightsData = true;
+    let hasReferralsData = true;
+
+    if (useMock) {
+      try {
+        let mockData: any = null;
+        if (clientPromise) {
+          try {
+            const mongoClient = await clientPromise;
+            const db = mongoClient.db("tradetalks");
+            mockData = await db.collection<any>("mock_data").findOne({ _id: "current_mock_data" });
+          } catch (dbErr) {
+            console.error("[Leaderboard API] Failed to fetch mock data from MongoDB:", dbErr);
+          }
+        }
+
+        if (mockData) {
+          performances = mockData.performance || [];
+          referrals = mockData.referrals || [];
+          insights = mockData.insights || [];
         } else {
-          // Existing trader
-          totalNetDeposits = dbTrader.totalNetDeposits ?? 100;
-          isWashedOut = dbTrader.isWashedOut || (apiEquity <= 1.00);
+          // Fallback to local json file
+          const fs = require("fs");
+          const path = require("path");
+          const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
+          if (fs.existsSync(mockFilePath)) {
+            const fileData = JSON.parse(fs.readFileSync(mockFilePath, "utf8"));
+            performances = fileData.performance || [];
+            referrals = fileData.referrals || [];
+            insights = fileData.insights || [];
+          }
+        }
+      } catch (err) {
+        console.error("Error reading mock data:", err);
+      }
+    } else {
+      // 2. Fetch from all three APIs in parallel with robust individual catch blocks
+      const [perfRes, refRes, insRes] = await Promise.all([
+        fetchClientPerformance(params).catch((err) => {
+          console.error("[Leaderboard API] Error fetching performance data:", err.message || err);
+          return [];
+        }),
+        fetchClientReferralDetails(params).catch((err) => {
+          console.error("[Leaderboard API] Error fetching referral details:", err.message || err);
+          hasReferralsData = false;
+          return [];
+        }),
+        fetchClientInsights(params).catch((err) => {
+          console.error("[Leaderboard API] Error fetching insights:", err.message || err);
+          hasInsightsData = false;
+          return [];
+        }),
+      ]);
+
+      performances = perfRes;
+      referrals = refRes;
+      insights = insRes;
+    }
+
+    const getClientKey = (item: any): string => {
+      const numId = item.id || item.clientId || item.client_id;
+      if (numId) return String(numId);
+      const extId = item.external_client_id || item.externalClientId;
+      if (extId) return String(extId);
+      return "";
+    };
+
+    const mergedMap: Record<string, any> = {};
+
+    // Load local deposit overrides if file exists (allows manual correction of API's 0 net deposits)
+    let depositOverrides: Record<string, number> = {};
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const overridesPath = path.join(process.cwd(), "deposits_overrides.json");
+      if (fs.existsSync(overridesPath)) {
+        depositOverrides = JSON.parse(fs.readFileSync(overridesPath, "utf8"));
+      }
+    } catch (err) {
+      console.error("[Leaderboard API] Error reading deposits_overrides.json:", err);
+    }
+
+    // Populate from Performance API
+    performances.forEach((p) => {
+      const key = getClientKey(p);
+      if (!key) return;
+      if (!mergedMap[key]) {
+        mergedMap[key] = { id: key };
+      }
+      const extId = p.external_client_id || p.externalClientId;
+      const numId = p.id || p.clientId || p.client_id;
+      if (extId) mergedMap[key].external_client_id = extId;
+      if (numId) mergedMap[key].numeric_id = numId;
+      mergedMap[key].client_name = p.client_name || p.name || mergedMap[key].client_name;
+      mergedMap[key].country = p.country || mergedMap[key].country;
+      mergedMap[key].registration_date = p.registration_date || mergedMap[key].registration_date;
+      
+      // Check local overrides map for manually corrected net deposits
+      let netDeposit = Number(p.mt_net_deposits ?? 0);
+      let hasOverride = false;
+      if (extId && depositOverrides[extId] !== undefined) {
+        netDeposit = Number(depositOverrides[extId]);
+        hasOverride = true;
+      } else if (numId && depositOverrides[String(numId)] !== undefined) {
+        netDeposit = Number(depositOverrides[String(numId)]);
+        hasOverride = true;
+      } else if (key && depositOverrides[key] !== undefined) {
+        netDeposit = Number(depositOverrides[key]);
+        hasOverride = true;
+      }
+
+      // Default to 100 if API is 0 and no overrides are specified
+      if (netDeposit === 0 && !hasOverride) {
+        netDeposit = 100;
+      }
+
+      mergedMap[key].mt_net_deposits = netDeposit;
+      mergedMap[key].settled_rebates = Number(p.settled_rebates ?? 0);
+      mergedMap[key].volume = Number(p.volume ?? 0);
+      mergedMap[key].unsettled_volume = Number(p.unsettled_volume ?? 0);
+      mergedMap[key].turnover = Number(p.turnover ?? 0);
+    });
+
+    // Populate from Referrals API
+    referrals.forEach((r) => {
+      const key = getClientKey(r);
+      if (!key) return;
+      if (!mergedMap[key]) {
+        mergedMap[key] = { id: key };
+      }
+      const extId = r.external_client_id || r.externalClientId;
+      const numId = r.id || r.clientId || r.client_id;
+      if (extId) mergedMap[key].external_client_id = extId;
+      if (numId) mergedMap[key].numeric_id = numId;
+      mergedMap[key].client_name = r.client_name || r.name || mergedMap[key].client_name;
+      mergedMap[key].country = r.country || mergedMap[key].country;
+      mergedMap[key].registration_date = r.registration_date || mergedMap[key].registration_date;
+      if (r.program_name) mergedMap[key].program_name = r.program_name;
+    });
+
+    // Populate from Insights API
+    insights.forEach((i) => {
+      const key = getClientKey(i);
+      if (!key) return;
+      if (!mergedMap[key]) {
+        mergedMap[key] = { id: key };
+      }
+      const extId = i.external_client_id || i.externalClientId;
+      const numId = i.id || i.clientId || i.client_id;
+      if (extId) mergedMap[key].external_client_id = extId;
+      if (numId) mergedMap[key].numeric_id = numId;
+      mergedMap[key].client_name = i.client_name || i.name || mergedMap[key].client_name;
+      mergedMap[key].country = i.country || mergedMap[key].country;
+      mergedMap[key].registration_date = i.registration_date || mergedMap[key].registration_date;
+      mergedMap[key].total_balance = Number(i.total_balance ?? 0);
+      mergedMap[key].total_equity = Number(i.total_equity ?? 0);
+      if (i.settled_rebates) mergedMap[key].settled_rebates = Number(i.settled_rebates);
+      mergedMap[key].unsettled_rebates = Number(i.unsettled_rebates ?? 0);
+    });
+
+    // 1. Sync data with MongoDB if MONGODB_URI is provided
+    let useDb = false;
+    let mongoClient = null;
+
+    if (clientPromise) {
+      try {
+        mongoClient = await clientPromise;
+        useDb = true;
+      } catch (err) {
+        console.error("[Leaderboard API] Failed to connect to MongoDB, running without DB synchronization:", err);
+      }
+    }
+
+    if (useDb && mongoClient) {
+      try {
+        const db = mongoClient.db("tradetalks");
+        const tradersCol = db.collection<any>("traders");
+        
+        // Fetch current database state
+        const dbList = await tradersCol.find({}).toArray();
+        const dbMap = new Map(dbList.map((d: any) => [d.clientId || d._id, d]));
+        
+        const bulkOps: any[] = [];
+        
+        for (const key of Object.keys(mergedMap)) {
+          const trader = mergedMap[key];
+          const clientId = trader.external_client_id || key;
+          const dbTrader = dbMap.get(clientId);
           
-          // Detect new deposit
-          if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
-            const depositDiff = apiBalance - (dbTrader.lastRecordedBalance ?? 0);
-            if (depositDiff > 0) {
-              totalNetDeposits += depositDiff;
+          const apiBalance = trader.total_balance ?? 0;
+          const apiEquity = trader.total_equity ?? 0;
+          const apiDepositDate = trader.last_deposit_date || null;
+          const volume = trader.volume ?? 0;
+          
+          let totalNetDeposits = 100;
+          let isWashedOut = false;
+          
+          if (!dbTrader) {
+            // New trader: if no volume yet, balance is the initial deposit
+            if (volume === 0 && apiBalance > 0) {
+              totalNetDeposits = apiBalance;
+            } else {
+              totalNetDeposits = 100;
+            }
+            isWashedOut = apiEquity <= 1.00;
+          } else {
+            // Existing trader
+            totalNetDeposits = dbTrader.totalNetDeposits ?? 100;
+            isWashedOut = dbTrader.isWashedOut || (apiEquity <= 1.00);
+            
+            // Detect new deposit
+            if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
+              const depositDiff = apiBalance - (dbTrader.lastRecordedBalance ?? 0);
+              if (depositDiff > 0) {
+                totalNetDeposits += depositDiff;
+              }
             }
           }
-        }
-        
-        // Priority: local json file overrides (if defined, they win)
-        let netDeposit = totalNetDeposits;
-        const extId = trader.external_client_id;
-        const numId = trader.numeric_id;
-        
-        if (extId && depositOverrides[extId] !== undefined) {
-          netDeposit = Number(depositOverrides[extId]);
-        } else if (numId && depositOverrides[String(numId)] !== undefined) {
-          netDeposit = Number(depositOverrides[String(numId)]);
-        } else if (key && depositOverrides[key] !== undefined) {
-          netDeposit = Number(depositOverrides[key]);
-        }
-        
-        trader.mt_net_deposits = netDeposit;
-        trader.is_washed_out = isWashedOut;
-        
-        bulkOps.push({
-          updateOne: {
-            filter: { _id: clientId },
-            update: {
-              $set: {
-                clientId,
-                numericId: Number(numId ?? 0),
-                clientName: trader.client_name || "",
-                totalNetDeposits: netDeposit,
-                lastRecordedBalance: apiBalance,
-                lastDepositDate: apiDepositDate,
-                isWashedOut,
-                lastUpdated: new Date()
-              }
-            },
-            upsert: true
+          
+          // Priority: local json file overrides (if defined, they win)
+          let netDeposit = totalNetDeposits;
+          const extId = trader.external_client_id;
+          const numId = trader.numeric_id;
+          
+          if (extId && depositOverrides[extId] !== undefined) {
+            netDeposit = Number(depositOverrides[extId]);
+          } else if (numId && depositOverrides[String(numId)] !== undefined) {
+            netDeposit = Number(depositOverrides[String(numId)]);
+          } else if (key && depositOverrides[key] !== undefined) {
+            netDeposit = Number(depositOverrides[key]);
           }
-        });
+          
+          trader.mt_net_deposits = netDeposit;
+          trader.is_washed_out = isWashedOut;
+          
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: clientId },
+              update: {
+                $set: {
+                  clientId,
+                  numericId: Number(numId ?? 0),
+                  clientName: trader.client_name || "",
+                  totalNetDeposits: netDeposit,
+                  lastRecordedBalance: apiBalance,
+                  lastDepositDate: apiDepositDate,
+                  isWashedOut,
+                  lastUpdated: new Date()
+                }
+              },
+              upsert: true
+            }
+          });
+        }
+        
+        if (bulkOps.length > 0) {
+          await tradersCol.bulkWrite(bulkOps);
+        }
+      } catch (dbErr) {
+        console.error("[Leaderboard API] MongoDB synchronization error:", dbErr);
       }
-      
-      if (bulkOps.length > 0) {
-        await tradersCol.bulkWrite(bulkOps);
+    }
+
+    rawClients = Object.values(mergedMap);
+
+    // Save to Cache
+    if (!useMock) {
+      memoryCache = { timestamp: Date.now(), traders: rawClients };
+      if (useDb && mongoClient) {
+        try {
+          const db = mongoClient.db("tradetalks");
+          await db.collection<any>("api_cache").updateOne(
+            { _id: "leaderboard_data" },
+            { $set: { traders: rawClients, updatedAt: new Date() } },
+            { upsert: true }
+          );
+          console.log("[Leaderboard API] Saved fresh live data to MongoDB cache.");
+        } catch (cacheErr) {
+          console.error("[Leaderboard API] Failed to write cache to MongoDB:", cacheErr);
+        }
       }
-    } catch (dbErr) {
-      console.error("[Leaderboard API] MongoDB synchronization error:", dbErr);
     }
   }
 
   // Convert map to list and compile real values
-  let tradersList = Object.values(mergedMap)
+  let tradersList = rawClients
     .filter((t: any) => {
       // For verification, we bypass all date, washout, and deposit filters
       if (forVerification) {
@@ -549,5 +604,143 @@ export const getCachedLeaderboard = async (
 ) => {
   return getIntegratedLeaderboard(timeframe, forVerification);
 };
+
+export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any | null> {
+  const input = clientIdStr.trim().toLowerCase();
+  const useMock = process.env.USE_MOCK_DATA === "true";
+
+  if (useMock) {
+    console.log(`[Verify Direct] Running in Mock mode. Searching mock data...`);
+    try {
+      let mockData: any = null;
+      if (clientPromise) {
+        try {
+          const mongoClient = await clientPromise;
+          const db = mongoClient.db("tradetalks");
+          mockData = await db.collection<any>("mock_data").findOne({ _id: "current_mock_data" });
+        } catch (dbErr) {
+          console.error("[Verify Direct] Failed to fetch mock data from MongoDB:", dbErr);
+        }
+      }
+      if (!mockData) {
+        const fs = require("fs");
+        const path = require("path");
+        const mockFilePath = path.join(process.cwd(), "test_alpari_responses.json");
+        if (fs.existsSync(mockFilePath)) {
+          mockData = JSON.parse(fs.readFileSync(mockFilePath, "utf8"));
+        }
+      }
+
+      if (mockData && mockData.insights) {
+        const foundInsight = mockData.insights.find((i: any) => {
+          const extId = i.external_client_id || i.externalClientId || i.clientId || i.id;
+          const numId = i.id || i.clientId || i.client_id;
+          return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
+        });
+
+        if (foundInsight) {
+          return {
+            id: foundInsight.external_client_id || foundInsight.externalClientId || foundInsight.clientId || foundInsight.id || input,
+            name: foundInsight.client_name || foundInsight.name || "Mock Trader",
+            balance: Number(foundInsight.total_balance ?? 100)
+          };
+        }
+      }
+    } catch (mockErr) {
+      console.error("[Verify Direct] Error searching mock data:", mockErr);
+    }
+    return null;
+  }
+
+  // 1. Query MongoDB first
+  if (clientPromise) {
+    try {
+      const mongoClient = await clientPromise;
+      const db = mongoClient.db("tradetalks");
+      const dbTrader = await db.collection<any>("traders").findOne({
+        $or: [
+          { _id: input },
+          { clientId: { $regex: new RegExp(`^${input}$`, "i") } },
+          { numericId: isNaN(Number(input)) ? -1 : Number(input) }
+        ]
+      });
+
+      if (dbTrader) {
+        console.log(`[Verify Direct] Client '${clientIdStr}' found in MongoDB.`);
+        return {
+          id: dbTrader.clientId || dbTrader._id,
+          name: dbTrader.clientName,
+          balance: dbTrader.lastRecordedBalance ?? 0
+        };
+      }
+    } catch (err) {
+      console.error("[Verify Direct] MongoDB lookup error:", err);
+    }
+  }
+
+  // 2. Fetch insights directly from Alpari API (only if not found in MongoDB)
+  console.log(`[Verify Direct] Client '${clientIdStr}' not in DB. Querying Alpari Insights API...`);
+  
+  const SEASON_START_DATE = "2025-10-01"; 
+  const SEASON_END_DATE = "2026-12-30";
+  
+  const params: AlpariApiParams = {
+    RegistrationFromDate: formatDateForApi(SEASON_START_DATE),
+    RegistrationToDate: formatDateForApi(SEASON_END_DATE),
+    DirectPartner: getDirectPartnerId(),
+  };
+
+  try {
+    const insights = await fetchClientInsights(params);
+    const foundInsight = insights.find((i: any) => {
+      const extId = i.external_client_id || i.externalClientId || i.clientId || i.id;
+      const numId = i.id || i.clientId || i.client_id;
+      return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
+    });
+
+    if (foundInsight) {
+      const extId = foundInsight.external_client_id || foundInsight.externalClientId || foundInsight.clientId || foundInsight.id || input;
+      const numId = foundInsight.id || foundInsight.clientId || foundInsight.client_id || 0;
+      const clientName = foundInsight.client_name || foundInsight.name || `Trader ${extId}`;
+      const balance = Number(foundInsight.total_balance ?? 0);
+
+      // Save/upsert to MongoDB so it's cached for future lookups
+      if (clientPromise) {
+        try {
+          const mongoClient = await clientPromise;
+          const db = mongoClient.db("tradetalks");
+          await db.collection<any>("traders").updateOne(
+            { _id: extId },
+            {
+              $set: {
+                clientId: extId,
+                numericId: Number(numId),
+                clientName,
+                totalNetDeposits: balance > 0 ? balance : 100,
+                lastRecordedBalance: balance,
+                isWashedOut: Number(foundInsight.total_equity ?? 0) <= 1.00,
+                lastUpdated: new Date()
+              }
+            },
+            { upsert: true }
+          );
+          console.log(`[Verify Direct] Saved newly verified client '${extId}' to MongoDB.`);
+        } catch (dbErr) {
+          console.error("[Verify Direct] Failed to write verified client to MongoDB:", dbErr);
+        }
+      }
+
+      return {
+        id: extId,
+        name: clientName,
+        balance
+      };
+    }
+  } catch (apiErr: any) {
+    console.error("[Verify Direct] Alpari API insights call failed:", apiErr.message || apiErr);
+  }
+
+  return null;
+}
 
 

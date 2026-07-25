@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     console.log("[Cron Job] Starting sync-deposits background worker...");
     
     // Fetching the full season forces the compiler to sync all records in MongoDB
-    const data = await getIntegratedLeaderboard("all");
+    const data = await getIntegratedLeaderboard("all", false, true);
 
     console.log(`[Cron Job] Successfully synced ${data.length} records.`);
     return NextResponse.json({ success: true, syncedCount: data.length });

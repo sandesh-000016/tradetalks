@@ -11,7 +11,7 @@ async function readMockData() {
     try {
       const mongoClient = await clientPromise;
       const db = mongoClient.db("tradetalks");
-      const dbData = await db.collection("mock_data").findOne({ _id: "current_mock_data" });
+      const dbData = await db.collection<any>("mock_data").findOne({ _id: "current_mock_data" });
       if (dbData) {
         return dbData;
       }
@@ -34,7 +34,7 @@ async function saveMockData(data: any) {
   if (clientPromise) {
     const mongoClient = await clientPromise;
     const db = mongoClient.db("tradetalks");
-    await db.collection("mock_data").updateOne(
+    await db.collection<any>("mock_data").updateOne(
       { _id: "current_mock_data" },
       {
         $set: {
@@ -50,6 +50,10 @@ async function saveMockData(data: any) {
   }
 
   // Fallback to file system (local development without DB)
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+    throw new Error("MONGODB_URI environment variable is missing on Vercel. In serverless environments, the filesystem is read-only. Please add MONGODB_URI to your Vercel Project Settings to persist mock data.");
+  }
+
   await fs.writeFile(mockFilePath, JSON.stringify(data, null, 2), "utf8");
 }
 
