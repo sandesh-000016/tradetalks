@@ -358,15 +358,7 @@ function RegisterContent() {
               </iframe>
             </div>
 
-            <div className="w-full mt-5 p-4 rounded-xl bg-violet-950/20 border border-violet-500/20 flex items-start gap-3 text-left">
-              <AlertTriangle className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-bold text-violet-400 uppercase tracking-wider">Submit to Auto-Advance</h4>
-                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                  Fill out the form and click the purple <strong>Submit</strong> button inside the Google Form above. Once submitted successfully, the portal will detect it and automatically advance you to the next step!
-                </p>
-              </div>
-            </div>
+            
 
             <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
               <button

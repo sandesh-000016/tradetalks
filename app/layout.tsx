@@ -173,7 +173,7 @@ export default function RootLayout({
 
           <Navbar />
 
-          <main className="relative z-10 flex-grow">
+          <main className="relative z-20 flex-grow">
             {children}
           </main>
 
