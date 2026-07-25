@@ -89,8 +89,11 @@ function RegisterContent() {
   const [referralChecked, setReferralChecked] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(1);
   const [selectedVideoId, setSelectedVideoId] = React.useState("lmtgjAD18nE");
-  const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
   const [iframeLoads, setIframeLoads] = React.useState(0);
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentStep]);
 
   const handleIframeLoad = () => {
     setIframeLoads((prev) => {
@@ -98,7 +101,6 @@ function RegisterContent() {
       // Google Form reloads to success page on submission
       if (nextCount > 1) {
         setCurrentStep(3);
-        setShowWelcomeModal(true);
       }
       return nextCount;
     });
@@ -389,16 +391,24 @@ function RegisterContent() {
             <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center text-emerald-400 mx-auto">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <div className="space-y-2">
-              <h2 className="text-xl md:text-2xl font-display font-bold uppercase tracking-wide">Verification Successful!</h2>
-              <p className="text-slate-400 text-sm max-w-md mx-auto">
-                Your Client ID and registration details are verified. As a participant in the challenge, you have unlocked the Forex trading educational series and leaderboard listing.
+            <div className="space-y-3">
+              <h2 className="text-xl md:text-2xl font-display font-extrabold uppercase tracking-wide text-white">
+                Welcome, {verifiedClient?.name || "Trader"}!
+              </h2>
+              <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+                Your Alpari account balance of <strong className="text-emerald-400 font-mono text-base">${verifiedClient?.balance ?? "100"}</strong> has been successfully verified.
+              </p>
+              <p className="text-slate-450 text-xs max-w-md mx-auto leading-relaxed">
+                You have successfully unlocked access to the trading challenge and our Forex educational series.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 border-t border-slate-900/60 w-full max-w-md mx-auto">
               <button
                 type="button"
-                onClick={() => setCurrentStep(2)}
+                onClick={() => {
+                  setIframeLoads(0);
+                  setCurrentStep(2);
+                }}
                 className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -710,57 +720,6 @@ function RegisterContent() {
           </section>
         )}
       </div>
-
-      {/* Welcome & Balance Verification Modal */}
-      {showWelcomeModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-slate-950/85 backdrop-blur-md"
-            onClick={() => setShowWelcomeModal(false)}
-          />
-
-          {/* Modal Container */}
-          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowWelcomeModal(false)}
-              className="absolute top-6 right-6 p-2 rounded-full bg-slate-850 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors z-20"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Body */}
-            <div className="p-6 md:p-8 space-y-6 text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <CheckCircle2 className="w-6 h-6 animate-pulse" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-display font-extrabold text-white uppercase tracking-wide">
-                  Welcome, {verifiedClient?.name || "Trader"}!
-                </h3>
-                <p className="text-sm text-slate-300">
-                  Your Alpari account balance of <strong className="text-emerald-400 font-mono">${verifiedClient?.balance ?? "100"}</strong> has been successfully verified.
-                </p>
-                <p className="text-xs text-slate-450 leading-relaxed pt-1">
-                  You have successfully unlocked access to the trading challenge and our Forex educational series.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWelcomeModal(false)}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-widest shadow-lg shadow-violet-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                >
-                  Perfect, Let&apos;s Start!
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
