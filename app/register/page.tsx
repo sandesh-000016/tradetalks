@@ -90,6 +90,19 @@ function RegisterContent() {
   const [currentStep, setCurrentStep] = React.useState(1);
   const [selectedVideoId, setSelectedVideoId] = React.useState("lmtgjAD18nE");
   const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
+  const [iframeLoads, setIframeLoads] = React.useState(0);
+
+  const handleIframeLoad = () => {
+    setIframeLoads((prev) => {
+      const nextCount = prev + 1;
+      // Google Form reloads to success page on submission
+      if (nextCount > 1) {
+        setCurrentStep(3);
+        setShowWelcomeModal(true);
+      }
+      return nextCount;
+    });
+  };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +131,7 @@ function RegisterContent() {
       const data = await res.json();
       if (data.success) {
         setVerifiedClient(data.client);
+        setIframeLoads(0); // Reset for Step 2
         setCurrentStep(2);
       } else {
         setErrorMsg(data.error || "Verification failed. Check your Client ID.");
@@ -338,31 +352,39 @@ function RegisterContent() {
                 src="https://docs.google.com/forms/d/e/1FAIpQLSe5FB5CkkrPeVE0CTNhFWTRQ1MOnDWLvSBsn8lgKUMghzbCfA/viewform?embedded=true"
                 className="absolute inset-0 w-full h-full border-0"
                 title="Registration Form"
+                onLoad={handleIframeLoad}
               >
                 Loading…
               </iframe>
             </div>
 
+            <div className="w-full mt-5 p-4 rounded-xl bg-violet-950/20 border border-violet-500/20 flex items-start gap-3 text-left">
+              <AlertTriangle className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-violet-400 uppercase tracking-wider">Submit to Auto-Advance</h4>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  Fill out the form and click the purple <strong>Submit</strong> button inside the Google Form above. Once submitted successfully, the portal will detect it and automatically advance you to the next step!
+                </p>
+              </div>
+            </div>
+
             <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
               <button
                 type="button"
-                onClick={() => setCurrentStep(1)}
+                onClick={() => {
+                  setIframeLoads(0);
+                  setCurrentStep(1);
+                }}
                 className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentStep(3);
-                  setShowWelcomeModal(true);
-                }}
-                className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/10 flex items-center gap-2 cursor-pointer"
-              >
-                Complete Verification
-                <ArrowRight className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center gap-2 text-xs text-slate-400 font-medium bg-slate-900/60 border border-slate-850 px-4 py-2.5 rounded-xl">
+                <span className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse" />
+                Waiting for form submission...
+              </div>
             </div>
           </section>
         )}
