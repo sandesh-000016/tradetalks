@@ -122,71 +122,39 @@ export async function getIntegratedLeaderboard(
   let rawClients: any[] = [];
   let cacheHit = false;
 
-  if (!useMock && !bypassCache) {
-    let hasStaleCache = false;
-    let staleClients: any[] = [];
-
-    // 1. Try memory cache first
-    if (memoryCache) {
-      if (Date.now() - memoryCache.timestamp < CACHE_DURATION_MS) {
-        console.log("[Leaderboard API] Serving from memory cache.");
-        rawClients = memoryCache.traders;
+  if (!useMock && !bypassCache && clientPromise) {
+    try {
+      const mongoClient = await clientPromise;
+      const db = mongoClient.db("tradetalks");
+      const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
+      
+      if (cacheDoc) {
+        const cacheAge = Date.now() - new Date(cacheDoc.updatedAt).getTime();
+        rawClients = cacheDoc.traders;
         cacheHit = true;
-      } else {
-        console.log("[Leaderboard API] Memory cache is stale.");
-        hasStaleCache = true;
-        staleClients = memoryCache.traders;
-      }
-    }
 
-    // 2. Try MongoDB cache next if no fresh memory cache
-    if (!cacheHit && clientPromise) {
-      try {
-        const mongoClient = await clientPromise;
-        const db = mongoClient.db("tradetalks");
-        const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
-        if (cacheDoc) {
-          const cacheAge = Date.now() - new Date(cacheDoc.updatedAt).getTime();
-          if (cacheAge < CACHE_DURATION_MS) {
-            console.log("[Leaderboard API] Serving from MongoDB cache.");
-            rawClients = cacheDoc.traders;
-            memoryCache = { timestamp: new Date(cacheDoc.updatedAt).getTime(), traders: rawClients };
-            cacheHit = true;
-          } else {
-            console.log("[Leaderboard API] MongoDB cache is stale.");
-            hasStaleCache = true;
-            staleClients = cacheDoc.traders;
-            // Sync memory cache timestamp so we don't spam MongoDB check every time
-            memoryCache = { timestamp: new Date(cacheDoc.updatedAt).getTime(), traders: cacheDoc.traders };
+        // If the cache is stale, trigger a lazy background sync to refresh it
+        if (cacheAge >= CACHE_DURATION_MS) {
+          console.log("[Leaderboard API] MongoDB cache is stale. Serving stale data and spawning background sync...");
+          if (!isSyncing) {
+            isSyncing = true;
+            getIntegratedLeaderboard(timeframe, false, true)
+              .then(() => {
+                console.log("[Leaderboard API] Background lazy sync successful!");
+              })
+              .catch((err) => {
+                console.error("[Leaderboard API] Background lazy sync failed:", err);
+              })
+              .finally(() => {
+                isSyncing = false;
+              });
           }
+        } else {
+          console.log("[Leaderboard API] Serving from fresh MongoDB cache.");
         }
-      } catch (err) {
-        console.error("[Leaderboard API] Error reading MongoDB cache:", err);
       }
-    }
-
-    // If cache is stale but we have old data, serve the old data instantly and sync in background
-    if (!cacheHit && hasStaleCache && staleClients.length > 0) {
-      console.log(`[Leaderboard API] Serving stale cache data (${staleClients.length} items) and running lazy sync...`);
-      rawClients = staleClients;
-      cacheHit = true;
-
-      if (!isSyncing) {
-        isSyncing = true;
-        console.log("[Leaderboard API] Spawning background sync thread...");
-        getIntegratedLeaderboard(timeframe, false, true)
-          .then(() => {
-            console.log("[Leaderboard API] Background lazy sync successful!");
-          })
-          .catch((err) => {
-            console.error("[Leaderboard API] Background lazy sync failed:", err);
-          })
-          .finally(() => {
-            isSyncing = false;
-          });
-      } else {
-        console.log("[Leaderboard API] Background sync already in progress, skipping spawn.");
-      }
+    } catch (err) {
+      console.error("[Leaderboard API] Error reading MongoDB cache:", err);
     }
   }
 

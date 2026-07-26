@@ -30,7 +30,9 @@ import {
   ExternalLink,
   CheckCircle2,
   Medal,
-  Share2
+  Share2,
+  Copy,
+  Check
 } from "lucide-react";
 import { Trader } from "@/lib/leaderboardApi";
 import {
@@ -199,24 +201,236 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
       .catch((err) => console.error("Error fetching badge rules:", err));
   }, []);
 
+  const [sharingTrader, setSharingTrader] = React.useState<Trader | null>(null);
+  const [previewImage, setPreviewImage] = React.useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [shareError, setShareError] = React.useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = React.useState(false);
+
+  // Generate scorecard image on the fly when modal opens
+  React.useEffect(() => {
+    if (!sharingTrader) {
+      setPreviewImage(null);
+      return;
+    }
+    
+    setIsGenerating(true);
+    setShareError(null);
+
+    const logoImg = new Image();
+    logoImg.src = "/logo.svg";
+
+    const drawCanvas = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 800;
+      canvas.height = 1000;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setIsGenerating(false);
+        return;
+      }
+
+      // Draw premium gradient background
+      const bgGradient = ctx.createLinearGradient(0, 0, 800, 1000);
+      bgGradient.addColorStop(0, "#020617"); // slate-950
+      bgGradient.addColorStop(0.5, "#0b1528");
+      bgGradient.addColorStop(1, "#030712");
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, 800, 1000);
+
+      // Radial background glow circles
+      const glow1 = ctx.createRadialGradient(400, 500, 50, 400, 500, 450);
+      glow1.addColorStop(0, "rgba(99, 102, 241, 0.18)"); // indigo-500
+      glow1.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = glow1;
+      ctx.beginPath();
+      ctx.arc(400, 500, 450, 0, Math.PI * 2);
+      ctx.fill();
+
+      const glow2 = ctx.createRadialGradient(200, 200, 50, 200, 200, 300);
+      glow2.addColorStop(0, "rgba(139, 92, 246, 0.15)"); // violet-500
+      glow2.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = glow2;
+      ctx.beginPath();
+      ctx.arc(200, 200, 300, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Subtle decorative grid lines
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.04)";
+      ctx.lineWidth = 1;
+      for (let x_pos = 0; x_pos < 800; x_pos += 80) {
+        ctx.beginPath();
+        ctx.moveTo(x_pos, 0);
+        ctx.lineTo(x_pos, 1000);
+        ctx.stroke();
+      }
+      for (let y_pos = 0; y_pos < 1000; y_pos += 80) {
+        ctx.beginPath();
+        ctx.moveTo(0, y_pos);
+        ctx.lineTo(800, y_pos);
+        ctx.stroke();
+      }
+
+      // Outer border frame
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.2)"; // brand-400
+      ctx.lineWidth = 3;
+      ctx.strokeRect(30, 30, 740, 940);
+
+      // Thin inner border
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(40, 40, 720, 920);
+
+      // Draw Trade Talks Logo
+      try {
+        ctx.drawImage(logoImg, 290, 75, 220, 55);
+      } catch (e) {
+        console.error("Error drawing logo SVG:", e);
+      }
+
+      // Header Branding Title
+      ctx.font = "bold 15px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.fillStyle = "#38bdf8"; // brand-400
+      ctx.textAlign = "center";
+      ctx.fillText("CHALLENGE STANDINGS", 400, 165);
+
+      // Main Glassmorphic Container Box
+      ctx.fillStyle = "rgba(15, 23, 42, 0.7)"; // slate-900/70
+      const r_val = 24;
+      const cardX = 80, cardY = 200, cardW = 640, cardH = 580;
+      
+      ctx.beginPath();
+      ctx.moveTo(cardX + r_val, cardY);
+      ctx.lineTo(cardX + cardW - r_val, cardY);
+      ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + r_val);
+      ctx.lineTo(cardX + cardW, cardY + cardH - r_val);
+      ctx.quadraticCurveTo(cardX + cardW, cardY + cardH, cardX + cardW - r_val, cardY + cardH);
+      ctx.lineTo(cardX + r_val, cardY + cardH);
+      ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - r_val);
+      ctx.lineTo(cardX, cardY + r_val);
+      ctx.quadraticCurveTo(cardX, cardY, cardX + r_val, cardY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Border outline for container
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Trader's Name
+      ctx.font = "bold 38px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(sharingTrader.name, 400, 275);
+
+      // Rank Badge Pill
+      const rankText = `RANK #${sharingTrader.rank}`;
+      ctx.font = "bold 20px 'Space Grotesk', 'Inter', sans-serif";
+      const w_text = ctx.measureText(rankText).width;
+      const bW = w_text + 36;
+      const bH = 40;
+      const bX = 400 - bW / 2;
+      const bY = 310;
+      const bR = 10;
+
+      // Rank badge gradient background
+      const rankGradient = ctx.createLinearGradient(bX, bY, bX + bW, bY);
+      if (sharingTrader.rank === 1) {
+        rankGradient.addColorStop(0, "#f59e0b"); // gold
+        rankGradient.addColorStop(1, "#d97706");
+      } else if (sharingTrader.rank === 2) {
+        rankGradient.addColorStop(0, "#cbd5e1"); // silver
+        rankGradient.addColorStop(1, "#94a3b8");
+      } else if (sharingTrader.rank === 3) {
+        rankGradient.addColorStop(0, "#b45309"); // bronze
+        rankGradient.addColorStop(1, "#78350f");
+      } else {
+        rankGradient.addColorStop(0, "#6d28d9"); // violet
+        rankGradient.addColorStop(1, "#4f46e5");
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(bX + bR, bY);
+      ctx.lineTo(bX + bW - bR, bY);
+      ctx.quadraticCurveTo(bX + bW, bY, bX + bW, bY + bR);
+      ctx.lineTo(bX + bW, bY + bH - bR);
+      ctx.quadraticCurveTo(bX + bW, bY + bH, bX + bW - bR, bY + bH);
+      ctx.lineTo(bX + r_val, bY + bH);
+      ctx.quadraticCurveTo(bX, bY + bH, bX, bY + bH - bR);
+      ctx.lineTo(bX, bY + bR);
+      ctx.quadraticCurveTo(bX, bY, bX + bR, bY);
+      ctx.closePath();
+      ctx.fillStyle = rankGradient;
+      ctx.fill();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(rankText, 400, bY + 27);
+
+      // Profit return percent
+      const profitVal = sharingTrader.profit ?? 0;
+      const isPositive = profitVal >= 0;
+      const profitText = `${isPositive ? "+" : ""}${profitVal.toFixed(2)}%`;
+      ctx.font = "bold 80px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.fillStyle = isPositive ? "#10b981" : "#f43f5e"; // emerald-500 or rose-500
+      ctx.fillText(profitText, 400, 455);
+
+      ctx.font = "bold 14px 'Inter', sans-serif";
+      ctx.fillStyle = "#64748b"; // slate-500
+      ctx.fillText("PROFIT ROI RETURN", 400, 485);
+
+      // Separator inside card
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(140, 530);
+      ctx.lineTo(660, 530);
+      ctx.stroke();
+
+      // Volume & Starting balance metrics
+      ctx.font = "bold 18px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.fillStyle = "#cbd5e1";
+      ctx.textAlign = "left";
+      ctx.fillText(`VOLUME: ${(sharingTrader.volume ?? 0).toFixed(2)} Lots`, 160, 580);
+
+      ctx.textAlign = "right";
+      ctx.fillText(`START CAPITAL: $${(sharingTrader.mtNetDeposits ?? 100).toFixed(2)}`, 640, 580);
+
+      // Badges & Points Count
+      ctx.font = "medium 14px 'Inter', sans-serif";
+      ctx.fillStyle = "#64748b";
+      ctx.textAlign = "center";
+      const badgesCount = sharingTrader.earnedBadges?.length ?? 0;
+      ctx.fillText(`BADGES EARNED: ${badgesCount}  |  TOTAL POINTS: ${sharingTrader.totalPoints ?? 0} PTS`, 400, 650);
+
+      // Card Bottom Footer
+      ctx.font = "medium 14px 'Inter', sans-serif";
+      ctx.fillStyle = "#475569"; // slate-600
+      ctx.fillText("WWW.TRADETALKS.IN  |  COMPETE & WIN REAL PRIZES", 400, 870);
+
+      try {
+        const url = canvas.toDataURL("image/png");
+        setPreviewImage(url);
+      } catch (err) {
+        console.error("Canvas toDataURL error:", err);
+        setShareError("Could not generate image on this device.");
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    if (logoImg.complete) {
+      drawCanvas();
+    } else {
+      logoImg.onload = drawCanvas;
+      logoImg.onerror = () => {
+        console.error("Failed to load Trade Talks logo, drawing without it.");
+        drawCanvas();
+      };
+    }
+  }, [sharingTrader]);
+
   const handleShare = (e: React.MouseEvent, trader: any) => {
     e.stopPropagation(); // prevent opening details modal
-    
-    const profitStr = trader.profit >= 0 ? `+${trader.profit.toFixed(2)}%` : `${trader.profit.toFixed(2)}%`;
-    const shareText = `🔥 Check out my trading performance on Trade Talks! \nRank: #${trader.rank}\nProfit Return: ${profitStr}\nVolume: ${(trader.volume ?? 0).toFixed(2)} Lots\n\nTrack live standings here: ${window.location.origin}/leaderboard`;
-
-    if (navigator.share) {
-      navigator.share({
-        title: 'Trade Talks Achievement',
-        text: shareText,
-        url: `${window.location.origin}/leaderboard`
-      }).catch((err) => {
-        console.error("Error sharing:", err);
-      });
-    } else {
-      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-      window.open(waUrl, "_blank");
-    }
+    setSharingTrader(trader);
   };
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -1642,6 +1856,133 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               >
                 Close Details
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Scorecard Modal */}
+      {sharingTrader && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            onClick={() => setSharingTrader(null)}
+          />
+
+          {/* Modal Container */}
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+            {/* Close Button */}
+            <button
+              onClick={() => setSharingTrader(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-850 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Content */}
+            <div className="p-6 space-y-5">
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-white uppercase tracking-wider">
+                  Share Scorecard
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Share your rank and returns with other traders
+                </p>
+              </div>
+
+              {/* Preview Box */}
+              <div className="relative aspect-[4/5] w-full max-w-[340px] mx-auto rounded-2xl border border-slate-800/85 bg-slate-950/60 overflow-hidden flex items-center justify-center">
+                {isGenerating && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-800 border-t-brand-400" />
+                    <span className="text-xs text-slate-400">Rendering high-res card...</span>
+                  </div>
+                )}
+                {!isGenerating && previewImage && (
+                  <img
+                    src={previewImage}
+                    alt={`${sharingTrader.name}'s Scorecard`}
+                    className="w-full h-full object-contain"
+                  />
+                )}
+                {shareError && (
+                  <div className="text-rose-400 text-xs px-4 text-center">
+                    {shareError}
+                  </div>
+                )}
+              </div>
+
+              {/* Action grid */}
+              <div className="flex flex-col gap-3">
+                {/* Copy Link Button */}
+                <button
+                  onClick={() => {
+                    const shareUrl = `${window.location.origin}/leaderboard`;
+                    navigator.clipboard.writeText(shareUrl);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 2050);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-850 hover:bg-slate-850/80 text-white font-semibold text-xs transition-colors border border-slate-800 cursor-pointer"
+                >
+                  {copiedLink ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-brand-400" />
+                      Copy Link
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Direct share buttons */}
+              <div className="space-y-2">
+                {/* Web Share API (Mobile Direct Image Share) */}
+                {typeof navigator !== "undefined" && navigator.share && (
+                  <button
+                    onClick={async () => {
+                      if (!previewImage) return;
+                      try {
+                        const blob = await (await fetch(previewImage)).blob();
+                        const file = new File(
+                          [blob],
+                          `${sharingTrader.name.toLowerCase().replace(/\s+/g, "-")}-scorecard.png`,
+                          { type: "image/png" }
+                        );
+                        
+                        const profitStr = sharingTrader.profit >= 0 
+                          ? `+${sharingTrader.profit.toFixed(2)}%` 
+                          : `${sharingTrader.profit.toFixed(2)}%`;
+                        const text = `🔥 My performance on the Trade Talks leaderboard! Rank: #${sharingTrader.rank}, Profit return: ${profitStr}.`;
+
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                          await navigator.share({
+                            files: [file],
+                            title: "Trade Talks Scorecard",
+                            text: text,
+                          });
+                        } else {
+                          await navigator.share({
+                            title: "Trade Talks Scorecard",
+                            text: text,
+                            url: `${window.location.origin}/leaderboard`,
+                          });
+                        }
+                      } catch (err) {
+                        console.error("Web Share failed:", err);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition-all shadow-md shadow-brand-600/10 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Share Image Directly
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

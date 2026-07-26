@@ -109,10 +109,15 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
     }
     
     setIsGenerating(true);
-    const timer = setTimeout(() => {
+    setShareError(null);
+
+    const logoImg = new Image();
+    logoImg.src = "/logo.svg";
+
+    const drawCanvas = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = 1200;
-      canvas.height = 630;
+      canvas.width = 800;
+      canvas.height = 1000;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         setIsGenerating(false);
@@ -120,74 +125,74 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       }
 
       // Draw premium gradient background
-      const bgGradient = ctx.createLinearGradient(0, 0, 1200, 630);
+      const bgGradient = ctx.createLinearGradient(0, 0, 800, 1000);
       bgGradient.addColorStop(0, "#020617"); // slate-950
       bgGradient.addColorStop(0.5, "#0b1528");
       bgGradient.addColorStop(1, "#030712");
       ctx.fillStyle = bgGradient;
-      ctx.fillRect(0, 0, 1200, 630);
+      ctx.fillRect(0, 0, 800, 1000);
 
       // Radial background glow circles
-      const glow1 = ctx.createRadialGradient(1000, 500, 50, 1000, 500, 400);
-      glow1.addColorStop(0, "rgba(99, 102, 241, 0.2)"); // indigo-500
+      const glow1 = ctx.createRadialGradient(400, 500, 50, 400, 500, 450);
+      glow1.addColorStop(0, "rgba(99, 102, 241, 0.18)"); // indigo-500
       glow1.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.fillStyle = glow1;
       ctx.beginPath();
-      ctx.arc(1000, 500, 400, 0, Math.PI * 2);
+      ctx.arc(400, 500, 450, 0, Math.PI * 2);
       ctx.fill();
 
-      const glow2 = ctx.createRadialGradient(200, 100, 50, 200, 100, 300);
+      const glow2 = ctx.createRadialGradient(200, 200, 50, 200, 200, 300);
       glow2.addColorStop(0, "rgba(139, 92, 246, 0.15)"); // violet-500
       glow2.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.fillStyle = glow2;
       ctx.beginPath();
-      ctx.arc(200, 100, 300, 0, Math.PI * 2);
+      ctx.arc(200, 200, 300, 0, Math.PI * 2);
       ctx.fill();
 
       // Subtle decorative grid lines
-      ctx.strokeStyle = "rgba(148, 163, 184, 0.05)";
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.04)";
       ctx.lineWidth = 1;
-      for (let x_pos = 0; x_pos < 1200; x_pos += 80) {
+      for (let x_pos = 0; x_pos < 800; x_pos += 80) {
         ctx.beginPath();
         ctx.moveTo(x_pos, 0);
-        ctx.lineTo(x_pos, 630);
+        ctx.lineTo(x_pos, 1000);
         ctx.stroke();
       }
-      for (let y_pos = 0; y_pos < 630; y_pos += 80) {
+      for (let y_pos = 0; y_pos < 1000; y_pos += 80) {
         ctx.beginPath();
         ctx.moveTo(0, y_pos);
-        ctx.lineTo(1200, y_pos);
+        ctx.lineTo(800, y_pos);
         ctx.stroke();
       }
 
       // Outer border frame
       ctx.strokeStyle = "rgba(56, 189, 248, 0.2)"; // brand-400
       ctx.lineWidth = 3;
-      ctx.strokeRect(30, 30, 1140, 570);
+      ctx.strokeRect(30, 30, 740, 940);
 
       // Thin inner border
       ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
       ctx.lineWidth = 1;
-      ctx.strokeRect(40, 40, 1120, 550);
+      ctx.strokeRect(40, 40, 720, 920);
+
+      // Draw Trade Talks Logo
+      try {
+        // SVG dimensions: ~4:1 ratio. 220px width, 55px height.
+        ctx.drawImage(logoImg, 290, 75, 220, 55);
+      } catch (e) {
+        console.error("Error drawing logo SVG:", e);
+      }
 
       // Header Branding Title
-      ctx.font = "bold 20px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.font = "bold 15px 'Space Grotesk', 'Inter', sans-serif";
       ctx.fillStyle = "#38bdf8"; // brand-400
       ctx.textAlign = "center";
-      ctx.fillText("TRADE TALKS CHALLENGE STANDINGS", 600, 85);
-
-      // Accent divider line
-      ctx.strokeStyle = "rgba(56, 189, 248, 0.3)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(480, 110);
-      ctx.lineTo(720, 110);
-      ctx.stroke();
+      ctx.fillText("CHALLENGE STANDINGS", 400, 165);
 
       // Main Glassmorphic Container Box
       ctx.fillStyle = "rgba(15, 23, 42, 0.7)"; // slate-900/70
       const r_val = 24;
-      const cardX = 160, cardY = 145, cardW = 880, cardH = 370;
+      const cardX = 80, cardY = 200, cardW = 640, cardH = 580;
       
       ctx.beginPath();
       ctx.moveTo(cardX + r_val, cardY);
@@ -208,18 +213,18 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       ctx.stroke();
 
       // Trader's Name
-      ctx.font = "bold 44px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.font = "bold 38px 'Space Grotesk', 'Inter', sans-serif";
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(sharingTrader.name, 600, 215);
+      ctx.fillText(sharingTrader.name, 400, 275);
 
       // Rank Badge Pill
       const rankText = `RANK #${sharingTrader.rank}`;
-      ctx.font = "bold 22px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.font = "bold 20px 'Space Grotesk', 'Inter', sans-serif";
       const w_text = ctx.measureText(rankText).width;
       const bW = w_text + 36;
-      const bH = 42;
-      const bX = 600 - bW / 2;
-      const bY = 245;
+      const bH = 40;
+      const bX = 400 - bW / 2;
+      const bY = 310;
       const bR = 10;
 
       // Rank badge gradient background
@@ -253,42 +258,48 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       ctx.fill();
 
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(rankText, 600, bY + 28);
+      ctx.fillText(rankText, 400, bY + 27);
 
       // Profit return percent
       const profitVal = sharingTrader.profit ?? 0;
       const isPositive = profitVal >= 0;
       const profitText = `${isPositive ? "+" : ""}${profitVal.toFixed(2)}%`;
-      ctx.font = "bold 76px 'Space Grotesk', 'Inter', sans-serif";
+      ctx.font = "bold 80px 'Space Grotesk', 'Inter', sans-serif";
       ctx.fillStyle = isPositive ? "#10b981" : "#f43f5e"; // emerald-500 or rose-500
-      ctx.fillText(profitText, 600, 375);
+      ctx.fillText(profitText, 400, 455);
 
       ctx.font = "bold 14px 'Inter', sans-serif";
       ctx.fillStyle = "#64748b"; // slate-500
-      ctx.fillText("PROFIT ROI RETURN", 600, 405);
+      ctx.fillText("PROFIT ROI RETURN", 400, 485);
 
       // Separator inside card
       ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(240, 435);
-      ctx.lineTo(960, 435);
+      ctx.moveTo(140, 530);
+      ctx.lineTo(660, 530);
       ctx.stroke();
 
       // Volume & Starting balance metrics
       ctx.font = "bold 18px 'Space Grotesk', 'Inter', sans-serif";
       ctx.fillStyle = "#cbd5e1";
       ctx.textAlign = "left";
-      ctx.fillText(`VOLUME: ${(sharingTrader.volume ?? 0).toFixed(2)} Lots`, 270, 475);
+      ctx.fillText(`VOLUME: ${(sharingTrader.volume ?? 0).toFixed(2)} Lots`, 160, 580);
 
       ctx.textAlign = "right";
-      ctx.fillText(`START CAPITAL: $${(sharingTrader.mtNetDeposits ?? 100).toFixed(2)}`, 930, 475);
+      ctx.fillText(`START CAPITAL: $${(sharingTrader.mtNetDeposits ?? 100).toFixed(2)}`, 640, 580);
+
+      // Badges & Points Count
+      ctx.font = "medium 14px 'Inter', sans-serif";
+      ctx.fillStyle = "#64748b";
+      ctx.textAlign = "center";
+      const badgesCount = sharingTrader.earnedBadges?.length ?? 0;
+      ctx.fillText(`BADGES EARNED: ${badgesCount}  |  TOTAL POINTS: ${sharingTrader.totalPoints ?? 0} PTS`, 400, 650);
 
       // Card Bottom Footer
-      ctx.font = "medium 15px 'Inter', sans-serif";
+      ctx.font = "medium 14px 'Inter', sans-serif";
       ctx.fillStyle = "#475569"; // slate-600
-      ctx.textAlign = "center";
-      ctx.fillText("WWW.TRADETALKS.IN  |  COMPETE & WIN REAL PRIZES", 600, 565);
+      ctx.fillText("WWW.TRADETALKS.IN  |  COMPETE & WIN REAL PRIZES", 400, 870);
 
       try {
         const url = canvas.toDataURL("image/png");
@@ -299,9 +310,17 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       } finally {
         setIsGenerating(false);
       }
-    }, 400);
+    };
 
-    return () => clearTimeout(timer);
+    if (logoImg.complete) {
+      drawCanvas();
+    } else {
+      logoImg.onload = drawCanvas;
+      logoImg.onerror = () => {
+        console.error("Failed to load Trade Talks logo, drawing without it.");
+        drawCanvas();
+      };
+    }
   }, [sharingTrader]);
 
   const handleShare = (e: React.MouseEvent, trader: any) => {
@@ -982,7 +1001,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
               </div>
 
               {/* Preview Box */}
-              <div className="relative aspect-[1200/630] w-full rounded-2xl border border-slate-800/85 bg-slate-950/60 overflow-hidden flex items-center justify-center">
+              <div className="relative aspect-[4/5] w-full max-w-[340px] mx-auto rounded-2xl border border-slate-800/85 bg-slate-950/60 overflow-hidden flex items-center justify-center">
                 {isGenerating && (
                   <div className="flex flex-col items-center gap-2">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-800 border-t-brand-400" />
@@ -1004,23 +1023,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
               </div>
 
               {/* Action grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Download Button */}
-                <button
-                  onClick={() => {
-                    if (!previewImage) return;
-                    const link = document.createElement("a");
-                    link.download = `${sharingTrader.name.toLowerCase().replace(/\s+/g, "-")}-scorecard.png`;
-                    link.href = previewImage;
-                    link.click();
-                  }}
-                  disabled={!previewImage}
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-850 hover:bg-slate-850/80 disabled:opacity-50 text-white font-semibold text-xs transition-colors border border-slate-800 cursor-pointer"
-                >
-                  <Download className="w-4 h-4 text-brand-400" />
-                  Download PNG
-                </button>
-
+              <div className="flex flex-col gap-3">
                 {/* Copy Link Button */}
                 <button
                   onClick={() => {
@@ -1029,7 +1032,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     setCopiedLink(true);
                     setTimeout(() => setCopiedLink(false), 2000);
                   }}
-                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-850 hover:bg-slate-850/80 text-white font-semibold text-xs transition-colors border border-slate-800 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-850 hover:bg-slate-850/80 text-white font-semibold text-xs transition-colors border border-slate-800 cursor-pointer"
                 >
                   {copiedLink ? (
                     <>
@@ -1089,21 +1092,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                   </button>
                 )}
 
-                {/* WhatsApp Web share */}
-                <button
-                  onClick={() => {
-                    const profitStr = sharingTrader.profit >= 0 
-                      ? `+${sharingTrader.profit.toFixed(2)}%` 
-                      : `${sharingTrader.profit.toFixed(2)}%`;
-                    const text = `🔥 My performance on the Trade Talks leaderboard!\nRank: #${sharingTrader.rank}\nProfit Return: ${profitStr}\nVolume: ${(sharingTrader.volume ?? 0).toFixed(2)} Lots\n\nTrack standings: ${window.location.origin}/leaderboard`;
-                    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-                    window.open(waUrl, "_blank");
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors cursor-pointer"
-                >
-                  <Send className="w-4 h-4 fill-white" />
-                  Share Text Standings to WhatsApp
-                </button>
+
               </div>
             </div>
           </div>
