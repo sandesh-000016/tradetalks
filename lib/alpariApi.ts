@@ -376,6 +376,32 @@ export async function getIntegratedLeaderboard(
         // Fetch current database state
         const dbList = await tradersCol.find({}).toArray();
         const dbMap = new Map(dbList.map((d: any) => [d.clientId || d._id, d]));
+
+        // Ensure all registered traders from MongoDB are included in mergedMap
+        dbList.forEach((dbTrader: any) => {
+          if (!dbTrader.isRegistered) return;
+          const clientId = dbTrader.clientId || dbTrader._id;
+          if (!clientId) return;
+          
+          const key = clientId.toLowerCase().trim();
+          if (!mergedMap[key]) {
+            mergedMap[key] = {
+              id: key,
+              external_client_id: clientId,
+              numeric_id: dbTrader.numericId || 0,
+              client_name: dbTrader.clientName || `Trader ${clientId.substring(0, 8)}`,
+              country: dbTrader.country || "India",
+              registration_date: dbTrader.registrationDate || dbTrader.lastUpdated || new Date().toISOString(),
+              total_balance: dbTrader.lastRecordedBalance ?? 100,
+              total_equity: dbTrader.lastRecordedBalance ?? 100,
+              volume: dbTrader.volume ?? 0,
+              settled_rebates: dbTrader.settledRebates ?? 0,
+              is_registered: true,
+              is_washed_out: dbTrader.isWashedOut || false,
+              mt_net_deposits: dbTrader.totalNetDeposits ?? 100
+            };
+          }
+        });
         
         const bulkOps: any[] = [];
         
