@@ -723,7 +723,12 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
             },
             { upsert: true }
           );
-          console.log(`[Verify Direct] Saved newly verified client '${extId}' to MongoDB.`);
+          
+          // Clear the leaderboard cache so they show up immediately
+          await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
+          memoryCache = null;
+          
+          console.log(`[Verify Direct] Saved newly verified client '${extId}' to MongoDB and invalidated cache.`);
         } catch (dbErr) {
           console.error("[Verify Direct] Failed to write verified client to MongoDB:", dbErr);
         }
