@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Award,
   ChevronRight,
+  ChevronDown,
   Scale,
   Shield,
   Target,
@@ -37,6 +38,7 @@ import {
 import { Trader } from "@/lib/leaderboardApi";
 import {
   TopRankBadge,
+  WeeklyTopBadge,
   ConsistentTraderBadge,
   MostActiveTraderBadge,
   TraderOfWeekBadge,
@@ -161,6 +163,8 @@ const letterVariants = {
   },
 };
 
+
+
 interface HomePageClientProps {
   initialTraders: Trader[];
 }
@@ -178,6 +182,19 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
   const [currentStep, setCurrentStep] = React.useState(1);
   const [showPlaylistModal, setShowPlaylistModal] = React.useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
+  const [selectedVideoId, setSelectedVideoId] = React.useState("lmtgjAD18nE");
+  const [iframeLoads, setIframeLoads] = React.useState(0);
+
+  const handleIframeLoad = () => {
+    setIframeLoads((prev) => {
+      const nextCount = prev + 1;
+      // Google Form reloads to success page on submission
+      if (nextCount > 1) {
+        setCurrentStep(3);
+      }
+      return nextCount;
+    });
+  };
 
   const [selectedTrader, setSelectedTrader] = React.useState<Trader | null>(null);
   const [selectedBadge, setSelectedBadge] = React.useState<{
@@ -189,6 +206,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
   } | null>(null);
 
   const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
+  const [openAccordion, setOpenAccordion] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     fetch("/api/badge-rules")
@@ -200,6 +218,56 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
       })
       .catch((err) => console.error("Error fetching badge rules:", err));
   }, []);
+
+  const handleBadgeClick = (badgeName: string) => {
+    let cleanBadgeName = badgeName;
+    if (badgeName === "Weekly Top") {
+      cleanBadgeName = "Trader of the Week";
+    }
+
+    const badge = BADGE_DETAILS[cleanBadgeName];
+    if (!badge) return;
+
+    const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
+    
+    const formatConditions = (rule: any) => {
+      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+        return rule.conditions.map((cond: any) => {
+          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
+          
+          let metricDisplay = cond.metric;
+          if (cond.metric === "profit") metricDisplay = "Profit Return";
+          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
+          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
+          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
+          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
+          
+          return `${metricDisplay} ${opSign} ${cond.value}`;
+        }).join(" AND ");
+      }
+      
+      const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
+      
+      let metricDisplay = rule.metric;
+      if (rule.metric === "profit") metricDisplay = "Profit Return";
+      else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
+      else if (rule.metric === "settledRebates") metricDisplay = "Settled Rebates";
+      else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
+      else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
+      
+      return `${metricDisplay} ${opSign} ${rule.value}`;
+    };
+
+    setSelectedBadge({
+      name: cleanBadgeName,
+      desc: matchedRule?.description || badge.desc,
+      condition: matchedRule
+        ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
+        : badge.condition,
+      color: badge.color,
+      icon: badge.icon
+    });
+  };
 
   const [sharingTrader, setSharingTrader] = React.useState<Trader | null>(null);
   const [previewImage, setPreviewImage] = React.useState<string | null>(null);
@@ -460,6 +528,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
       const data = await res.json();
       if (data.success) {
         setVerifiedClient(data.client);
+        setIframeLoads(0); // Reset for Step 2
         setCurrentStep(2);
       } else {
         setErrorMsg(data.error || "Verification failed. Check your Client ID.");
@@ -628,6 +697,435 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
         {/* Ambient background glows */}
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-gradient-to-tr from-violet-600/5 to-transparent rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-gradient-to-bl from-blue-600/5 to-transparent rounded-full blur-3xl pointer-events-none"></div>
+      </section>
+
+      {/* Rewards & Prizes Section */}
+      <section className="py-24 bg-gradient-to-b from-[#050814] to-[#03050c] relative border-b border-slate-900/60 overflow-hidden">
+        {/* Glow Effects */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+
+          <div className="text-center mb-16 space-y-3">
+            <motion.h2
+              variants={itemVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="text-2xl md:text-3xl font-display font-extrabold uppercase tracking-wider text-white"
+            >
+              Rewards & Prizes
+            </motion.h2>
+            <motion.p
+              variants={itemVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="text-slate-400 max-w-xl mx-auto text-sm md:text-base font-medium"
+            >
+              Compete, earn badges, and win exciting rewards.
+            </motion.p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+
+            {/* Left Card: Final Winner */}
+            <motion.div
+              variants={itemVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="lg:col-span-4 bg-slate-950/70 border border-slate-900 rounded-3xl p-8 flex flex-col justify-between items-center text-center relative group hover:border-slate-800 hover:shadow-[0_0_50px_rgba(226,165,18,0.08)] transition-all duration-500 overflow-hidden"
+            >
+              {/* Shiny Gold Background Glow */}
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-700"></div>
+
+              <div className="w-full flex flex-col items-center">
+                {/* Trophy Container with Framer Motion Animation */}
+                <motion.div
+                  whileHover={{ scale: 1.05, rotate: 2 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                  className="w-48 h-48 flex items-center justify-center relative mb-6"
+                >
+                  <div className="absolute inset-0 bg-radial-glow from-amber-500/10 to-transparent blur-2xl rounded-full scale-125 animate-pulse"></div>
+                  <Trophy className="w-24 h-24 text-amber-400 relative z-10 drop-shadow-[0_10px_30px_rgba(226,165,18,0.3)] animate-pulse" />
+                </motion.div>
+
+                <h3 className="text-2xl font-display font-extrabold uppercase tracking-wider text-amber-400 mb-2">
+                  Final Winner
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-sm mb-6">
+                  The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
+                </p>
+              </div>
+
+              {/* Exclusive Rewards Section */}
+              <div className="w-full border-t border-slate-900/80 pt-6 mt-4">
+                <div className="text-[10px] text-amber-500 uppercase tracking-widest font-black mb-4">
+                  Exclusive Rewards
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col items-center p-3 rounded-xl bg-slate-900/40 border border-slate-900/60 text-center">
+                    <Award className="w-5 h-5 text-amber-400 mb-2" />
+                    <span className="text-xs font-bold text-slate-200">Physical Badge</span>
+                  </div>
+                  <div className="flex flex-col items-center p-3 rounded-xl bg-slate-900/40 border border-slate-900/60 text-center">
+                    <Gift className="w-5 h-5 text-amber-400 mb-2" />
+                    <span className="text-xs font-bold text-slate-200">Premium Gifts</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Panel: Achievements & Badges */}
+            <div className="lg:col-span-8 flex flex-col justify-between gap-6">
+
+              <div className="bg-slate-950/40 border border-slate-900 rounded-3xl p-6 sm:p-8 flex-1">
+                <div className="text-xs text-slate-400 uppercase tracking-widest font-black mb-8 border-b border-slate-900 pb-4">
+                  Achievements & Badges
+                </div>
+
+                {/* Desktop Badges Grid (Visible on md and above) */}
+                <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    {
+                      icon: <TopRankBadge className="w-10 h-10" />,
+                      title: "Top Rank Monthly",
+                      subtitle: "BEST BADGE",
+                      desc: "Awarded to the top ranked trader each month.",
+                    },
+                    {
+                      icon: <ConsistentTraderBadge className="w-10 h-10" />,
+                      title: "Consistent Trader",
+                      desc: "Awarded for consistent performance throughout the challenge.",
+                    },
+                    {
+                      icon: <MostActiveTraderBadge className="w-10 h-10" />,
+                      title: "Most Active Trader",
+                      desc: "Awarded for highest active volume (settled + unsettled).",
+                    },
+                    {
+                      icon: <TraderOfWeekBadge className="w-10 h-10" />,
+                      title: "Trader of the Week",
+                      desc: "Recognizing outstanding trading performance of the week.",
+                    },
+                    {
+                      icon: <BestRiskManagerBadge className="w-10 h-10" />,
+                      title: "Best Risk Manager",
+                      desc: "Awarded for excellent risk management and discipline.",
+                    },
+                  ].map((badge, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleBadgeClick(badge.title)}
+                      className="w-full text-left glass-panel rounded-2xl p-5 border border-slate-900 flex flex-col justify-between items-start gap-4 hover:border-violet-500/50 hover:bg-slate-900/40 hover:shadow-lg transition-all duration-300 relative group overflow-hidden cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start w-full">
+                        <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
+                          {badge.icon}
+                        </div>
+                        {badge.subtitle && (
+                          <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded font-black tracking-widest uppercase">
+                            {badge.subtitle}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1 w-full text-left">
+                        <h4 className="font-bold text-white text-sm group-hover:text-violet-400 transition-colors">{badge.title}</h4>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">{badge.desc}</p>
+                        <span className="text-[9px] text-brand-450 font-bold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          View Rules →
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+
+                  {/* Next Evaluation Schedules Card */}
+                  <div className="glass-panel rounded-2xl p-5 border border-violet-500/20 bg-violet-500/5 flex flex-col justify-between items-start gap-4 hover:border-violet-500/45 transition-all duration-300 relative group overflow-hidden">
+                    {/* Background Glow */}
+                    <div className="absolute -top-12 -left-12 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-violet-500/20 transition-all duration-500"></div>
+
+                    <div className="flex justify-between items-start w-full relative z-10">
+                      <div className="shrink-0 w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400">
+                        <Clock className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <span className="text-[8px] bg-violet-500/15 border border-violet-500/30 text-violet-400 px-2 py-0.5 rounded font-black tracking-widest uppercase">
+                        Schedule
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 w-full text-left relative z-10">
+                      <h4 className="font-bold text-white text-sm">Next Evaluations</h4>
+                      
+                      <div className="space-y-2">
+                        {/* Weekly Evaluation */}
+                        <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 flex flex-col gap-1">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="font-bold text-slate-350">WEEKLY BADGE</span>
+                            <span className="text-[9px] text-violet-400 font-mono font-bold">
+                              {(() => {
+                                const rule = badgeRules.find(r => r._id === "Trader of the Week");
+                                if (!rule || !rule.nextEvaluationTime) return "N/A";
+                                return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                });
+                              })()}
+                            </span>
+                          </div>
+                          <div className="text-[9px] text-slate-500 leading-tight">
+                            {(() => {
+                              const rule = badgeRules.find(r => r._id === "Trader of the Week");
+                              if (!rule || !rule.nextEvaluationTime) return "";
+                              const diff = new Date(rule.nextEvaluationTime).getTime() - Date.now();
+                              if (diff <= 0) return "Evaluation in progress";
+                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                              const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                              return `${days}d ${hours}h remaining`;
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* Monthly Evaluation */}
+                        <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 flex flex-col gap-1">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="font-bold text-slate-355">MONTHLY BADGE</span>
+                            <span className="text-[9px] text-violet-400 font-mono font-bold">
+                              {(() => {
+                                const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
+                                if (!rule || !rule.nextEvaluationTime) return "N/A";
+                                return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                });
+                              })()}
+                            </span>
+                          </div>
+                          <div className="text-[9px] text-slate-500 leading-tight">
+                            {(() => {
+                              const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
+                              if (!rule || !rule.nextEvaluationTime) return "";
+                              const diff = new Date(rule.nextEvaluationTime).getTime() - Date.now();
+                              if (diff <= 0) return "Evaluation in progress";
+                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                              const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                              return `${days}d ${hours}h remaining`;
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Mobile Accordion List (Visible on mobile only) */}
+                <div className="block md:hidden space-y-3">
+                  {[
+                    {
+                      icon: <TopRankBadge className="w-10 h-10" />,
+                      title: "Top Rank Monthly",
+                      subtitle: "BEST BADGE",
+                      desc: "Awarded to the top ranked trader each month.",
+                    },
+                    {
+                      icon: <ConsistentTraderBadge className="w-10 h-10" />,
+                      title: "Consistent Trader",
+                      desc: "Awarded for consistent performance throughout the challenge.",
+                    },
+                    {
+                      icon: <MostActiveTraderBadge className="w-10 h-10" />,
+                      title: "Most Active Trader",
+                      desc: "Awarded for highest active volume (settled + unsettled).",
+                    },
+                    {
+                      icon: <TraderOfWeekBadge className="w-10 h-10" />,
+                      title: "Trader of the Week",
+                      desc: "Recognizing outstanding trading performance of the week.",
+                    },
+                    {
+                      icon: <BestRiskManagerBadge className="w-10 h-10" />,
+                      title: "Best Risk Manager",
+                      desc: "Awarded for excellent risk management and discipline.",
+                    },
+                  ].map((badge, idx) => {
+                    const isOpen = openAccordion === badge.title;
+                    const matchedRule = badgeRules.find((r) => r._id === badge.title);
+                    
+                    const formatConditions = (rule: any) => {
+                      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+                        return rule.conditions.map((cond: any) => {
+                          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
+                          let metricDisplay = cond.metric;
+                          if (cond.metric === "profit") metricDisplay = "Profit Return";
+                          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
+                          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
+                          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
+                          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
+                          return `${metricDisplay} ${opSign} ${cond.value}`;
+                        }).join(" AND ");
+                      }
+                      
+                      const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
+                      let metricDisplay = rule.metric;
+                      if (rule.metric === "profit") metricDisplay = "Profit Return";
+                      else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
+                      else if (rule.metric === "settledRebates") metricDisplay = "Settled Rebates";
+                      else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
+                      else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
+                      
+                      return `${metricDisplay} ${opSign} ${rule.value}`;
+                    };
+
+                    const conditionText = matchedRule
+                      ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points)`
+                      : (BADGE_DETAILS[badge.title]?.condition || "");
+
+                    return (
+                      <div 
+                        key={idx}
+                        className="rounded-2xl border border-slate-800 bg-[#101423] overflow-hidden transition-all duration-300"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setOpenAccordion(isOpen ? null : badge.title)}
+                          className="w-full flex items-center justify-between p-4 text-left cursor-pointer hover:bg-slate-900/40 transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="shrink-0 w-12 h-12 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
+                              {badge.icon}
+                            </div>
+                            <div>
+                              <span className="font-bold text-white text-sm block">{badge.title}</span>
+                              {badge.subtitle && (
+                                <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-black tracking-widest uppercase mt-0.5 inline-block">
+                                  {badge.subtitle}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className={`p-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 transition-transform duration-300 ${isOpen ? "rotate-180 text-violet-400" : ""}`}>
+                            <ChevronDown className="w-4 h-4" />
+                          </div>
+                        </button>
+                        
+                        {/* Accordion Content */}
+                        {isOpen && (
+                          <div className="px-4 pb-4 pt-1 border-t border-slate-900/40 bg-slate-950/20 space-y-3 animate-in fade-in duration-200">
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              {matchedRule?.description || badge.desc}
+                            </p>
+                            <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-900 text-left space-y-1.5">
+                              <div className="text-[9px] text-slate-500 uppercase tracking-wider font-black">
+                                Award Criteria & Conditions
+                              </div>
+                              <p className="text-xs text-slate-200 leading-relaxed font-semibold">
+                                {conditionText}
+                              </p>
+                              {matchedRule?.nextEvaluationTime && (
+                                <div className="text-[10px] text-violet-400 font-mono mt-1 pt-1.5 border-t border-slate-900/60">
+                                  Next evaluation: {new Date(matchedRule.nextEvaluationTime).toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Next Evaluation Schedules inside Mobile Accordion */}
+                  <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3 text-left">
+                    <div className="flex items-center gap-2 text-violet-400">
+                      <Clock className="w-4 h-4 animate-pulse" />
+                      <span className="font-bold text-xs uppercase tracking-wider">Next Evaluation Schedules</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="bg-[#101423] border border-slate-800 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                        <span className="font-bold text-slate-350">WEEKLY BADGE</span>
+                        <span className="text-violet-400 font-mono font-bold">
+                          {(() => {
+                            const rule = badgeRules.find(r => r._id === "Trader of the Week");
+                            if (!rule || !rule.nextEvaluationTime) return "N/A";
+                            return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            });
+                          })()}
+                        </span>
+                      </div>
+                      <div className="bg-[#101423] border border-slate-800 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                        <span className="font-bold text-slate-355">MONTHLY BADGE</span>
+                        <span className="text-violet-400 font-mono font-bold">
+                          {(() => {
+                            const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
+                            if (!rule || !rule.nextEvaluationTime) return "N/A";
+                            return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            });
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Next Evaluation Schedules Info Bar */}
+                <div className="hidden md:flex mt-8 pt-6 border-t border-slate-900/60 flex-col md:flex-row justify-between items-center gap-4 text-xs">
+                  <div className="flex items-center gap-2 text-slate-400 text-left">
+                    <Clock className="w-4 h-4 text-violet-400 shrink-0" />
+                    <span>Traders earn badges based on automated rule evaluations. Track your metrics to qualify.</span>
+                  </div>
+                  <div className="flex gap-4 flex-wrap">
+                    <div className="bg-slate-900/40 border border-slate-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-600 animate-pulse" />
+                      <span className="text-slate-400 font-medium">Next Weekly:</span>
+                      <strong className="text-white font-mono">
+                        {(() => {
+                          const rule = badgeRules.find(r => r._id === "Trader of the Week");
+                          if (!rule || !rule.nextEvaluationTime) return "N/A";
+                          return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit"
+                          });
+                        })()}
+                      </strong>
+                    </div>
+                    <div className="bg-slate-900/40 border border-slate-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                      <span className="text-slate-400 font-medium">Next Monthly:</span>
+                      <strong className="text-white font-mono">
+                        {(() => {
+                          const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
+                          if (!rule || !rule.nextEvaluationTime) return "N/A";
+                          return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric"
+                          });
+                        })()}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
       </section>
 
       {/* Top Traders Section */}
@@ -936,21 +1434,23 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               Join the Challenge
             </h2>
             <p className="text-slate-400 max-w-lg mx-auto text-sm">
-              Follow our simple three-step process to verify your account, fill details, and start tracking your success.
+              Follow our simple five-step process to verify your account, fill details, view rules, and get educated.
             </p>
           </div>
 
           {/* Step Indicator */}
-          <div className="flex items-center justify-center gap-4 sm:gap-8 mb-16">
+          <div className="flex items-center justify-center gap-3 md:gap-5 mb-16 flex-wrap">
             {[
               { num: 1, label: "Verify Account", sub: "Enter Client ID" },
-              { num: 2, label: "Fill Form", sub: "Google Form registration" },
-              { num: 3, label: "Rules & Rewards", sub: "Review requirements" },
+              { num: 2, label: "Submit Form", sub: "Google Form Details" },
+              { num: 3, label: "Complete Verification", sub: "Verification Success" },
+              { num: 4, label: "Challenge Rules", sub: "Rules & Conditions" },
+              { num: 5, label: "Forex Bootcamp", sub: "Educational Videos" },
             ].map((step, i) => {
               const isActive = currentStep === step.num;
               const isCompleted = currentStep > step.num;
               return (
-                <div key={step.num} className="flex items-center gap-4">
+                <div key={step.num} className="flex items-center gap-3 md:gap-5">
                   <div className="flex flex-col items-center text-center">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm mb-2 transition-all duration-300 ${
                       isActive 
@@ -961,15 +1461,15 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     }`}>
                       {isCompleted ? "✓" : step.num}
                     </div>
-                    <div className={`text-xs sm:text-sm font-semibold transition-colors ${
+                    <div className={`text-xs md:text-sm font-semibold transition-colors ${
                       isActive ? "text-violet-400 font-bold" : isCompleted ? "text-emerald-400" : "text-slate-500"
                     }`}>{step.label}</div>
                     <div className="text-[10px] text-slate-500 hidden sm:block">{step.sub}</div>
                   </div>
-                  {i < 2 && (
-                    <div className={`w-12 sm:w-20 h-px mb-6 transition-colors duration-300 ${
+                  {i < 4 && (
+                    <div className={`w-6 md:w-10 h-px mb-6 transition-colors duration-300 ${
                       currentStep > step.num ? "bg-emerald-500" : "bg-slate-800"
-                    }`}></div>
+                    } hidden md:block`}></div>
                   )}
                 </div>
               );
@@ -1022,7 +1522,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
 
                       {/* Referral Verification Checkbox */}
                       <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 space-y-3">
-                        <label className="flex items-start gap-3 cursor-pointer group text-xs text-slate-350">
+                        <label className="flex items-start gap-3 cursor-pointer group text-xs text-slate-355">
                           <input
                             type="checkbox"
                             checked={referralChecked}
@@ -1107,6 +1607,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   src="https://docs.google.com/forms/d/e/1FAIpQLSe5FB5CkkrPeVE0CTNhFWTRQ1MOnDWLvSBsn8lgKUMghzbCfA/viewform?embedded=true"
                   className="absolute inset-0 w-full h-full border-0"
                   title="Registration Form"
+                  onLoad={handleIframeLoad}
                 >
                   Loading…
                 </iframe>
@@ -1115,7 +1616,216 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(1)}
+                  onClick={() => {
+                    setIframeLoads(0);
+                    setCurrentStep(1);
+                  }}
+                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+                <div className="flex items-center gap-2 text-xs text-slate-400 font-medium bg-slate-900/60 border border-slate-850 px-4 py-2.5 rounded-xl">
+                  <span className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse" />
+                  Waiting for form submission...
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Complete Verification Page */}
+          {currentStep === 3 && (
+            <div className="glass-panel rounded-3xl p-8 md:p-10 mb-10 border border-slate-800 text-center space-y-6 bg-slate-950/40">
+              <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center text-emerald-400 mx-auto">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-xl md:text-2xl font-display font-extrabold uppercase tracking-wide text-white">
+                  Welcome, {verifiedClient?.name || "Trader"}!
+                </h3>
+                <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+                  Your Alpari account balance of <strong className="text-emerald-400 font-mono text-base">${verifiedClient?.balance ?? "100"}</strong> has been successfully verified.
+                </p>
+                <p className="text-slate-400 text-xs max-w-md mx-auto leading-relaxed">
+                  You have successfully unlocked access to the trading challenge and our Forex educational series.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 border-t border-slate-900/60 w-full max-w-md mx-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIframeLoads(0);
+                    setCurrentStep(2);
+                  }}
+                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800 flex items-center justify-center gap-2 cursor-pointer text-slate-300"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Form
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(4)}
+                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  Continue to Challenge Rules
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: Rules & Rewards Dashboard */}
+          {currentStep === 4 && (
+            <div className="space-y-12 mb-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {/* Rules Section */}
+              <section className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-2xl md:text-3xl font-display font-bold uppercase tracking-tight text-white">
+                    Challenge Rules
+                  </h3>
+                  <p className="text-slate-400 text-sm mt-2">
+                    Please read and understand the rules before you start.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {challengeRules.map((rule) => (
+                    <div
+                      key={rule.num}
+                      className="glass-panel rounded-2xl p-5 border border-slate-800 relative group hover:border-slate-700 transition-colors"
+                    >
+                      <div className="absolute top-4 left-4 w-6 h-6 rounded-md bg-violet-600/20 border border-violet-500/30 text-violet-400 flex items-center justify-center text-[10px] font-black font-display">
+                        {rule.num}
+                      </div>
+
+                      <div className="flex flex-col items-center text-center pt-6 space-y-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${rule.color}`}>
+                          {rule.icon}
+                        </div>
+                        <h4 className="font-semibold text-white text-sm">{rule.title}</h4>
+                        <div className="font-display font-bold text-brand-400 text-lg">{rule.value}</div>
+                        <p className="text-xs text-slate-400 leading-relaxed">{rule.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Important Note Card */}
+                  <div className="glass-panel rounded-2xl p-5 border border-amber-500/20 bg-amber-500/5 relative">
+                    <div className="flex flex-col items-center text-center pt-2 space-y-3">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center border text-amber-400 bg-amber-500/10 border-amber-500/30">
+                        <AlertTriangle className="w-5 h-5" />
+                      </div>
+                      <h4 className="font-semibold text-amber-400 text-sm">Important Note</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Violation of any rule may lead to disqualification. We promote fair trading and a level playing field for all participants.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Rewards & Prizes Section */}
+              <section className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-2xl md:text-3xl font-display font-bold uppercase tracking-tight text-white">
+                    Rewards & Prizes
+                  </h3>
+                  <p className="text-slate-400 text-sm mt-2">
+                    Compete, earn badges, and win exciting rewards.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                  {/* Final Winner Highlight */}
+                  <div className="lg:col-span-4 glass-panel rounded-3xl p-6 border border-amber-500/20 bg-gradient-to-br from-slate-900/60 to-slate-950/60 text-center flex flex-col justify-between items-center space-y-4">
+                    <div className="w-full flex flex-col items-center">
+                      <div className="w-20 h-20 rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center mb-4">
+                        <Trophy className="w-10 h-10 text-amber-400" />
+                      </div>
+                      <h4 className="text-xl font-display font-bold text-white uppercase">FINAL WINNER</h4>
+                      <p className="text-xs text-slate-400 max-w-[200px] leading-relaxed mt-2">
+                        The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
+                      </p>
+                    </div>
+                    <div className="w-full border-t border-slate-800/60 pt-4 mt-2">
+                      <div className="text-[10px] text-amber-500 uppercase tracking-widest font-black mb-3">
+                        Exclusive Rewards
+                      </div>
+                      <div className="flex justify-center gap-4 text-[10px] text-slate-400">
+                        <span className="flex items-center gap-1"><Award className="w-4.5 h-4.5 text-amber-400" /> Physical Badge</span>
+                        <span className="flex items-center gap-1"><Gift className="w-4.5 h-4.5 text-amber-400" /> Premium Gifts</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Achievements & Badges Grid */}
+                  <div className="lg:col-span-8 bg-slate-950/40 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[
+                        {
+                          icon: <TopRankBadge className="w-9 h-9" />,
+                          title: "Top Rank Monthly",
+                          subtitle: "BEST BADGE",
+                          desc: "Awarded to the top ranked trader each month.",
+                        },
+                        {
+                          icon: <WeeklyTopBadge className="w-9 h-9" />,
+                          title: "Weekly Top",
+                          desc: "Awarded to the top performer of the week.",
+                        },
+                        {
+                          icon: <ConsistentTraderBadge className="w-9 h-9" />,
+                          title: "Consistent Trader",
+                          desc: "Awarded for consistent performance throughout the challenge.",
+                        },
+                        {
+                          icon: <MostActiveTraderBadge className="w-9 h-9" />,
+                          title: "Most Active Trader",
+                          desc: "Awarded for highest active volume (settled + unsettled).",
+                        },
+                        {
+                          icon: <TraderOfWeekBadge className="w-9 h-9" />,
+                          title: "Trader of the Week",
+                          desc: "Recognizing outstanding trading performance of the week.",
+                        },
+                        {
+                          icon: <BestRiskManagerBadge className="w-9 h-9" />,
+                          title: "Best Risk Manager",
+                          desc: "Awarded for excellent risk management and discipline.",
+                        },
+                      ].map((badge, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => handleBadgeClick(badge.title)}
+                          className="w-full text-left glass-panel rounded-xl p-4 border border-slate-900 flex gap-3 items-start hover:border-violet-500/50 hover:bg-slate-900/40 transition-all duration-200 cursor-pointer group"
+                        >
+                          <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
+                            {badge.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-white text-xs text-left group-hover:text-violet-400 transition-colors">{badge.title}</h4>
+                            {badge.subtitle && (
+                              <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
+                                {badge.subtitle}
+                              </span>
+                            )}
+                            <p className="text-[10px] text-slate-450 text-left leading-relaxed mt-0.5">{badge.desc}</p>
+                            <span className="text-[9px] text-brand-450 font-bold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              View Rules →
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
                   className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -1123,41 +1833,134 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setCurrentStep(3);
-                    setShowWelcomeModal(true);
-                  }}
+                  onClick={() => setCurrentStep(5)}
                   className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/10 flex items-center gap-2 cursor-pointer"
                 >
-                  Continue to Rules & Rewards
+                  Continue to Forex Bootcamp
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* STEP 3: Complete */}
-          {currentStep === 3 && (
-            <div className="glass-panel rounded-3xl p-8 md:p-10 border border-slate-800 text-center space-y-4 bg-slate-950/40">
-              <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center text-emerald-400 mx-auto animate-bounce">
-                <CheckCircle2 className="w-8 h-8" />
+          {/* STEP 5: Forex Bootcamp Video Playlist Player */}
+          {currentStep === 5 && (
+            <div className="glass-panel rounded-3xl p-6 md:p-8 mb-10 border border-slate-800 bg-slate-950/40 relative overflow-hidden flex flex-col items-center">
+              <div className="text-center mb-6 space-y-2">
+                <h3 className="text-xl font-display font-black text-white uppercase tracking-wider">
+                  Step 5: Educational Forex Playlist
+                </h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Watch our curated educational Bootcamp. Select any video from the list below to learn trading basics.
+                </p>
               </div>
-              <h3 className="text-xl md:text-2xl font-display font-bold text-white">Registration Completed!</h3>
-              <p className="text-slate-400 text-sm max-w-md mx-auto">
-                You are all set! Ensure you trade using your verified Alpari Client ID. Review the rules and rewards below to make sure you stay qualified!
-              </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full mt-2">
+                {/* Embedded Player */}
+                <div className="lg:col-span-7 flex flex-col gap-3">
+                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-xl">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1&rel=0`}
+                      className="absolute inset-0 w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title="Forex Bootcamp Video Player"
+                    ></iframe>
+                  </div>
+                  <div className="p-3 bg-slate-900/40 border border-slate-850 rounded-xl w-full">
+                    <h4 className="text-sm font-semibold text-white font-display text-left">
+                      Now Playing: {
+                        [
+                          { id: "lmtgjAD18nE", title: "Forex-ൽ ഏതു സമയത്ത് Trade ചെയ്യണം ?" },
+                          { id: "yTJWlNjsW_M", title: "Forex Trading Basics: Pip എന്താണ്? & Pip Calculation" },
+                          { id: "XhpFBVHNULI", title: "Choosing a Forex Broker ." },
+                          { id: "JQcjFIVgKAE", title: "മൊബൈൽ ഉപയോഗിച്ച് Forex Trading ചെയ്യാം 📈💰┃simple ആണ്" },
+                          { id: "eEgQmAxBozQ", title: "Forex ഇന്ത്യയിൽ Legal ആണോ? Legal ആയി എങ്ങനെ Trade ചെയ്യാം?" },
+                          { id: "v4UpfDusRf8", title: "Forex Market Basics , Currency Pairs & Pips Explained in Malayalam" },
+                          { id: "5rmY0LRszk8", title: "Forex Market Part 2 — Account opening Explained in Malayalam" },
+                          { id: "vi1Z1_ic1Gc", title: "Forex Market Part 1 — Introduction Explained in Malayalam" }
+                        ].find(v => v.id === selectedVideoId)?.title
+                      }
+                    </h4>
+                  </div>
+                </div>
+
+                {/* Selection Column */}
+                <div className="lg:col-span-5 flex flex-col h-[320px] lg:h-[400px] w-full">
+                  <div className="text-xs font-bold text-slate-450 mb-2 uppercase tracking-wider px-1 text-left">
+                    Playlist Videos ({
+                      [
+                        { id: "lmtgjAD18nE", title: "Forex-ൽ ഏതു സമയത്ത് Trade ചെയ്യണം ?" },
+                        { id: "yTJWlNjsW_M", title: "Forex Trading Basics: Pip എന്താണ്? & Pip Calculation" },
+                        { id: "XhpFBVHNULI", title: "Choosing a Forex Broker ." },
+                        { id: "JQcjFIVgKAE", title: "മൊബൈൽ ഉപയോഗിച്ച് Forex Trading ചെയ്യാം 📈💰┃simple ആണ്" },
+                        { id: "eEgQmAxBozQ", title: "Forex ഇന്ത്യയിൽ Legal ആണോ? Legal ആയി എങ്ങനെ Trade ചെയ്യാം?" },
+                        { id: "v4UpfDusRf8", title: "Forex Market Basics , Currency Pairs & Pips Explained in Malayalam" },
+                        { id: "5rmY0LRszk8", title: "Forex Market Part 2 — Account opening Explained in Malayalam" },
+                        { id: "vi1Z1_ic1Gc", title: "Forex Market Part 1 — Introduction Explained in Malayalam" }
+                      ].length
+                    })
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {[
+                      { id: "lmtgjAD18nE", title: "Forex-ൽ ഏതു സമയത്ത് Trade ചെയ്യണം ?" },
+                      { id: "yTJWlNjsW_M", title: "Forex Trading Basics: Pip എന്താണ്? & Pip Calculation" },
+                      { id: "XhpFBVHNULI", title: "Choosing a Forex Broker ." },
+                      { id: "JQcjFIVgKAE", title: "മൊബൈൽ ഉപയോഗിച്ച് Forex Trading ചെയ്യാം 📈💰┃simple ആണ്" },
+                      { id: "eEgQmAxBozQ", title: "Forex ഇന്ത്യയിൽ Legal ആണോ? Legal ആയി എങ്ങനെ Trade ചെയ്യാം?" },
+                      { id: "v4UpfDusRf8", title: "Forex Market Basics , Currency Pairs & Pips Explained in Malayalam" },
+                      { id: "5rmY0LRszk8", title: "Forex Market Part 2 — Account opening Explained in Malayalam" },
+                      { id: "vi1Z1_ic1Gc", title: "Forex Market Part 1 — Introduction Explained in Malayalam" }
+                    ].map((video, index) => {
+                      const isActive = video.id === selectedVideoId;
+                      return (
+                        <button
+                          key={video.id}
+                          onClick={() => setSelectedVideoId(video.id)}
+                          className={`w-full flex gap-3 p-2.5 rounded-xl border text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
+                            isActive
+                              ? "bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-500/5"
+                              : "bg-slate-900/30 border-slate-850 hover:border-slate-800 hover:bg-slate-900/50"
+                          }`}
+                        >
+                          {/* Thumbnail */}
+                          <div className="relative w-20 aspect-video rounded-lg overflow-hidden border border-slate-800 shrink-0 bg-slate-950">
+                            <img
+                              src={`https://img.youtube.com/vi/${video.id}/mqdefault.jpg`}
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
+                              <Play className={`w-4 h-4 ${isActive ? "text-violet-400 fill-current" : "text-white"}`} />
+                            </div>
+                          </div>
+
+                          {/* Title */}
+                          <div className="flex flex-col justify-center min-w-0">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Video {index + 1}</span>
+                            <p className="text-xs font-semibold text-slate-200 leading-snug mt-0.5 line-clamp-2" title={video.title}>
+                              {video.title}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800 flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => setCurrentStep(4)}
+                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Back to Form
+                  Back
                 </button>
                 <Link
                   href="/leaderboard"
-                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/10 flex items-center justify-center gap-2"
+                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2"
                 >
                   Go to Leaderboard
                   <ArrowRight className="w-4 h-4" />
@@ -1246,151 +2049,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
         <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
       </section>
 
-      {/* Rewards & Prizes Section */}
-      <section className="py-24 bg-gradient-to-b from-[#050814] to-[#03050c] relative border-b border-slate-900/60 overflow-hidden">
-        {/* Glow Effects */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-
-          <div className="text-center mb-16 space-y-3">
-            <motion.h2
-              variants={itemVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              className="text-2xl md:text-3xl font-display font-extrabold uppercase tracking-wider text-white"
-            >
-              Rewards & Prizes
-            </motion.h2>
-            <motion.p
-              variants={itemVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              className="text-slate-400 max-w-xl mx-auto text-sm md:text-base font-medium"
-            >
-              Compete, earn badges, and win exciting rewards.
-            </motion.p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-
-            {/* Left Card: Final Winner */}
-            <motion.div
-              variants={itemVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              className="lg:col-span-4 bg-slate-950/70 border border-slate-900 rounded-3xl p-8 flex flex-col justify-between items-center text-center relative group hover:border-slate-800 hover:shadow-[0_0_50px_rgba(226,165,18,0.08)] transition-all duration-500 overflow-hidden"
-            >
-              {/* Shiny Gold Background Glow */}
-              <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-700"></div>
-
-              <div className="w-full flex flex-col items-center">
-                {/* Trophy Container with Framer Motion Animation */}
-                <motion.div
-                  whileHover={{ scale: 1.05, rotate: 2 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                  className="w-48 h-48 flex items-center justify-center relative mb-6"
-                >
-                  <div className="absolute inset-0 bg-radial-glow from-amber-500/10 to-transparent blur-2xl rounded-full scale-125 animate-pulse"></div>
-                  <Trophy className="w-24 h-24 text-amber-400 relative z-10 drop-shadow-[0_10px_30px_rgba(226,165,18,0.3)] animate-pulse" />
-                </motion.div>
-
-                <h3 className="text-2xl font-display font-extrabold uppercase tracking-wider text-amber-400 mb-2">
-                  Final Winner
-                </h3>
-                <p className="text-slate-400 text-sm leading-relaxed max-w-sm mb-6">
-                  The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
-                </p>
-              </div>
-
-              {/* Exclusive Rewards Section */}
-              <div className="w-full border-t border-slate-900/80 pt-6 mt-4">
-                <div className="text-[10px] text-amber-500 uppercase tracking-widest font-black mb-4">
-                  Exclusive Rewards
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center p-3 rounded-xl bg-slate-900/40 border border-slate-900/60 text-center">
-                    <Award className="w-5 h-5 text-amber-400 mb-2" />
-                    <span className="text-xs font-bold text-slate-200">Physical Badge</span>
-                  </div>
-                  <div className="flex flex-col items-center p-3 rounded-xl bg-slate-900/40 border border-slate-900/60 text-center">
-                    <Gift className="w-5 h-5 text-amber-400 mb-2" />
-                    <span className="text-xs font-bold text-slate-200">Premium Gifts</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right Panel: Achievements & Badges */}
-            <div className="lg:col-span-8 flex flex-col justify-between gap-6">
-
-              <div className="bg-slate-950/40 border border-slate-900 rounded-3xl p-6 sm:p-8 flex-1">
-                <div className="text-xs text-slate-400 uppercase tracking-widest font-black mb-8 border-b border-slate-900 pb-4">
-                  Achievements & Badges
-                </div>
-
-                {/* 3x2 Grid of Badges */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    {
-                      icon: <TopRankBadge className="w-10 h-10" />,
-                      title: "Top Rank Monthly",
-                      subtitle: "BEST BADGE",
-                      desc: "Awarded to the top ranked trader each month.",
-                    },
-                    {
-                      icon: <ConsistentTraderBadge className="w-10 h-10" />,
-                      title: "Consistent Trader",
-                      desc: "Awarded for consistent performance throughout the challenge.",
-                    },
-                    {
-                      icon: <MostActiveTraderBadge className="w-10 h-10" />,
-                      title: "Most Active Trader",
-                      desc: "Awarded for highest active volume (settled + unsettled).",
-                    },
-                    {
-                      icon: <TraderOfWeekBadge className="w-10 h-10" />,
-                      title: "Trader of the Week",
-                      desc: "Recognizing outstanding trading performance of the week.",
-                    },
-                    {
-                      icon: <BestRiskManagerBadge className="w-10 h-10" />,
-                      title: "Best Risk Manager",
-                      desc: "Awarded for excellent risk management and discipline.",
-                    },
-                  ].map((badge, i) => (
-                    <div
-                      key={i}
-                      className="glass-panel rounded-2xl p-5 border border-slate-900 flex flex-col justify-between items-start gap-4 hover:border-slate-800 hover:shadow-lg transition-all duration-300 relative group overflow-hidden"
-                    >
-                      <div className="flex justify-between items-start w-full">
-                        <div className="shrink-0">
-                          {badge.icon}
-                        </div>
-                        {badge.subtitle && (
-                          <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded font-black tracking-widest uppercase">
-                            {badge.subtitle}
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="font-bold text-white text-sm">{badge.title}</h4>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">{badge.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-      </section>
+      {/* Rewards & Prizes Section moved above */}
 
       {/* How It Works Section */}
       <section className="py-20 border-y border-slate-900 relative">
@@ -1686,14 +2345,19 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                         const badge = BADGE_DETAILS[badgeName];
                         if (!badge) return null;
                         return (
-                          <div
+                          <button
                             key={idx}
-                            title={`${badgeName}: ${badge.desc}`}
-                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 transition-colors"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBadgeClick(badgeName);
+                            }}
+                            title={`Click to view rules for ${badgeName}`}
+                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-850 hover:border-violet-500/50 transition-all cursor-pointer group"
                           >
-                            <span className="w-4 h-4 flex items-center justify-center shrink-0">{badge.icon}</span>
-                            <span className="font-medium">{badgeName}</span>
-                          </div>
+                            <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">{badge.icon}</span>
+                            <span className="font-medium group-hover:text-white transition-colors">{badgeName}</span>
+                          </button>
                         );
                       })}
                     </div>

@@ -91,6 +91,56 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       .catch((err) => console.error("Error fetching badge rules:", err));
   }, []);
 
+  const handleBadgeClick = (badgeName: string) => {
+    let cleanBadgeName = badgeName;
+    if (badgeName === "Weekly Top") {
+      cleanBadgeName = "Trader of the Week";
+    }
+
+    const badge = BADGE_DETAILS[cleanBadgeName];
+    if (!badge) return;
+
+    const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
+    
+    const formatConditions = (rule: any) => {
+      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+        return rule.conditions.map((cond: any) => {
+          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
+          
+          let metricDisplay = cond.metric;
+          if (cond.metric === "profit") metricDisplay = "Profit Return";
+          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
+          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
+          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
+          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
+          
+          return `${metricDisplay} ${opSign} ${cond.value}`;
+        }).join(" AND ");
+      }
+      
+      const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
+      
+      let metricDisplay = rule.metric;
+      if (rule.metric === "profit") metricDisplay = "Profit Return";
+      else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
+      else if (rule.metric === "settledRebates") metricDisplay = "Settled Rebates";
+      else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
+      else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
+      
+      return `${metricDisplay} ${opSign} ${rule.value}`;
+    };
+
+    setSelectedBadge({
+      name: cleanBadgeName,
+      desc: matchedRule?.description || badge.desc,
+      condition: matchedRule
+        ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
+        : badge.condition,
+      color: badge.color,
+      icon: badge.icon
+    });
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
@@ -595,28 +645,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                                   key={idx}
                                   onClick={(e) => {
                                     e.stopPropagation(); // prevent opening trader details modal
-                                    const matchedRule = badgeRules.find((r) => r._id === badgeName);
-                                    
-                                    const formatConditions = (rule: any) => {
-                                      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
-                                        return rule.conditions.map((cond: any) => {
-                                          const opSign = cond.operator === "gte" ? ">=" : cond.operator === "lte" ? "<=" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
-                                          return `${cond.metric} ${opSign} ${cond.value}`;
-                                        }).join(" AND ");
-                                      }
-                                      const opSign = rule.operator === "gte" ? ">=" : rule.operator === "lte" ? "<=" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
-                                      return `${rule.metric} ${opSign} ${rule.value}`;
-                                    };
-
-                                    setSelectedBadge({
-                                      name: badgeName,
-                                      desc: matchedRule?.description || badge.desc,
-                                      condition: matchedRule
-                                        ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
-                                        : badge.condition,
-                                      color: badge.color,
-                                      icon: badge.icon
-                                    });
+                                    handleBadgeClick(badgeName);
                                   }}
                                   title={`Click to view condition: ${badgeName}`}
                                   className="transition-all hover:scale-110 active:scale-95 cursor-pointer focus:outline-none outline-none"
@@ -783,21 +812,25 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     {selectedTrader.title ?? "Trader"}
                   </p>
 
-                  {/* Badges Display */}
                   {selectedTrader.earnedBadges && selectedTrader.earnedBadges.length > 0 && (
                     <div className="flex gap-2 flex-wrap">
                       {selectedTrader.earnedBadges.map((badgeName, idx) => {
                         const badge = BADGE_DETAILS[badgeName];
                         if (!badge) return null;
                         return (
-                          <div
+                          <button
                             key={idx}
-                            title={`${badgeName}: ${badge.desc}`}
-                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 transition-colors"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBadgeClick(badgeName);
+                            }}
+                            title={`Click to view rules for ${badgeName}`}
+                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-850 hover:border-violet-500/50 transition-all cursor-pointer group"
                           >
-                            <span className="w-4 h-4 flex items-center justify-center shrink-0">{badge.icon}</span>
-                            <span className="font-medium">{badgeName}</span>
-                          </div>
+                            <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">{badge.icon}</span>
+                            <span className="font-medium group-hover:text-white transition-colors">{badgeName}</span>
+                          </button>
                         );
                       })}
                     </div>

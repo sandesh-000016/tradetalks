@@ -36,6 +36,44 @@ import {
   BestRiskManagerBadge
 } from "@/components/BadgeIcons";
 
+const BADGE_DETAILS: Record<string, {
+  icon: React.ReactNode;
+  color: string;
+  desc: string;
+  condition: string;
+}> = {
+  "Top Rank Monthly": {
+    icon: <TopRankBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded to the top ranked trader each month.",
+    condition: "Achieve the absolute #1 rank in the monthly challenge leaderboard."
+  },
+  "Consistent Trader": {
+    icon: <ConsistentTraderBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded for consistent performance throughout the challenge.",
+    condition: "Maintain a minimum activity level of 12 completed trades."
+  },
+  "Most Active Trader": {
+    icon: <MostActiveTraderBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded for highest active volume (settled + unsettled).",
+    condition: "Accumulate an aggregate volume (settled + unsettled) of 8.00 Lots or more."
+  },
+  "Trader of the Week": {
+    icon: <TraderOfWeekBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Recognizing outstanding trading performance of the week.",
+    condition: "Secure a Top 3 rank in weekly standings."
+  },
+  "Best Risk Manager": {
+    icon: <BestRiskManagerBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded for excellent risk management and discipline.",
+    condition: "Achieve a return above 12% with at least 10 trades."
+  }
+};
+
 // Challenge Rules Data
 const challengeRules = [
   {
@@ -90,6 +128,76 @@ function RegisterContent() {
   const [currentStep, setCurrentStep] = React.useState(1);
   const [selectedVideoId, setSelectedVideoId] = React.useState("lmtgjAD18nE");
   const [iframeLoads, setIframeLoads] = React.useState(0);
+
+  const [selectedBadge, setSelectedBadge] = React.useState<{
+    name: string;
+    desc: string;
+    condition: string;
+    color: string;
+    icon: React.ReactNode;
+  } | null>(null);
+  const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    fetch("/api/badge-rules")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setBadgeRules(data);
+        }
+      })
+      .catch((err) => console.error("Error fetching badge rules:", err));
+  }, []);
+
+  const handleBadgeClick = (badgeName: string) => {
+    let cleanBadgeName = badgeName;
+    if (badgeName === "Weekly Top") {
+      cleanBadgeName = "Trader of the Week";
+    }
+
+    const badge = BADGE_DETAILS[cleanBadgeName];
+    if (!badge) return;
+
+    const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
+    
+    const formatConditions = (rule: any) => {
+      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+        return rule.conditions.map((cond: any) => {
+          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
+          
+          let metricDisplay = cond.metric;
+          if (cond.metric === "profit") metricDisplay = "Profit Return";
+          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
+          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
+          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
+          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
+          
+          return `${metricDisplay} ${opSign} ${cond.value}`;
+        }).join(" AND ");
+      }
+      
+      const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
+      
+      let metricDisplay = rule.metric;
+      if (rule.metric === "profit") metricDisplay = "Profit Return";
+      else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
+      else if (rule.metric === "settledRebates") metricDisplay = "Settled Rebates";
+      else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
+      else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
+      
+      return `${metricDisplay} ${opSign} ${rule.value}`;
+    };
+
+    setSelectedBadge({
+      name: cleanBadgeName,
+      desc: matchedRule?.description || badge.desc,
+      condition: matchedRule
+        ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
+        : badge.condition,
+      color: badge.color,
+      icon: badge.icon
+    });
+  };
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -197,7 +305,7 @@ function RegisterContent() {
                 {i < 4 && (
                   <div className={`w-6 md:w-10 h-px mb-6 transition-colors duration-300 ${
                     currentStep > step.num ? "bg-emerald-500" : "bg-slate-850"
-                  }`}></div>
+                  } hidden md:block`}></div>
                 )}
               </div>
             );
@@ -548,23 +656,28 @@ function RegisterContent() {
                         desc: "Awarded for excellent risk management and discipline.",
                       },
                     ].map((badge, i) => (
-                      <div
+                      <button
                         key={i}
-                        className="glass-panel rounded-xl p-4 border border-slate-900 flex gap-3 items-start hover:border-slate-800 transition-colors"
+                        type="button"
+                        onClick={() => handleBadgeClick(badge.title)}
+                        className="w-full text-left glass-panel rounded-xl p-4 border border-slate-900 flex gap-3 items-start hover:border-violet-500/50 hover:bg-slate-900/40 transition-all duration-200 cursor-pointer group"
                       >
-                        <div className="shrink-0">
+                        <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
                           {badge.icon}
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-white text-xs">{badge.title}</h4>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-white text-xs group-hover:text-violet-400 transition-colors">{badge.title}</h4>
                           {badge.subtitle && (
                             <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
                               {badge.subtitle}
                             </span>
                           )}
                           <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">{badge.desc}</p>
+                          <span className="text-[9px] text-brand-450 font-bold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            View Rules →
+                          </span>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -720,6 +833,57 @@ function RegisterContent() {
           </section>
         )}
       </div>
+
+      {/* Badge Condition Modal */}
+      {selectedBadge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            onClick={() => setSelectedBadge(null)}
+          />
+
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setSelectedBadge(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-850 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="p-6 text-center space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-xl flex items-center justify-center border-2 bg-slate-950/60 shadow-inner scale-110">
+                {selectedBadge.icon}
+              </div>
+              
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-white uppercase tracking-wider">
+                  {selectedBadge.name}
+                </h3>
+                <p className="text-[11px] text-slate-450 leading-relaxed">
+                  {selectedBadge.desc}
+                </p>
+              </div>
+
+              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800 text-left space-y-2">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-black">
+                  Award Criteria & Conditions
+                </div>
+                <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                  {selectedBadge.condition}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedBadge(null)}
+                className="w-full py-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-white text-xs font-semibold transition-all border border-slate-800 cursor-pointer"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

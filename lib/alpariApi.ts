@@ -722,7 +722,12 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
           await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
           memoryCache = null;
           
-          console.log(`[Verify Direct] Saved newly verified client '${extId}' to MongoDB and invalidated cache.`);
+          // Warm up the leaderboard cache in the background immediately!
+          getIntegratedLeaderboard("monthly", false, true)
+            .then(() => console.log("[Verify Direct] Warmup cache build complete!"))
+            .catch((e) => console.error("[Verify Direct] Warmup cache build failed:", e));
+          
+          console.log(`[Verify Direct] Saved newly verified client '${extId}' to MongoDB, invalidated cache, and triggered warmup.`);
         } catch (dbErr) {
           console.error("[Verify Direct] Failed to write verified client to MongoDB:", dbErr);
         }
