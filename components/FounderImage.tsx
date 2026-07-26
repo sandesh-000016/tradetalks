@@ -14,7 +14,7 @@ export function FounderImage() {
       
       {!imgFailed ? (
         <Image
-          src="/about.avif"
+          src="/about.jpeg"
           alt="Sunil Mathai - Founder"
           fill
           sizes="(max-width: 768px) 100vw, 256px"

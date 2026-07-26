@@ -38,7 +38,8 @@ const getDirectPartnerId = () => Number(process.env.ALPARI_DIRECT_PARTNER_ID || 
 
 // Memory cache state for leaderboard data
 let memoryCache: { timestamp: number; traders: any[] } | null = null;
-const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+let isSyncing = false;
+const CACHE_DURATION_MS = process.env.NODE_ENV === "development" ? 5000 : (2 * 60 * 60 * 1000); // 5s in dev, 2h in prod
 
 /**
  * Method 1: Fetch Client Performance
@@ -122,27 +123,69 @@ export async function getIntegratedLeaderboard(
   let cacheHit = false;
 
   if (!useMock && !bypassCache) {
+    let hasStaleCache = false;
+    let staleClients: any[] = [];
+
     // 1. Try memory cache first
-    if (memoryCache && (Date.now() - memoryCache.timestamp < CACHE_DURATION_MS)) {
-      console.log("[Leaderboard API] Serving from memory cache.");
-      rawClients = memoryCache.traders;
-      cacheHit = true;
-    } else {
-      // 2. Try MongoDB cache next
-      if (clientPromise) {
-        try {
-          const mongoClient = await clientPromise;
-          const db = mongoClient.db("tradetalks");
-          const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
-          if (cacheDoc && cacheDoc.updatedAt && (Date.now() - new Date(cacheDoc.updatedAt).getTime() < CACHE_DURATION_MS)) {
+    if (memoryCache) {
+      if (Date.now() - memoryCache.timestamp < CACHE_DURATION_MS) {
+        console.log("[Leaderboard API] Serving from memory cache.");
+        rawClients = memoryCache.traders;
+        cacheHit = true;
+      } else {
+        console.log("[Leaderboard API] Memory cache is stale.");
+        hasStaleCache = true;
+        staleClients = memoryCache.traders;
+      }
+    }
+
+    // 2. Try MongoDB cache next if no fresh memory cache
+    if (!cacheHit && clientPromise) {
+      try {
+        const mongoClient = await clientPromise;
+        const db = mongoClient.db("tradetalks");
+        const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
+        if (cacheDoc) {
+          const cacheAge = Date.now() - new Date(cacheDoc.updatedAt).getTime();
+          if (cacheAge < CACHE_DURATION_MS) {
             console.log("[Leaderboard API] Serving from MongoDB cache.");
             rawClients = cacheDoc.traders;
             memoryCache = { timestamp: new Date(cacheDoc.updatedAt).getTime(), traders: rawClients };
             cacheHit = true;
+          } else {
+            console.log("[Leaderboard API] MongoDB cache is stale.");
+            hasStaleCache = true;
+            staleClients = cacheDoc.traders;
+            // Sync memory cache timestamp so we don't spam MongoDB check every time
+            memoryCache = { timestamp: new Date(cacheDoc.updatedAt).getTime(), traders: cacheDoc.traders };
           }
-        } catch (err) {
-          console.error("[Leaderboard API] Error reading MongoDB cache:", err);
         }
+      } catch (err) {
+        console.error("[Leaderboard API] Error reading MongoDB cache:", err);
+      }
+    }
+
+    // If cache is stale but we have old data, serve the old data instantly and sync in background
+    if (!cacheHit && hasStaleCache && staleClients.length > 0) {
+      console.log(`[Leaderboard API] Serving stale cache data (${staleClients.length} items) and running lazy sync...`);
+      rawClients = staleClients;
+      cacheHit = true;
+
+      if (!isSyncing) {
+        isSyncing = true;
+        console.log("[Leaderboard API] Spawning background sync thread...");
+        getIntegratedLeaderboard(timeframe, false, true)
+          .then(() => {
+            console.log("[Leaderboard API] Background lazy sync successful!");
+          })
+          .catch((err) => {
+            console.error("[Leaderboard API] Background lazy sync failed:", err);
+          })
+          .finally(() => {
+            isSyncing = false;
+          });
+      } else {
+        console.log("[Leaderboard API] Background sync already in progress, skipping spawn.");
       }
     }
   }
@@ -199,15 +242,10 @@ export async function getIntegratedLeaderboard(
         console.error("Error reading mock data:", err);
       }
     } else {
-      // 2. Fetch from all three APIs in parallel with robust individual catch blocks
-      const [perfRes, refRes, insRes] = await Promise.all([
+      // 2. Fetch Performance and Insights APIs in parallel (referrals is bypassed to reduce response latency)
+      const [perfRes, insRes] = await Promise.all([
         fetchClientPerformance(params).catch((err) => {
           console.error("[Leaderboard API] Error fetching performance data:", err.message || err);
-          return [];
-        }),
-        fetchClientReferralDetails(params).catch((err) => {
-          console.error("[Leaderboard API] Error fetching referral details:", err.message || err);
-          hasReferralsData = false;
           return [];
         }),
         fetchClientInsights(params).catch((err) => {
@@ -218,7 +256,7 @@ export async function getIntegratedLeaderboard(
       ]);
 
       performances = perfRes;
-      referrals = refRes;
+      referrals = []; // Bypassed for latency optimization
       insights = insRes;
     }
 
@@ -273,12 +311,6 @@ export async function getIntegratedLeaderboard(
         netDeposit = Number(depositOverrides[key]);
         hasOverride = true;
       }
-
-      // Default to 100 if API is 0 and no overrides are specified
-      if (netDeposit === 0 && !hasOverride) {
-        netDeposit = 100;
-      }
-
       mergedMap[key].mt_net_deposits = netDeposit;
       mergedMap[key].settled_rebates = Number(p.settled_rebates ?? 0);
       mergedMap[key].volume = Number(p.volume ?? 0);
@@ -352,33 +384,32 @@ export async function getIntegratedLeaderboard(
           const clientId = trader.external_client_id || key;
           const dbTrader = dbMap.get(clientId);
           
+          // Only sync and save if they are registered in our DB!
+          if (!dbTrader || !dbTrader.isRegistered) {
+            trader.is_registered = false;
+            continue;
+          }
+          
           const apiBalance = trader.total_balance ?? 0;
           const apiEquity = trader.total_equity ?? 0;
           const apiDepositDate = trader.last_deposit_date || null;
           const volume = trader.volume ?? 0;
           
-          let totalNetDeposits = 100;
-          let isWashedOut = false;
+          // Preserve registration-time deposit, fallback to starting balance or current balance
+          let totalNetDeposits = dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance ?? 100;
+
+          // If the database has 100 (old hardcoded default) but the Alpari API returns a real tracked deposit, update it!
+          if (totalNetDeposits === 100 && trader.mt_net_deposits && trader.mt_net_deposits > 0) {
+            totalNetDeposits = trader.mt_net_deposits;
+          }
+
+          let isWashedOut = dbTrader.isWashedOut || (apiEquity <= 1.00);
           
-          if (!dbTrader) {
-            // New trader: if no volume yet, balance is the initial deposit
-            if (volume === 0 && apiBalance > 0) {
-              totalNetDeposits = apiBalance;
-            } else {
-              totalNetDeposits = 100;
-            }
-            isWashedOut = apiEquity <= 1.00;
-          } else {
-            // Existing trader
-            totalNetDeposits = dbTrader.totalNetDeposits ?? 100;
-            isWashedOut = dbTrader.isWashedOut || (apiEquity <= 1.00);
-            
-            // Detect new deposit
-            if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
-              const depositDiff = apiBalance - (dbTrader.lastRecordedBalance ?? 0);
-              if (depositDiff > 0) {
-                totalNetDeposits += depositDiff;
-              }
+          // Detect new deposit
+          if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
+            const depositDiff = apiBalance - (dbTrader.lastRecordedBalance ?? 0);
+            if (depositDiff > 0) {
+              totalNetDeposits += depositDiff;
             }
           }
           
@@ -397,6 +428,7 @@ export async function getIntegratedLeaderboard(
           
           trader.mt_net_deposits = netDeposit;
           trader.is_washed_out = isWashedOut;
+          trader.is_registered = true;
           
           bulkOps.push({
             updateOne: {
@@ -405,15 +437,14 @@ export async function getIntegratedLeaderboard(
                 $set: {
                   clientId,
                   numericId: Number(numId ?? 0),
-                  clientName: trader.client_name || "",
+                  clientName: trader.client_name || dbTrader.clientName || "",
                   totalNetDeposits: netDeposit,
                   lastRecordedBalance: apiBalance,
                   lastDepositDate: apiDepositDate,
                   isWashedOut,
                   lastUpdated: new Date()
                 }
-              },
-              upsert: true
+              }
             }
           });
         }
@@ -423,6 +454,12 @@ export async function getIntegratedLeaderboard(
         }
       } catch (dbErr) {
         console.error("[Leaderboard API] MongoDB synchronization error:", dbErr);
+      }
+    }
+
+    if (useMock || !useDb || !mongoClient) {
+      for (const key of Object.keys(mergedMap)) {
+        mergedMap[key].is_registered = true;
       }
     }
 
@@ -455,6 +492,9 @@ export async function getIntegratedLeaderboard(
         return true;
       }
 
+      // 0. Only show registered/verified traders
+      if (!t.is_registered) return false;
+
       // 1. Must be registered within the season: October 1, 2025 to December 30, 2026
       if (!t.registration_date) return false;
       const regDate = new Date(t.registration_date);
@@ -478,55 +518,40 @@ export async function getIntegratedLeaderboard(
     const unsettledRebates = t.unsettled_rebates ?? 0;
     const mtNetDeposits = t.mt_net_deposits ?? 0;
     // Fallback: if Insights is down, total_equity & total_balance will be undefined.
-    // We default them to mtNetDeposits (or 100 if deposits are 0) so they display correctly in the table/details.
-    const totalEquity = t.total_equity || (mtNetDeposits > 0 ? mtNetDeposits : 100);
-    const totalBalance = t.total_balance || (mtNetDeposits > 0 ? mtNetDeposits : 100);
+    const totalEquity = t.total_equity || mtNetDeposits || 100;
+    const totalBalance = t.total_balance || mtNetDeposits || 100;
 
-    // Check if the user is active (has traded or deposited)
-    const isActive = volume > 0 &&
-                     (settledRebates > 0 || unsettledRebates > 0) &&
-                     totalEquity > 0 &&
-                     totalBalance > 0;
-
-    // Calculate a realistic but deterministic profit
-    // based on their actual trading metrics (so it remains consistent per user)
     let profit = 0;
     let tradesCount = 0;
 
-    if (isActive) {
-      // Generate a deterministic numeric seed from numeric_id or hash the string id
-      const getNumericSeed = (trader: any) => {
-        const num = Number(trader.numeric_id);
-        if (!isNaN(num) && num > 0) return num;
-        
-        // fallback to hashing string id (e.g. hex external_client_id)
-        const str = String(trader.id || "");
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-          hash = (hash << 5) - hash + str.charCodeAt(i);
-          hash |= 0; // Convert to 32bit integer
-        }
-        return Math.abs(hash);
-      };
-
-      const seed = getNumericSeed(t);
-
-      // Deterministic base factor using user ID
-      const idFactor = (seed % 30) + 5; // value between 5 and 35
+    // Generate a deterministic numeric seed from numeric_id or hash the string id
+    const getNumericSeed = (trader: any) => {
+      const num = Number(trader.numeric_id);
+      if (!isNaN(num) && num > 0) return num;
       
-      // Profit is driven by relative equity growth if deposit data is available,
-      // otherwise generated deterministically from volume/rebates.
-      if (mtNetDeposits > 0 && totalEquity > 0) {
-        profit = ((totalEquity - mtNetDeposits) / mtNetDeposits) * 100;
-      } else {
-        // Fallback for mock or missing data
-        // For a mock trader without deposits/equity data, we can make it positive or negative based on the seed
-        const isNegative = (seed % 3) === 0; // 33% chance of being negative
-        const baseProfit = (volume * 1.5) + (settledRebates * 0.5) + (idFactor * 0.2);
-        profit = isNegative ? -baseProfit : baseProfit;
+      const str = String(trader.id || "");
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
       }
+      return Math.abs(hash);
+    };
 
-      // Estimate trades count based on volume (active traders with volume)
+    const seed = getNumericSeed(t);
+
+    if (useMock) {
+      const idFactor = (seed % 30) + 5; // value between 5 and 35
+      const isNegative = (seed % 3) === 0; // 33% chance of being negative
+      const baseProfit = (volume * 1.5) + (settledRebates * 0.5) + (idFactor * 0.2);
+      profit = isNegative ? -baseProfit : baseProfit;
+      tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
+    } else {
+      // Real ROI calculation: (current balance - net deposit) / net deposit * 100
+      const currentBalance = totalBalance || totalEquity;
+      if (mtNetDeposits > 0) {
+        profit = ((currentBalance - mtNetDeposits) / mtNetDeposits) * 100;
+      }
       tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
     }
 
@@ -559,31 +584,48 @@ export async function getIntegratedLeaderboard(
   // 1. Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
   tradersList.sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0));
 
-  // 2. Assign correct contiguous ranks and calculate badges
+  // 2. Fetch approved badges from database and merge them
+  let dbBadgesList: any[] = [];
+  try {
+    if (clientPromise) {
+      const mongoClient = await clientPromise;
+      const db = mongoClient.db("tradetalks");
+      dbBadgesList = await db.collection("awarded_badges").find({ approved: true }).toArray();
+    }
+  } catch (dbErr) {
+    console.error("[Leaderboard API] Error loading badges from DB:", dbErr);
+  }
+
+  // Group badges by traderId
+  const traderBadgesMap: Record<string, { badgeNames: string[]; points: number }> = {};
+  dbBadgesList.forEach((b) => {
+    const key = String(b.traderId);
+    if (!traderBadgesMap[key]) {
+      traderBadgesMap[key] = { badgeNames: [], points: 0 };
+    }
+    traderBadgesMap[key].badgeNames.push(b.badgeName);
+    traderBadgesMap[key].points += Number(b.points ?? 0);
+  });
+
   tradersList = tradersList.map((t, idx) => {
     const rank = idx + 1;
-    const earnedBadges: string[] = [];
+    
+    // Look up in our map using all possible client IDs
+    const idKey = String(t.id);
+    const internalIdKey = t.internalId ? String(t.internalId) : "";
+    const externalClientIdKey = t.externalClientId ? String(t.externalClientId) : "";
 
-    if (rank === 1) {
-      earnedBadges.push("Top Rank Monthly");
-    }
-    if (rank <= 3) {
-      earnedBadges.push("Trader of the Week");
-    }
-    if ((t.tradesCount ?? 0) >= 12) {
-      earnedBadges.push("Consistent Trader");
-    }
-    if ((t.volume ?? 0) >= 8) {
-      earnedBadges.push("Most Active Trader");
-    }
-    if (t.profit > 12 && (t.tradesCount ?? 0) >= 10) {
-      earnedBadges.push("Best Risk Manager");
-    }
+    const badgeInfo =
+      traderBadgesMap[idKey] ||
+      traderBadgesMap[internalIdKey] ||
+      traderBadgesMap[externalClientIdKey] ||
+      { badgeNames: [], points: 0 };
 
     return {
       ...t,
       rank,
-      earnedBadges,
+      earnedBadges: Array.from(new Set(badgeInfo.badgeNames)), // unique badge names
+      totalPoints: badgeInfo.points,
     };
   });
 
@@ -621,8 +663,8 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
         ]
       });
 
-      if (dbTrader) {
-        console.log(`[Verify Direct] Client '${clientIdStr}' found in MongoDB.`);
+      if (dbTrader && dbTrader.isRegistered) {
+        console.log(`[Verify Direct] Client '${clientIdStr}' found and already registered in MongoDB.`);
         return {
           id: dbTrader.clientId || dbTrader._id,
           name: dbTrader.clientName,
@@ -634,8 +676,8 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
     }
   }
 
-  // 2. Fetch insights directly from Alpari API (only if not found in MongoDB)
-  console.log(`[Verify Direct] Client '${clientIdStr}' not in DB. Querying Alpari Insights API...`);
+  // 2. Fetch insights directly from Alpari API (only if not found or not registered in MongoDB)
+  console.log(`[Verify Direct] Client '${clientIdStr}' not registered in DB. Querying Alpari Insights API...`);
   
   const SEASON_START_DATE = "2025-10-01"; 
   const SEASON_END_DATE = "2026-12-30";
@@ -675,6 +717,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 totalNetDeposits: balance > 0 ? balance : 100,
                 lastRecordedBalance: balance,
                 isWashedOut: Number(foundInsight.total_equity ?? 0) <= 1.00,
+                isRegistered: true,
                 lastUpdated: new Date()
               }
             },

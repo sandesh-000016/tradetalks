@@ -29,18 +29,55 @@ import {
   ArrowLeft,
   ExternalLink,
   CheckCircle2,
-  Medal
+  Medal,
+  Share2
 } from "lucide-react";
 import { Trader } from "@/lib/leaderboardApi";
 import {
   TopRankBadge,
-  WeeklyTopBadge,
   ConsistentTraderBadge,
   MostActiveTraderBadge,
   TraderOfWeekBadge,
   BestRiskManagerBadge
 } from "@/components/BadgeIcons";
 
+const BADGE_DETAILS: Record<string, {
+  icon: React.ReactNode;
+  color: string;
+  desc: string;
+  condition: string;
+}> = {
+  "Top Rank Monthly": {
+    icon: <TopRankBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded to the top ranked trader each month.",
+    condition: "Achieve the absolute #1 rank in the monthly challenge leaderboard."
+  },
+  "Consistent Trader": {
+    icon: <ConsistentTraderBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded for consistent performance throughout the challenge.",
+    condition: "Maintain a minimum activity level of 12 completed trades."
+  },
+  "Most Active Trader": {
+    icon: <MostActiveTraderBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded for highest active volume (settled + unsettled).",
+    condition: "Accumulate an aggregate volume (settled + unsettled) of 8.00 Lots or more."
+  },
+  "Trader of the Week": {
+    icon: <TraderOfWeekBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Recognizing outstanding trading performance of the week.",
+    condition: "Secure a Top 3 rank in weekly standings."
+  },
+  "Best Risk Manager": {
+    icon: <BestRiskManagerBadge className="w-8 h-8" />,
+    color: "hover:scale-110",
+    desc: "Awarded for excellent risk management and discipline.",
+    condition: "Achieve a return above 12% with at least 10 trades."
+  }
+};
 
 // Challenge Rules Data
 const challengeRules = [
@@ -140,6 +177,48 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
   const [showPlaylistModal, setShowPlaylistModal] = React.useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
 
+  const [selectedTrader, setSelectedTrader] = React.useState<Trader | null>(null);
+  const [selectedBadge, setSelectedBadge] = React.useState<{
+    name: string;
+    desc: string;
+    condition: string;
+    color: string;
+    icon: React.ReactNode;
+  } | null>(null);
+
+  const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    fetch("/api/badge-rules")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setBadgeRules(data);
+        }
+      })
+      .catch((err) => console.error("Error fetching badge rules:", err));
+  }, []);
+
+  const handleShare = (e: React.MouseEvent, trader: any) => {
+    e.stopPropagation(); // prevent opening details modal
+    
+    const profitStr = trader.profit >= 0 ? `+${trader.profit.toFixed(2)}%` : `${trader.profit.toFixed(2)}%`;
+    const shareText = `🔥 Check out my trading performance on Trade Talks! \nRank: #${trader.rank}\nProfit Return: ${profitStr}\nVolume: ${(trader.volume ?? 0).toFixed(2)} Lots\n\nTrack live standings here: ${window.location.origin}/leaderboard`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: 'Trade Talks Achievement',
+        text: shareText,
+        url: `${window.location.origin}/leaderboard`
+      }).catch((err) => {
+        console.error("Error sharing:", err);
+      });
+    } else {
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+      window.open(waUrl, "_blank");
+    }
+  };
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId.trim()) {
@@ -201,7 +280,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
         };
       })
       .sort((a, b) => b.profit - a.profit)
-      .slice(0, 5)
+      .slice(0, 10)
       .map((t, idx) => ({ ...t, rank: idx + 1 }));
   }, [initialTraders]);
 
@@ -409,7 +488,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
             </Link>
           </div>
 
-          {/* Cards Grid */}
+          {/* Table */}
           {topTraders.length === 0 ? (
             <div className="py-16 text-center text-slate-500 font-medium bg-slate-900/10 border border-slate-900/40 rounded-3xl backdrop-blur-sm">
               <Trophy className="w-12 h-12 text-slate-700 mx-auto mb-4" />
@@ -417,84 +496,143 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               <p className="text-xs text-slate-600 mt-1">Be the first to join the challenge and claim the top rank!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-              {topTraders.map((trader, idx) => (
-                <motion.div
-                  key={trader.id}
-                  variants={itemVariants}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true, amount: 0.15 }}
-                  className={`glass-panel p-6 rounded-2xl relative overflow-hidden group transition-all duration-300 flex flex-col justify-between border backdrop-blur-md ${trader.rank === 1 ? "border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-amber-400/80 hover:shadow-[0_0_25px_rgba(245,158,11,0.35)] hover:bg-amber-950/5" :
-                      trader.rank === 2 ? "border-slate-400/30 shadow-[0_0_15px_rgba(148,163,184,0.15)] hover:border-slate-300/80 hover:shadow-[0_0_25px_rgba(148,163,184,0.35)] hover:bg-slate-900/10" :
-                        trader.rank === 3 ? "border-amber-700/30 shadow-[0_0_15px_rgba(180,83,9,0.15)] hover:border-amber-600/80 hover:shadow-[0_0_25px_rgba(180,83,9,0.35)] hover:bg-amber-950/5" :
-                          "border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.1)] hover:border-violet-400/70 hover:shadow-[0_0_25px_rgba(139,92,246,0.3)] hover:bg-violet-950/5"
-                    }`}
-                >
-                  {/* Card Subtle Top Color Bar */}
-                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${trader.rank === 1 ? "from-amber-400 to-yellow-500" :
-                      trader.rank === 2 ? "from-slate-300 to-slate-400" :
-                        trader.rank === 3 ? "from-amber-700 to-amber-800" :
-                          "from-slate-800 to-slate-700"
-                    }`}></div>
+            <div className="glass-panel rounded-2xl overflow-hidden border border-slate-800/85">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-slate-900/50 text-xs uppercase tracking-wider text-slate-400">
+                      <th className="px-6 py-4 font-medium">Rank</th>
+                      <th className="px-6 py-4 font-medium">Trader</th>
+                      <th className="px-6 py-4 font-medium text-center">Badges</th>
+                      <th className="px-6 py-4 font-medium text-center">Points</th>
+                      <th className="px-6 py-4 font-medium text-right">Current Balance</th>
+                      <th className="px-6 py-4 font-medium text-right">Net Deposit</th>
+                      <th className="px-6 py-4 font-medium text-right">Profit %</th>
+                      <th className="px-6 py-4 font-medium text-center">Share</th>
+                      <th className="px-6 py-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {topTraders.map((trader) => (
+                      <tr
+                        key={trader.id}
+                        className="hover:bg-slate-800/30 transition-colors cursor-pointer group"
+                        onClick={() => setSelectedTrader(trader)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800/50 border border-slate-700 font-display font-bold text-sm">
+                            {trader.rank === 1 ? (
+                              <Trophy className="w-4 h-4 text-amber-400" />
+                            ) : trader.rank === 2 ? (
+                              <Trophy className="w-4 h-4 text-slate-300" />
+                            ) : trader.rank === 3 ? (
+                              <Trophy className="w-4 h-4 text-amber-700" />
+                            ) : (
+                              trader.rank
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
+                                <img
+                                  src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name)}`}
+                                  alt={trader.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              {trader.status === "online" && (
+                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full"></div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-medium text-white">{trader.name}</div>
+                              <div className="text-[10px] text-slate-500 font-medium">{trader.country || "India"}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex gap-1.5 flex-wrap items-center justify-center">
+                            {trader.earnedBadges && trader.earnedBadges.length > 0 ? (
+                              trader.earnedBadges.map((badgeName, idx) => {
+                                const badge = BADGE_DETAILS[badgeName];
+                                if (!badge) return null;
 
-                  <div>
-                    {/* Top Row: Rank */}
-                    <div className="flex justify-between items-center mb-6">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-display font-black text-sm border ${trader.rank === 1 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
-                          trader.rank === 2 ? "bg-slate-300/10 border-slate-300/30 text-slate-300" :
-                            trader.rank === 3 ? "bg-amber-700/10 border-amber-700/30 text-amber-600" :
-                              "bg-slate-800/50 border-slate-700/50 text-slate-400"
-                        }`}>
-                        {trader.rank === 1 ? "1st" : trader.rank === 2 ? "2nd" : trader.rank === 3 ? "3rd" : trader.rank}
-                      </div>
-                    </div>
+                                return (
+                                  <button
+                                    key={idx}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // prevent opening details modal
+                                      const matchedRule = badgeRules.find((r) => r._id === badgeName);
+                                      
+                                      const formatConditions = (rule: any) => {
+                                        if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+                                          return rule.conditions.map((cond: any) => {
+                                            const opSign = cond.operator === "gte" ? ">=" : cond.operator === "lte" ? "<=" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
+                                            return `${cond.metric} ${opSign} ${cond.value}`;
+                                          }).join(" AND ");
+                                        }
+                                        const opSign = rule.operator === "gte" ? ">=" : rule.operator === "lte" ? "<=" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
+                                        return `${rule.metric} ${opSign} ${rule.value}`;
+                                      };
 
-                    {/* Trader Core Info */}
-                    <div className="flex flex-col items-center text-center mb-6">
-                      <div className="relative mb-3">
-                        <div className="w-16 h-16 rounded-full bg-slate-800 overflow-hidden border-2 border-slate-700/80 group-hover:border-violet-500/50 transition-colors">
-                          <img
-                            src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name)}`}
-                            alt={trader.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        {trader.status === "online" && (
-                          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#050814] rounded-full"></div>
-                        )}
-                      </div>
-                      <h4 className="font-bold text-white font-display text-base tracking-wide group-hover:text-violet-300 transition-colors truncate w-full px-2" title={trader.name}>
-                        {trader.name}
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-1 font-medium bg-slate-900/80 px-2.5 py-0.5 rounded-full border border-slate-800">
-                        {trader.title}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Profit Metric & Details */}
-                  <div className="pt-4 border-t border-slate-900/60 mt-auto space-y-3">
-                    <div className="text-center">
-                      <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-0.5">Profit</div>
-                      <div className={`text-xl font-display font-black ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                        {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 bg-slate-900/40 p-2 rounded-lg border border-slate-900/50 text-center font-medium">
-                      <div>
-                        <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Volume</span>
-                        <span className="text-slate-300">{(trader.volume ?? 0).toFixed(2)} Lots</span>
-                      </div>
-                      <div>
-                        <span className="block text-slate-500 text-[9px] uppercase tracking-wider">Deposits</span>
-                        <span className="text-slate-300">${(trader.mtNetDeposits ?? 0).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                                      setSelectedBadge({
+                                        name: badgeName,
+                                        desc: matchedRule?.description || badge.desc,
+                                        condition: matchedRule
+                                          ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
+                                          : badge.condition,
+                                        color: badge.color,
+                                        icon: badge.icon
+                                      });
+                                    }}
+                                    title={`Click to view condition: ${badgeName}`}
+                                    className="transition-all hover:scale-110 active:scale-95 cursor-pointer focus:outline-none outline-none"
+                                  >
+                                    {badge.icon}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <span className="text-slate-655 text-xs">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 font-bold text-xs">
+                            {trader.totalPoints ?? 0} pts
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
+                          ${(trader.totalBalance ?? 0).toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
+                          ${(trader.mtNetDeposits ?? 0).toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <span className={`font-display font-bold ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                            {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={(e) => handleShare(e, trader)}
+                            className="p-2 bg-slate-850/80 hover:bg-violet-600/30 border border-slate-800 hover:border-violet-500/50 rounded-lg text-slate-400 hover:text-violet-400 transition-all cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold"
+                            title="Share Achievement"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Share</span>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-brand-400 transition-colors" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -990,11 +1128,6 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                       desc: "Awarded to the top ranked trader each month.",
                     },
                     {
-                      icon: <WeeklyTopBadge className="w-10 h-10" />,
-                      title: "Weekly Top",
-                      desc: "Awarded to the top performer of the week.",
-                    },
-                    {
                       icon: <ConsistentTraderBadge className="w-10 h-10" />,
                       title: "Consistent Trader",
                       desc: "Awarded for consistent performance throughout the challenge.",
@@ -1279,6 +1412,236 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   Perfect, Let&apos;s Start!
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trader Profile Modal */}
+      {selectedTrader && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            onClick={() => setSelectedTrader(null)}
+          ></div>
+          <div className="relative w-full max-w-md glass-panel rounded-3xl overflow-hidden shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <button
+              onClick={() => setSelectedTrader(null)}
+              className="absolute top-6 right-6 z-50 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white/70 hover:text-white transition-colors shadow-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="overflow-y-auto flex-1 w-full rounded-b-3xl">
+              <div className="h-32 bg-gradient-to-br from-violet-900 to-slate-900">
+              </div>
+
+              <div className="px-8 pb-8">
+                <div className="relative -mt-16 mb-4 flex justify-between items-end">
+                  <div className="w-32 h-32 rounded-2xl bg-slate-800 border-4 border-slate-900 overflow-hidden shadow-xl">
+                    <img
+                      src={selectedTrader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedTrader.name)}`}
+                      alt={selectedTrader.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="mb-2 text-center">
+                    <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">
+                      Current Rank
+                    </div>
+                    <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-accent-400 to-accent-650 flex items-center justify-center text-white font-display font-bold text-xl shadow-lg shadow-accent-500/30">
+                      {selectedTrader.rank}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <h2 className="text-2xl font-display font-bold text-white flex items-center gap-2">
+                    {selectedTrader.name}
+                    {selectedTrader.status === "online" && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    )}
+                  </h2>
+                  <p className="text-violet-400 text-sm mb-3">
+                    {selectedTrader.title ?? "Trader"}
+                  </p>
+
+                  {selectedTrader.earnedBadges && selectedTrader.earnedBadges.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {selectedTrader.earnedBadges.map((badgeName, idx) => {
+                        const badge = BADGE_DETAILS[badgeName];
+                        if (!badge) return null;
+                        return (
+                          <div
+                            key={idx}
+                            title={`${badgeName}: ${badge.desc}`}
+                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 transition-colors"
+                          >
+                            <span className="w-4 h-4 flex items-center justify-center shrink-0">{badge.icon}</span>
+                            <span className="font-medium">{badgeName}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
+                    <div className={`font-display font-bold text-xl mb-1 ${selectedTrader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {selectedTrader.profit >= 0 ? "+" : ""}{(selectedTrader.profit ?? 0).toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-slate-500 uppercase">Profit Return</div>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
+                    <div className="text-white font-display font-bold text-xl mb-1">
+                      {(selectedTrader.volume ?? 0).toFixed(2)}
+                    </div>
+                    <div className="text-xs text-slate-500 uppercase">
+                      Lots Traded
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Alpari API Data Summary */}
+                <div className="mb-8 bg-slate-900/60 rounded-xl p-4 border border-slate-800">
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider text-xs">
+                    Account Summary (Live Data)
+                  </h3>
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+                    <div>
+                      <span className="text-slate-500 block text-xs">Country</span>
+                      <span className="text-white font-medium">{selectedTrader.country || "India"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Registered</span>
+                      <span className="text-white font-medium">{selectedTrader.registrationDate || "N/A"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Total Volume</span>
+                      <span className="text-white font-medium">{selectedTrader.volume?.toFixed(2) ?? "0.00"} Lots</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Total Balance</span>
+                      <span className="text-white font-medium">${selectedTrader.totalBalance?.toFixed(2) ?? "0.00"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Account Equity</span>
+                      <span className="text-white font-medium">${selectedTrader.totalEquity?.toFixed(2) ?? "0.00"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Net Deposit</span>
+                      <span className="text-white font-medium">${selectedTrader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Share Button in Modal */}
+                <div className="mb-6">
+                  <button
+                    onClick={(e) => handleShare(e, selectedTrader)}
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Share My Achievement
+                  </button>
+                </div>
+
+                {selectedTrader.activity && selectedTrader.activity.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-slate-300 mb-3">
+                      Trading Activity{" "}
+                      <span className="text-slate-500">(Recent)</span>
+                    </h3>
+                    <div className="rounded-xl border border-slate-800 overflow-hidden">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-slate-900/60 text-[10px] uppercase tracking-wider text-slate-500">
+                            <th className="px-3 py-2 font-medium">Instrument</th>
+                            <th className="px-3 py-2 font-medium">Action</th>
+                            <th className="px-3 py-2 font-medium text-right">
+                              P/L %
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60">
+                          {selectedTrader.activity.slice(0, 5).map((a, i) => (
+                            <tr key={i} className="text-xs">
+                              <td className="px-3 py-2 text-slate-300 font-medium">
+                                {a.instrument}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    a.action === "Buy"
+                                      ? "bg-emerald-500/10 text-emerald-400"
+                                      : "bg-rose-500/10 text-rose-400"
+                                  }`}
+                                >
+                                  {a.action}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right font-medium text-emerald-400">
+                                +{a.pl.toFixed(2)}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Badge Condition Modal */}
+      {selectedBadge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            onClick={() => setSelectedBadge(null)}
+          />
+
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setSelectedBadge(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-850 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="p-6 text-center space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-xl flex items-center justify-center border-2 bg-slate-950/60 shadow-inner scale-110">
+                {selectedBadge.icon}
+              </div>
+              
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-white uppercase tracking-wider">
+                  {selectedBadge.name}
+                </h3>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  {selectedBadge.desc}
+                </p>
+              </div>
+
+              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800 text-left space-y-2">
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-black">
+                  Award Criteria & Conditions
+                </div>
+                <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                  {selectedBadge.condition}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setSelectedBadge(null)}
+                className="w-full py-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-white text-xs font-semibold transition-all border border-slate-800 cursor-pointer"
+              >
+                Close Details
+              </button>
             </div>
           </div>
         </div>

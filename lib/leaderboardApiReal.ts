@@ -34,6 +34,7 @@ export interface Trader {
   totalEquity?: number;
   programName?: string;
   earnedBadges?: string[];
+  totalPoints?: number;
 }
 
 export async function fetchLeaderboard(
