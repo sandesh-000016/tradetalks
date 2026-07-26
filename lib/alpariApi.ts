@@ -261,10 +261,10 @@ export async function getIntegratedLeaderboard(
     }
 
     const getClientKey = (item: any): string => {
-      const numId = item.id || item.clientId || item.client_id;
-      if (numId) return String(numId);
       const extId = item.external_client_id || item.externalClientId;
-      if (extId) return String(extId);
+      if (extId) return String(extId).toLowerCase().trim();
+      const numId = item.id || item.clientId || item.client_id;
+      if (numId) return String(numId).toLowerCase().trim();
       return "";
     };
 
