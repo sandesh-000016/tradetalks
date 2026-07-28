@@ -82,6 +82,10 @@ export async function POST(request: Request) {
       // Disqualified traders cannot earn badges
       if (t.isWashedOut) return false;
 
+      // Must meet the volume standard rule: 0.6 lots per $100 net deposits to be eligible for badges
+      const requiredVolume = ((t.mtNetDeposits ?? 0) / 100) * 0.6;
+      if ((t.volume ?? 0) < requiredVolume) return false;
+
       // Special cases for rank-based badges
       if (badgeName === "Top Rank Monthly") {
         return t.rank === 1;

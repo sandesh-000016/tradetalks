@@ -369,6 +369,9 @@ export async function getIntegratedLeaderboard(
               mt_net_deposits: dbTrader.totalNetDeposits ?? 100
             };
           }
+          // Copy database TWR values to the merged map for later profit calculations
+          mergedMap[key].twr_factor = dbTrader.twrFactor;
+          mergedMap[key].starting_balance_of_this_period = dbTrader.startingBalanceOfThisPeriod;
         });
         
         const bulkOps: any[] = [];
@@ -423,6 +426,29 @@ export async function getIntegratedLeaderboard(
           trader.mt_net_deposits = netDeposit;
           trader.is_washed_out = isWashedOut;
           trader.is_registered = true;
+
+          // Track Time-Weighted Return (TWR) cash flows
+          let twrFactor = dbTrader.twrFactor ?? 1.0;
+          let startingBalanceOfThisPeriod = dbTrader.startingBalanceOfThisPeriod ?? dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance ?? 100;
+          
+          if (trader.total_balance !== undefined) {
+            if (netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
+              const cashFlow = netDeposit - dbTrader.totalNetDeposits;
+              const balanceBefore = apiBalance - cashFlow;
+              
+              let periodReturn = 0;
+              if (startingBalanceOfThisPeriod > 0) {
+                periodReturn = (balanceBefore - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+              }
+              
+              twrFactor = twrFactor * (1 + periodReturn);
+              startingBalanceOfThisPeriod = apiBalance;
+            }
+          }
+          
+          // Keep the local memory map in sync
+          trader.twr_factor = twrFactor;
+          trader.starting_balance_of_this_period = startingBalanceOfThisPeriod;
           
           bulkOps.push({
             updateOne: {
@@ -436,7 +462,9 @@ export async function getIntegratedLeaderboard(
                   lastRecordedBalance: apiBalance,
                   lastDepositDate: apiDepositDate,
                   isWashedOut,
-                  lastUpdated: new Date()
+                  lastUpdated: new Date(),
+                  twrFactor,
+                  startingBalanceOfThisPeriod
                 }
               }
             }
@@ -541,11 +569,16 @@ export async function getIntegratedLeaderboard(
       profit = isNegative ? -baseProfit : baseProfit;
       tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
     } else {
-      // Real ROI calculation: (current balance - net deposit) / net deposit * 100
+      // Real TWR profit calculation:
       const currentBalance = totalBalance || totalEquity;
-      if (mtNetDeposits > 0) {
-        profit = ((currentBalance - mtNetDeposits) / mtNetDeposits) * 100;
+      const twrFactor = t.twr_factor ?? 1.0;
+      const startingBalanceOfThisPeriod = t.starting_balance_of_this_period ?? mtNetDeposits;
+      
+      let currentPeriodReturn = 0;
+      if (startingBalanceOfThisPeriod > 0) {
+        currentPeriodReturn = (currentBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
       }
+      profit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
       tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
     }
 
@@ -572,6 +605,8 @@ export async function getIntegratedLeaderboard(
       totalBalance: totalBalance,
       totalEquity: totalEquity,
       programName: t.program_name || "Scheme 1.0, MT",
+      isRegistered: t.is_registered ?? false,
+      isWashedOut: t.is_washed_out ?? false,
     };
   });
 
@@ -713,6 +748,10 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 isWashedOut: Number(foundInsight.total_equity ?? 0) <= 1.00,
                 isRegistered: true,
                 lastUpdated: new Date()
+              },
+              $setOnInsert: {
+                twrFactor: 1.0,
+                startingBalanceOfThisPeriod: balance > 0 ? balance : 100
               }
             },
             { upsert: true }

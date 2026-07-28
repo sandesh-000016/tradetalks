@@ -89,7 +89,28 @@ export async function PUT(request: Request) {
 
     const updateFields: any = {};
     if (totalNetDeposits !== undefined) {
-      updateFields.totalNetDeposits = Number(totalNetDeposits);
+      const newNetDeposits = Number(totalNetDeposits);
+      updateFields.totalNetDeposits = newNetDeposits;
+
+      // Calculate and save updated TWR variables to isolate manual cash flows
+      const dbTrader = await db.collection<any>("traders").findOne({ _id: clientId });
+      if (dbTrader) {
+        const oldNetDeposits = dbTrader.totalNetDeposits ?? 100;
+        const cashFlow = newNetDeposits - oldNetDeposits;
+        const currentBalance = dbTrader.lastRecordedBalance ?? oldNetDeposits;
+        const twrFactor = dbTrader.twrFactor ?? 1.0;
+        const startingBalance = dbTrader.startingBalanceOfThisPeriod ?? oldNetDeposits;
+        
+        let periodReturn = 0;
+        if (startingBalance > 0) {
+          periodReturn = (currentBalance - startingBalance) / startingBalance;
+        }
+        
+        const newTwrFactor = twrFactor * (1 + periodReturn);
+        
+        updateFields.twrFactor = newTwrFactor;
+        updateFields.startingBalanceOfThisPeriod = currentBalance + cashFlow;
+      }
     }
     if (isWashedOut !== undefined) {
       updateFields.isWashedOut = Boolean(isWashedOut);

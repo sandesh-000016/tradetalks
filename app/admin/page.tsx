@@ -47,7 +47,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch">("overview");
 
   // State for traders data
   const [traders, setTraders] = useState<Trader[]>([]);
@@ -78,6 +78,11 @@ export default function AdminPage() {
   const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [newDepositAmount, setNewDepositAmount] = useState("");
   const [updatingDeposit, setUpdatingDeposit] = useState(false);
+
+  // Live API Search states
+  const [liveSearchQuery, setLiveSearchQuery] = useState("");
+  const [liveSearchResults, setLiveSearchResults] = useState<any[]>([]);
+  const [searchingLive, setSearchingLive] = useState(false);
 
   // Check auth status on mount
   useEffect(() => {
@@ -279,6 +284,25 @@ export default function AdminPage() {
       await fetchData();
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to delete.");
+    }
+  };
+
+  const handleLiveSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!liveSearchQuery.trim()) return;
+    
+    setSearchingLive(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch(`/api/admin/traders/live-search?q=${encodeURIComponent(liveSearchQuery)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to query live metrics.");
+      setLiveSearchResults(data.traders || []);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to search live traders.");
+    } finally {
+      setSearchingLive(false);
     }
   };
 
@@ -537,6 +561,17 @@ export default function AdminPage() {
             >
               <Award className="w-5 h-5" />
               Badge Rules
+            </button>
+            <button
+              onClick={() => setActiveTab("liveSearch")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                activeTab === "liveSearch"
+                  ? "bg-brand-600/15 text-brand-400 border border-brand-500/25"
+                  : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+              }`}
+            >
+              <Search className="w-5 h-5" />
+              Live API Search
             </button>
           </nav>
         </div>
@@ -1061,6 +1096,132 @@ export default function AdminPage() {
 
             </div>
 
+          </div>
+        )}
+
+        {/* LIVE SEARCH TAB */}
+        {activeTab === "liveSearch" && (
+          <div className="space-y-6 animate-fadeIn">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Live API Search</h1>
+              <p className="text-slate-400 text-sm mt-1">Search any trader in real-time to view their live Alpari API metrics</p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+              <form onSubmit={handleLiveSearch} className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={liveSearchQuery}
+                    onChange={(e) => setLiveSearchQuery(e.target.value)}
+                    placeholder="Search by name, Client ID (e.g. f026...), or Numeric ID (e.g. 420...)"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={searchingLive}
+                  className="px-6 py-3 bg-brand-600 hover:bg-brand-500 disabled:bg-slate-850 text-white font-medium rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <RefreshCw className={`w-4 h-4 ${searchingLive ? "animate-spin" : ""}`} />
+                  {searchingLive ? "Searching..." : "Search Live API"}
+                </button>
+              </form>
+            </div>
+
+            {/* Results Table Card */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              {searchingLive ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-500"></div>
+                  <span className="text-slate-400 text-sm">Querying Alpari API...</span>
+                </div>
+              ) : liveSearchResults.length === 0 ? (
+                <div className="py-20 text-center">
+                  <Search className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                  <h3 className="text-slate-300 font-bold text-lg">No metrics found</h3>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {liveSearchQuery ? "No matching clients found in live API data." : "Enter a search query to search live trader metrics."}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider bg-slate-950/35">
+                        <th className="px-6 py-4">Trader Info</th>
+                        <th className="px-6 py-4 text-right">Lots Traded</th>
+                        <th className="px-6 py-4 text-right">Balance</th>
+                        <th className="px-6 py-4 text-right">Equity</th>
+                        <th className="px-6 py-4 text-right">Profit ROI</th>
+                        <th className="px-6 py-4 text-center">Registration</th>
+                        <th className="px-6 py-4 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-850">
+                      {liveSearchResults.map((trader: any) => {
+                        const isUnderVolume = (trader.volume ?? 0) < ((trader.mtNetDeposits ?? 0) / 100) * 0.6;
+                        return (
+                          <tr key={trader.id} className="hover:bg-slate-800/10">
+                            <td className="px-6 py-4">
+                              <div className="font-semibold text-white">{trader.name}</div>
+                              <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                ID: {trader.id} {trader.internalId ? `| Num ID: ${trader.internalId}` : ""}
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-1">
+                                Country: {trader.country}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-slate-350">
+                              {(trader.volume ?? 0).toFixed(2)} Lots
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-slate-300">
+                              ${(trader.totalBalance ?? 0).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-slate-300">
+                              ${(trader.totalEquity ?? 0).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 text-right font-bold">
+                              <span className={trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                                {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {trader.isRegistered ? (
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                  Registered
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-400">
+                                  Unregistered
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {trader.isWashedOut ? (
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                                  Disqualified
+                                </span>
+                              ) : isUnderVolume ? (
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400" title="Does not meet volume requirement (0.6 lots per $100 net deposits)">
+                                  Under Volume
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                  Active
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

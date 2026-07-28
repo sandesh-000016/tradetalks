@@ -1260,7 +1260,19 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                             </div>
                             <div>
                               <div className="font-medium text-white">{trader.name}</div>
-                              <div className="text-[10px] text-slate-500 font-medium">{trader.country || "India"}</div>
+                              <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2">
+                                <span>{trader.country || "India"}</span>
+                                {/* Volume Warning Tag */}
+                                {(trader.volume ?? 0) < ((trader.mtNetDeposits ?? 0) / 100) * 0.6 ? (
+                                  <span className="text-[9px] font-bold text-amber-500/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title={`Needs at least ${(((trader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots. Currently has ${(trader.volume ?? 0).toFixed(2)} Lots.`}>
+                                    Under Volume
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-bold text-emerald-500/90 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                    Qualified
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -1657,7 +1669,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     setIframeLoads(0);
                     setCurrentStep(2);
                   }}
-                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800 flex items-center justify-center gap-2 cursor-pointer text-slate-300"
+                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer text-slate-300"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Back to Form
@@ -2338,6 +2350,20 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   <p className="text-violet-400 text-sm mb-3">
                     {selectedTrader.title ?? "Trader"}
                   </p>
+
+                  <div className="mb-4">
+                    {(selectedTrader.volume ?? 0) < ((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6 ? (
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-400 text-xs">
+                        <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Under Volume</span>
+                        Requires at least <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>.
+                      </div>
+                    ) : (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-emerald-400 text-xs">
+                        <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Volume Qualified</span>
+                        Traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span>.
+                      </div>
+                    )}
+                  </div>
 
                   {selectedTrader.earnedBadges && selectedTrader.earnedBadges.length > 0 && (
                     <div className="flex gap-2 flex-wrap">
