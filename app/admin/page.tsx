@@ -77,6 +77,8 @@ export default function AdminPage() {
   // Edit deposit state
   const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [newDepositAmount, setNewDepositAmount] = useState("");
+  const [depositUpdateMode, setDepositUpdateMode] = useState<"baseline" | "cash_flow">("baseline");
+  const [cashFlowAmount, setCashFlowAmount] = useState("");
   const [updatingDeposit, setUpdatingDeposit] = useState(false);
 
   // Live API Search states
@@ -219,7 +221,53 @@ export default function AdminPage() {
   // Update Deposit
   const handleUpdateDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTrader || isNaN(Number(newDepositAmount))) return;
+    if (!editingTrader) return;
+    setUpdatingDeposit(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const payload: any = { clientId: editingTrader.clientId };
+      if (depositUpdateMode === "cash_flow") {
+        if (isNaN(Number(cashFlowAmount)) || Number(cashFlowAmount) === 0) {
+          throw new Error("Please enter a valid non-zero cash flow amount.");
+        }
+        payload.updateType = "twr_cash_flow";
+        payload.cashFlowAmount = Number(cashFlowAmount);
+      } else {
+        if (isNaN(Number(newDepositAmount))) {
+          throw new Error("Please enter a valid deposit amount.");
+        }
+        payload.updateType = "baseline";
+        payload.totalNetDeposits = Number(newDepositAmount);
+      }
+
+      const res = await fetch("/api/admin/traders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update deposit.");
+      
+      if (depositUpdateMode === "cash_flow") {
+        setSuccessMsg(`TWR Cash Flow of $${cashFlowAmount} registered for ${editingTrader.clientName}! ROI percentage remains intact.`);
+      } else {
+        setSuccessMsg(`Updated baseline net deposit for ${editingTrader.clientName} to $${newDepositAmount}!`);
+      }
+      setEditingTrader(null);
+      setNewDepositAmount("");
+      setCashFlowAmount("");
+      await fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to update deposit.");
+    } finally {
+      setUpdatingDeposit(false);
+    }
+  };
+
+  // Reset Simulation back to original live state
+  const handleResetSimulation = async () => {
+    if (!editingTrader) return;
     setUpdatingDeposit(true);
     setErrorMsg("");
     setSuccessMsg("");
@@ -227,19 +275,15 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/traders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: editingTrader.clientId,
-          totalNetDeposits: Number(newDepositAmount)
-        }),
+        body: JSON.stringify({ clientId: editingTrader.clientId, updateType: "reset_simulation" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update deposit.");
-      setSuccessMsg(`Updated net deposit for ${editingTrader.clientName} to $${newDepositAmount}!`);
+      if (!res.ok) throw new Error(data.error || "Failed to reset simulation.");
+      setSuccessMsg(`Reset simulation for ${editingTrader.clientName} back to live Alpari baseline!`);
       setEditingTrader(null);
-      setNewDepositAmount("");
       await fetchData();
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to update deposit.");
+      setErrorMsg(err.message || "Failed to reset simulation.");
     } finally {
       setUpdatingDeposit(false);
     }
@@ -1239,44 +1283,107 @@ export default function AdminPage() {
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-lg font-bold text-white mb-1">Modify Net Deposit</h3>
-            <p className="text-slate-400 text-xs mb-6">
-              Adjusting this will update the starting capital for <strong className="text-slate-200">{editingTrader.clientName}</strong> and recalculate their ROI/profit percentage instantly on the public leaderboard.
+            <h3 className="text-lg font-bold text-white mb-1">Trader Deposit Management</h3>
+            <p className="text-slate-400 text-xs mb-4">
+              Managing deposits for <strong className="text-slate-200">{editingTrader.clientName}</strong> (Current Balance: ${(editingTrader.lastRecordedBalance ?? 0).toFixed(2)})
             </p>
 
-            <form onSubmit={handleUpdateDeposit} className="space-y-4">
-              <div>
-                <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
-                  Net Deposit Amount (USD)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={newDepositAmount}
-                    onChange={(e) => setNewDepositAmount(e.target.value)}
-                    className="w-full pl-8 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                    placeholder="Enter deposit (e.g. 200.00)"
-                  />
-                </div>
-              </div>
+            {/* Mode Switcher */}
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 mb-5">
+              <button
+                type="button"
+                onClick={() => setDepositUpdateMode("baseline")}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  depositUpdateMode === "baseline"
+                    ? "bg-brand-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                Baseline Deposit (Fix Initial Capital)
+              </button>
+              <button
+                type="button"
+                onClick={() => setDepositUpdateMode("cash_flow")}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  depositUpdateMode === "cash_flow"
+                    ? "bg-brand-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                ⚡ Simulate TWR Cash Flow
+              </button>
+            </div>
 
-              <div className="flex gap-3 mt-6">
+            <form onSubmit={handleUpdateDeposit} className="space-y-4">
+              {depositUpdateMode === "baseline" ? (
+                <div>
+                  <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                    Total Starting Net Deposit (USD)
+                  </label>
+                  <p className="text-slate-500 text-[11px] mb-2">
+                    Re-baselines the initial starting capital. Use this if the initial deposit was recorded incorrectly.
+                  </p>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={newDepositAmount}
+                      onChange={(e) => setNewDepositAmount(e.target.value)}
+                      className="w-full pl-8 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
+                      placeholder="Enter baseline deposit (e.g. 175.56)"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                    Mid-Period Cash Flow Amount (USD)
+                  </label>
+                  <p className="text-slate-500 text-[11px] mb-2">
+                    Simulates a mid-trading cash flow (e.g. +100 for deposit, -50 for withdrawal). <strong>TWR isolates this cash flow so ROI % stays identical right after the deposit!</strong>
+                  </p>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={cashFlowAmount}
+                      onChange={(e) => setCashFlowAmount(e.target.value)}
+                      className="w-full pl-8 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
+                      placeholder="e.g. 100.00 (or -50.00)"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 mt-6">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTrader(null)}
+                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition-all cursor-pointer text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updatingDeposit}
+                    className="flex-1 py-3 bg-brand-600 hover:bg-brand-500 disabled:bg-slate-850 text-white font-medium rounded-xl shadow-lg transition-all cursor-pointer text-sm"
+                  >
+                    {updatingDeposit ? "Saving..." : depositUpdateMode === "cash_flow" ? "Simulate Cash Flow" : "Save Baseline"}
+                  </button>
+                </div>
+                
                 <button
                   type="button"
-                  onClick={() => setEditingTrader(null)}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
+                  onClick={handleResetSimulation}
                   disabled={updatingDeposit}
-                  className="flex-1 py-3 bg-brand-600 hover:bg-brand-500 disabled:bg-slate-850 text-white font-medium rounded-xl shadow-lg transition-all cursor-pointer"
+                  className="w-full py-2 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold rounded-xl transition-all cursor-pointer"
                 >
-                  {updatingDeposit ? "Saving Changes..." : "Save Changes"}
+                  ↺ Reset Trader to Original Live State
                 </button>
               </div>
             </form>

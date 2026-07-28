@@ -387,8 +387,11 @@ export async function getIntegratedLeaderboard(
             continue;
           }
           
-          const apiBalance = trader.total_balance ?? 0;
-          const apiEquity = trader.total_equity ?? 0;
+          const rawApiBalance = trader.total_balance ?? 0;
+          const simOffset = dbTrader.simulatedBalanceOffset ?? 0;
+          const apiBalance = rawApiBalance + simOffset;
+          trader.total_balance = apiBalance;
+          const apiEquity = (trader.total_equity ?? 0) + simOffset;
           const apiDepositDate = trader.last_deposit_date || null;
           const volume = trader.volume ?? 0;
           
@@ -429,20 +432,26 @@ export async function getIntegratedLeaderboard(
 
           // Track Time-Weighted Return (TWR) cash flows
           let twrFactor = dbTrader.twrFactor ?? 1.0;
-          let startingBalanceOfThisPeriod = dbTrader.startingBalanceOfThisPeriod ?? dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance ?? 100;
+          let startingBalanceOfThisPeriod = dbTrader.startingBalanceOfThisPeriod ?? netDeposit;
           
           if (trader.total_balance !== undefined) {
             if (netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
-              const cashFlow = netDeposit - dbTrader.totalNetDeposits;
-              const balanceBefore = apiBalance - cashFlow;
-              
-              let periodReturn = 0;
-              if (startingBalanceOfThisPeriod > 0) {
-                periodReturn = (balanceBefore - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+              // If previous deposit was default 100 placeholder or uninitialized, re-baseline cleanly
+              if (dbTrader.totalNetDeposits === 100 || !dbTrader.twrFactor) {
+                twrFactor = 1.0;
+                startingBalanceOfThisPeriod = netDeposit;
+              } else {
+                const cashFlow = netDeposit - dbTrader.totalNetDeposits;
+                const balanceBefore = apiBalance - cashFlow;
+                
+                let periodReturn = 0;
+                if (startingBalanceOfThisPeriod > 0) {
+                  periodReturn = (balanceBefore - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+                }
+                
+                twrFactor = twrFactor * (1 + periodReturn);
+                startingBalanceOfThisPeriod = apiBalance;
               }
-              
-              twrFactor = twrFactor * (1 + periodReturn);
-              startingBalanceOfThisPeriod = apiBalance;
             }
           }
           

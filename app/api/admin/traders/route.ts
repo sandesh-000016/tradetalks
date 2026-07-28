@@ -68,14 +68,15 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT: Update a trader's net deposit or washout status
+// PUT: Update a trader's net deposit, cash flow, or washout status
 export async function PUT(request: Request) {
   try {
     if (!(await isAuthenticated())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { clientId, totalNetDeposits, isWashedOut } = await request.json();
+    const body = await request.json();
+    const { clientId, totalNetDeposits, isWashedOut, updateType, cashFlowAmount } = body;
     if (!clientId) {
       return NextResponse.json({ error: "Client ID is required" }, { status: 400 });
     }
@@ -88,29 +89,47 @@ export async function PUT(request: Request) {
     const db = mongoClient.db("tradetalks");
 
     const updateFields: any = {};
-    if (totalNetDeposits !== undefined) {
-      const newNetDeposits = Number(totalNetDeposits);
-      updateFields.totalNetDeposits = newNetDeposits;
 
-      // Calculate and save updated TWR variables to isolate manual cash flows
+    if (updateType === "twr_cash_flow" && cashFlowAmount !== undefined) {
       const dbTrader = await db.collection<any>("traders").findOne({ _id: clientId });
       if (dbTrader) {
+        const cashFlow = Number(cashFlowAmount);
         const oldNetDeposits = dbTrader.totalNetDeposits ?? 100;
-        const cashFlow = newNetDeposits - oldNetDeposits;
         const currentBalance = dbTrader.lastRecordedBalance ?? oldNetDeposits;
         const twrFactor = dbTrader.twrFactor ?? 1.0;
         const startingBalance = dbTrader.startingBalanceOfThisPeriod ?? oldNetDeposits;
-        
+
+        // 1. Calculate return for the sub-period preceding this cash flow
         let periodReturn = 0;
         if (startingBalance > 0) {
           periodReturn = (currentBalance - startingBalance) / startingBalance;
         }
-        
+
+        // 2. Lock in return into twrFactor
         const newTwrFactor = twrFactor * (1 + periodReturn);
-        
+        const newBalance = currentBalance + cashFlow;
+        const newNetDeposits = oldNetDeposits + cashFlow;
+        const currentOffset = dbTrader.simulatedBalanceOffset ?? 0;
+
+        updateFields.totalNetDeposits = newNetDeposits;
+        updateFields.lastRecordedBalance = newBalance;
         updateFields.twrFactor = newTwrFactor;
-        updateFields.startingBalanceOfThisPeriod = currentBalance + cashFlow;
+        updateFields.startingBalanceOfThisPeriod = newBalance;
+        updateFields.simulatedBalanceOffset = currentOffset + cashFlow;
       }
+    } else if (updateType === "reset_simulation") {
+      updateFields.simulatedBalanceOffset = 0;
+      updateFields.twrFactor = 1.0;
+      updateFields.totalNetDeposits = 175.56;
+      updateFields.startingBalanceOfThisPeriod = 175.56;
+    } else if (totalNetDeposits !== undefined) {
+      const newNetDeposits = Number(totalNetDeposits);
+      updateFields.totalNetDeposits = newNetDeposits;
+      updateFields.simulatedBalanceOffset = 0;
+
+      // Re-baseline TWR variables to the updated deposit amount so ROI accurately reflects performance from the new deposit base
+      updateFields.twrFactor = 1.0;
+      updateFields.startingBalanceOfThisPeriod = newNetDeposits;
     }
     if (isWashedOut !== undefined) {
       updateFields.isWashedOut = Boolean(isWashedOut);
