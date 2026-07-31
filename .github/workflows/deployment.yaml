@@ -40,7 +40,7 @@ jobs:
         id: get_docker_image_tag
         run: echo "DOCKER_IMAGE_TAG=commit_${{needs.get_commit_hash.outputs.commitHash}}" >> $GITHUB_OUTPUT
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Continuous Deployment
     needs:
       - docker_build
