@@ -35,7 +35,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: weteams/${{ secrets.DOCKER_IMAGE_NAME }}:commit_${{needs.get_commit_hash.outputs.commitHash}}
+          tags: unitthree/${{ secrets.DOCKER_IMAGE_NAME }}:commit_${{needs.get_commit_hash.outputs.commitHash}}
       - name: Get docker image tag
         id: get_docker_image_tag
         run: echo "DOCKER_IMAGE_TAG=commit_${{needs.get_commit_hash.outputs.commitHash}}" >> $GITHUB_OUTPUT
@@ -58,7 +58,7 @@ jobs:
             for PROJECT_NAME in "${PROJECTS[@]}"; do
               cd /root/$PROJECT_NAME/
               docker compose down
-              IMAGE_NAME="weteams/${{ secrets.DOCKER_IMAGE_NAME }}"
+              IMAGE_NAME="unitthree/${{ secrets.DOCKER_IMAGE_NAME }}"
               IMAGE_TAG="${{ needs.docker_build.outputs.imageTag }}"
               sed -i -E "s|${IMAGE_NAME}:[^\"']*|${IMAGE_NAME}:${IMAGE_TAG}|g" docker-compose.yaml
               docker compose up -d
