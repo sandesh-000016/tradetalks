@@ -33,15 +33,30 @@ export async function POST(req: NextRequest) {
       fullName,
       phone,
       email,
-      city,
-      state,
-      experience,
-      howHeard,
-      tradingGoal,
+      place,
+      occupation,
+      market,
+      capital,
     } = body;
 
-    if (!fullName || !phone) {
-      return NextResponse.json({ error: "Full Name and Phone are required." }, { status: 400 });
+    if (!fullName || !phone || !email || !place || !occupation || !market || !capital) {
+      return NextResponse.json({ error: "All fields (Name, Place, Email, Mobile number, Occupation, Market, Capital) are required." }, { status: 400 });
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+    }
+
+    // Mobile validation: 10 digits
+    const cleanPhone = phone.replace(/[^0-9]/g, "");
+    let finalPhone = cleanPhone;
+    if (cleanPhone.length === 12 && cleanPhone.startsWith("91")) {
+      finalPhone = cleanPhone.slice(2);
+    }
+    if (!/^[6-9]\d{9}$/.test(finalPhone)) {
+      return NextResponse.json({ error: "Mobile number must be a valid 10-digit number." }, { status: 400 });
     }
 
     const col = await getCollection();
@@ -58,13 +73,12 @@ export async function POST(req: NextRequest) {
       clientId: clientId || "",
       clientName: clientName || fullName,
       fullName,
-      phone,
-      email: email || "",
-      city: city || "",
-      state: state || "",
-      experience: experience || "",
-      howHeard: howHeard || "",
-      tradingGoal: tradingGoal || "",
+      phone: finalPhone,
+      email,
+      place,
+      occupation,
+      market,
+      capital,
       submittedAt: new Date(),
     };
 

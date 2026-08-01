@@ -131,13 +131,12 @@ function RegisterContent() {
   // Custom registration form state
   const [regForm, setRegForm] = React.useState({
     fullName: "",
-    phone: "",
+    place: "",
     email: "",
-    city: "",
-    state: "",
-    experience: "",
-    howHeard: "",
-    tradingGoal: "",
+    phone: "",
+    occupation: "",
+    market: "",
+    capital: "",
   });
   const [isSubmittingReg, setIsSubmittingReg] = React.useState(false);
   const [regError, setRegError] = React.useState<string | null>(null);
@@ -149,10 +148,37 @@ function RegisterContent() {
 
   const handleRegSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regForm.fullName.trim() || !regForm.phone.trim()) {
-      setRegError("Full Name and Phone Number are required.");
+    if (
+      !regForm.fullName.trim() ||
+      !regForm.place.trim() ||
+      !regForm.email.trim() ||
+      !regForm.phone.trim() ||
+      !regForm.occupation.trim() ||
+      !regForm.market.trim() ||
+      !regForm.capital.trim()
+    ) {
+      setRegError("All fields are required.");
       return;
     }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(regForm.email.trim())) {
+      setRegError("Please enter a valid email address.");
+      return;
+    }
+
+    // Phone validation: exactly 10 digits
+    const cleanPhone = regForm.phone.replace(/[^0-9]/g, "");
+    let finalPhone = cleanPhone;
+    if (cleanPhone.length === 12 && cleanPhone.startsWith("91")) {
+      finalPhone = cleanPhone.slice(2);
+    }
+    if (!/^[6-9]\d{9}$/.test(finalPhone)) {
+      setRegError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
     setIsSubmittingReg(true);
     setRegError(null);
     try {
@@ -163,6 +189,7 @@ function RegisterContent() {
           clientId: verifiedClient?.id || "",
           clientName: verifiedClient?.name || regForm.fullName,
           ...regForm,
+          phone: finalPhone,
         }),
       });
       const data = await res.json();
@@ -527,7 +554,38 @@ function RegisterContent() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Phone Number <span className="text-rose-400">*</span>
+                    Place <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="place"
+                    value={regForm.place}
+                    onChange={handleRegFormChange}
+                    required
+                    placeholder="City, State / Country"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Email Address <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={regForm.email}
+                    onChange={handleRegFormChange}
+                    required
+                    placeholder="your@email.com"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Mobile Number (10 digits) <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="tel"
@@ -535,7 +593,7 @@ function RegisterContent() {
                     value={regForm.phone}
                     onChange={handleRegFormChange}
                     required
-                    placeholder="+91 XXXXX XXXXX"
+                    placeholder="e.g. 9876543210"
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
                   />
                 </div>
@@ -544,97 +602,65 @@ function RegisterContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={regForm.email}
-                    onChange={handleRegFormChange}
-                    placeholder="your@email.com"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={regForm.city}
-                    onChange={handleRegFormChange}
-                    placeholder="Your city"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    State
-                  </label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={regForm.state}
-                    onChange={handleRegFormChange}
-                    placeholder="Your state"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Trading Experience
+                    Occupation <span className="text-rose-400">*</span>
                   </label>
                   <select
-                    name="experience"
-                    value={regForm.experience}
+                    name="occupation"
+                    value={regForm.occupation}
                     onChange={handleRegFormChange}
+                    required
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
                   >
-                    <option value="">Select experience level</option>
-                    <option value="Beginner (Less than 1 year)">Beginner (Less than 1 year)</option>
-                    <option value="Intermediate (1–3 years)">Intermediate (1–3 years)</option>
-                    <option value="Experienced (3–5 years)">Experienced (3–5 years)</option>
-                    <option value="Expert (5+ years)">Expert (5+ years)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    How Did You Hear About Us?
-                  </label>
-                  <select
-                    name="howHeard"
-                    value={regForm.howHeard}
-                    onChange={handleRegFormChange}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  >
-                    <option value="">Select an option</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="YouTube">YouTube</option>
-                    <option value="WhatsApp">WhatsApp</option>
-                    <option value="Friend / Referral">Friend / Referral</option>
-                    <option value="Google Search">Google Search</option>
+                    <option value="">Select occupation</option>
+                    <option value="Student">Student</option>
+                    <option value="Salaried Professional">Salaried Professional</option>
+                    <option value="Self-Employed / Business Owner">Self-Employed / Business Owner</option>
+                    <option value="Full-Time Trader">Full-Time Trader</option>
+                    <option value="Unemployed / Looking for Work">Unemployed / Looking for Work</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Your Trading Goal
+                    Which Market You Trade <span className="text-rose-400">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="tradingGoal"
-                    value={regForm.tradingGoal}
+                  <select
+                    name="market"
+                    value={regForm.market}
                     onChange={handleRegFormChange}
-                    placeholder="e.g. Earn consistent returns"
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  />
+                    required
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  >
+                    <option value="">Select market</option>
+                    <option value="Forex Market">Forex Market</option>
+                    <option value="Indian Stock Market (NSE/BSE)">Indian Stock Market (NSE/BSE)</option>
+                    <option value="Cryptocurrency">Cryptocurrency</option>
+                    <option value="US Stock Market">US Stock Market</option>
+                    <option value="Commodities & F&O">Commodities & F&O</option>
+                    <option value="Multiple / Other">Multiple / Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Trading Capital <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    name="capital"
+                    value={regForm.capital}
+                    onChange={handleRegFormChange}
+                    required
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  >
+                    <option value="">Select trading capital</option>
+                    <option value="Below $100">Below $100</option>
+                    <option value="$100 - $500">$100 - $500</option>
+                    <option value="$500 - $2,000">$500 - $2,000</option>
+                    <option value="$2,000 - $10,000">$2,000 - $10,000</option>
+                    <option value="Above $10,000">Above $10,000</option>
+                  </select>
                 </div>
               </div>
 

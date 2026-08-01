@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
   },
   // Set long-lived cache headers for static assets
   async headers() {
+    if (process.env.NODE_ENV === "development") {
+      return [];
+    }
     return [
       {
         // Cache static assets (JS, CSS, fonts, images in /_next/) for 1 year

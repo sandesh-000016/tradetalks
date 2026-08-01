@@ -76,6 +76,15 @@ export default function AdminPage() {
   const [evalPeriod, setEvalPeriod] = useState("");
   const [awardingTraderId, setAwardingTraderId] = useState<string | null>(null);
 
+  // Manual Award states
+  const [manualAward, setManualAward] = useState({
+    traderId: "",
+    badgeName: "",
+    period: "Season 1",
+    points: 50,
+  });
+  const [isAwardingManual, setIsAwardingManual] = useState(false);
+
   // Search filter
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -532,6 +541,48 @@ export default function AdminPage() {
       await fetchBadgesData();
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to revoke badge.");
+    }
+  };
+
+  // Submit manual award
+  const handleManualAwardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualAward.traderId || !manualAward.badgeName) return;
+    
+    // Find trader name
+    const trader = traders.find(t => t.clientId === manualAward.traderId);
+    if (!trader) return;
+
+    setIsAwardingManual(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch("/api/admin/award-badge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          traderId: manualAward.traderId,
+          traderName: trader.clientName,
+          badgeName: manualAward.badgeName,
+          points: manualAward.points,
+          period: manualAward.period,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to award badge.");
+      setSuccessMsg(data.message || `Successfully awarded ${manualAward.badgeName} to ${trader.clientName}!`);
+      // Reset form
+      setManualAward({
+        traderId: "",
+        badgeName: "",
+        period: "Season 1",
+        points: 50,
+      });
+      await fetchBadgesData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to award badge.");
+    } finally {
+      setIsAwardingManual(false);
     }
   };
 
@@ -1106,7 +1157,25 @@ export default function AdminPage() {
               <div className="lg:col-span-7 space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-white">Challenge Badges & Rules</h2>
-                  {loadingBadges && <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-brand-500"></div>}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setEditingRule({
+                          _id: "",
+                          points: 50,
+                          description: "",
+                          conditions: [{ metric: "profit", operator: "gte", value: 0 }],
+                          nextEvaluationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                          isNew: true
+                        });
+                      }}
+                      className="px-3.5 py-2 bg-brand-600 hover:bg-brand-550 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add New Badge
+                    </button>
+                    {loadingBadges && <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-brand-500"></div>}
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -1176,6 +1245,101 @@ export default function AdminPage() {
 
               {/* Award history (Right 5 Columns) */}
               <div className="lg:col-span-5 space-y-6">
+
+                {/* Manually Award Badge Card */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                  <h3 className="font-bold text-white text-base flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-brand-400" />
+                    Manually Award Badge
+                  </h3>
+                  <p className="text-slate-400 text-xs leading-relaxed">
+                    Directly assign a badge to any qualified trader without running automated evaluation rules.
+                  </p>
+                  
+                  <form onSubmit={handleManualAwardSubmit} className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Select Trader <span className="text-rose-400">*</span>
+                      </label>
+                      <select
+                        required
+                        value={manualAward.traderId}
+                        onChange={(e) => setManualAward({ ...manualAward, traderId: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all"
+                      >
+                        <option value="">Choose a trader...</option>
+                        {traders.map((t) => (
+                          <option key={t.clientId} value={t.clientId}>
+                            {t.clientName} (ID: {t.clientId})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                          Select Badge <span className="text-rose-400">*</span>
+                        </label>
+                        <select
+                          required
+                          value={manualAward.badgeName}
+                          onChange={(e) => {
+                            const badge = badgeRules.find(r => r._id === e.target.value);
+                            setManualAward({
+                              ...manualAward,
+                              badgeName: e.target.value,
+                              points: badge ? badge.points : 50
+                            });
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all"
+                        >
+                          <option value="">Choose badge...</option>
+                          {badgeRules.map((r) => (
+                            <option key={r._id} value={r._id}>
+                              {r._id}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                          Points
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={manualAward.points}
+                          onChange={(e) => setManualAward({ ...manualAward, points: Number(e.target.value) })}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Period Key
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={manualAward.period}
+                        onChange={(e) => setManualAward({ ...manualAward, period: e.target.value })}
+                        placeholder="e.g. Season 1, 2026-W30"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isAwardingManual || !manualAward.traderId || !manualAward.badgeName}
+                      className="w-full py-2.5 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-850 disabled:text-slate-500 text-white font-semibold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      {isAwardingManual ? "Awarding..." : "Award Badge & Point"}
+                    </button>
+                  </form>
+                </div>
+
                 <h2 className="text-xl font-bold text-white">Approved Award Log</h2>
 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
@@ -1680,12 +1844,33 @@ export default function AdminPage() {
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-lg font-bold text-white mb-1">Edit Badge Rule</h3>
+            <h3 className="text-lg font-bold text-white mb-1">
+              {editingRule.isNew ? "Add New Badge" : "Edit Badge Rule"}
+            </h3>
             <p className="text-slate-400 text-xs mb-6">
-              Configure criteria, points, and evaluation schedule for <strong className="text-slate-200">{editingRule._id}</strong>.
+              {editingRule.isNew
+                ? "Define a new badge, its evaluation criteria, and points allocation."
+                : `Configure criteria, points, and evaluation schedule for `}
+              {!editingRule.isNew && <strong className="text-slate-200">{editingRule._id}</strong>}
+              .
             </p>
 
             <form onSubmit={handleSaveRule} className="space-y-4">
+              {editingRule.isNew && (
+                <div>
+                  <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                    Badge Name (Unique ID)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingRule._id}
+                    onChange={(e) => setEditingRule({ ...editingRule, _id: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                    placeholder="e.g. Consistency Master"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
                   Points Allocated
