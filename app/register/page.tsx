@@ -127,7 +127,56 @@ function RegisterContent() {
   const [referralChecked, setReferralChecked] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(1);
   const [selectedVideoId, setSelectedVideoId] = React.useState("lmtgjAD18nE");
-  const [iframeLoads, setIframeLoads] = React.useState(0);
+
+  // Custom registration form state
+  const [regForm, setRegForm] = React.useState({
+    fullName: "",
+    phone: "",
+    email: "",
+    city: "",
+    state: "",
+    experience: "",
+    howHeard: "",
+    tradingGoal: "",
+  });
+  const [isSubmittingReg, setIsSubmittingReg] = React.useState(false);
+  const [regError, setRegError] = React.useState<string | null>(null);
+
+  const handleRegFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setRegForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setRegError(null);
+  };
+
+  const handleRegSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regForm.fullName.trim() || !regForm.phone.trim()) {
+      setRegError("Full Name and Phone Number are required.");
+      return;
+    }
+    setIsSubmittingReg(true);
+    setRegError(null);
+    try {
+      const res = await fetch("/api/registrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: verifiedClient?.id || "",
+          clientName: verifiedClient?.name || regForm.fullName,
+          ...regForm,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentStep(3);
+      } else {
+        setRegError(data.error || "Submission failed. Please try again.");
+      }
+    } catch {
+      setRegError("Network error. Please try again.");
+    } finally {
+      setIsSubmittingReg(false);
+    }
+  };
 
   const [selectedBadge, setSelectedBadge] = React.useState<{
     name: string;
@@ -137,6 +186,7 @@ function RegisterContent() {
     icon: React.ReactNode;
   } | null>(null);
   const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
+
 
   React.useEffect(() => {
     fetch("/api/badge-rules")
@@ -203,16 +253,7 @@ function RegisterContent() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentStep]);
 
-  const handleIframeLoad = () => {
-    setIframeLoads((prev) => {
-      const nextCount = prev + 1;
-      // Google Form reloads to success page on submission
-      if (nextCount > 1) {
-        setCurrentStep(3);
-      }
-      return nextCount;
-    });
-  };
+
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,7 +282,6 @@ function RegisterContent() {
       const data = await res.json();
       if (data.success) {
         setVerifiedClient(data.client);
-        setIframeLoads(0); // Reset for Step 2
         setCurrentStep(2);
       } else {
         setErrorMsg(data.error || "Verification failed. Check your Client ID.");
@@ -444,52 +484,188 @@ function RegisterContent() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════
-            STEP 2: Embedded Google Form
+            STEP 2: Custom Registration Form
         ═══════════════════════════════════════════════════════════════ */}
         {currentStep === 2 && (
-          <section className="glass-panel rounded-3xl p-6 md:p-8 mb-10 border border-slate-800 bg-slate-950/40 relative overflow-hidden flex flex-col items-center animate-in fade-in duration-300">
-            <div className="text-center mb-6 space-y-2">
+          <section className="glass-panel rounded-3xl p-6 md:p-8 mb-10 border border-slate-800 bg-slate-950/40 relative overflow-hidden animate-in fade-in duration-300">
+            <div className="text-center mb-8 space-y-2">
               <h2 className="text-xl font-display font-black text-white uppercase tracking-wider">
-                Step 2: Fill the Google Form
+                Step 2: Complete Your Registration
               </h2>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Please complete the form below using the client ID you verified in Step 1.
+                Fill in your details below. Your verified Client ID has been pre-linked.
               </p>
             </div>
-            
-            <div className="w-full relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-900/50 h-[750px] min-h-[600px]">
-              <iframe
-                src="https://docs.google.com/forms/d/e/1FAIpQLSe5FB5CkkrPeVE0CTNhFWTRQ1MOnDWLvSBsn8lgKUMghzbCfA/viewform?embedded=true"
-                className="absolute inset-0 w-full h-full border-0"
-                title="Registration Form"
-                onLoad={handleIframeLoad}
-              >
-                Loading…
-              </iframe>
-            </div>
 
-            
-
-            <div className="flex justify-between items-center w-full mt-8 pt-6 border-t border-slate-900 gap-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIframeLoads(0);
-                  setCurrentStep(1);
-                }}
-                className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </button>
-
-              <div className="flex items-center gap-2 text-xs text-slate-400 font-medium bg-slate-900/60 border border-slate-850 px-4 py-2.5 rounded-xl">
-                <span className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse" />
-                Waiting for form submission...
+            {/* Verified badge banner */}
+            <div className="flex items-center gap-3 bg-emerald-500/8 border border-emerald-500/20 rounded-2xl px-5 py-3 mb-6">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div>
+                <span className="text-emerald-400 text-sm font-semibold block">Account Verified</span>
+                <span className="text-slate-400 text-xs">
+                  {verifiedClient?.name} — Balance:{" "}
+                  <strong className="text-white">${verifiedClient?.balance ?? "100"}</strong>
+                </span>
               </div>
             </div>
+
+            <form onSubmit={handleRegSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Full Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={regForm.fullName}
+                    onChange={handleRegFormChange}
+                    required
+                    placeholder="Your full name"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Phone Number <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={regForm.phone}
+                    onChange={handleRegFormChange}
+                    required
+                    placeholder="+91 XXXXX XXXXX"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={regForm.email}
+                    onChange={handleRegFormChange}
+                    placeholder="your@email.com"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={regForm.city}
+                    onChange={handleRegFormChange}
+                    placeholder="Your city"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    name="state"
+                    value={regForm.state}
+                    onChange={handleRegFormChange}
+                    placeholder="Your state"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Trading Experience
+                  </label>
+                  <select
+                    name="experience"
+                    value={regForm.experience}
+                    onChange={handleRegFormChange}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  >
+                    <option value="">Select experience level</option>
+                    <option value="Beginner (Less than 1 year)">Beginner (Less than 1 year)</option>
+                    <option value="Intermediate (1–3 years)">Intermediate (1–3 years)</option>
+                    <option value="Experienced (3–5 years)">Experienced (3–5 years)</option>
+                    <option value="Expert (5+ years)">Expert (5+ years)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    How Did You Hear About Us?
+                  </label>
+                  <select
+                    name="howHeard"
+                    value={regForm.howHeard}
+                    onChange={handleRegFormChange}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  >
+                    <option value="">Select an option</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="YouTube">YouTube</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Friend / Referral">Friend / Referral</option>
+                    <option value="Google Search">Google Search</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Your Trading Goal
+                  </label>
+                  <input
+                    type="text"
+                    name="tradingGoal"
+                    value={regForm.tradingGoal}
+                    onChange={handleRegFormChange}
+                    placeholder="e.g. Earn consistent returns"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              {regError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-3 rounded-xl leading-relaxed">
+                  {regError}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-4 border-t border-slate-900 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReg}
+                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center gap-2 cursor-pointer"
+                >
+                  {isSubmittingReg ? "Submitting..." : "Submit Registration"}
+                  {!isSubmittingReg && <ArrowRight className="w-4 h-4" />}
+                </button>
+              </div>
+            </form>
           </section>
         )}
+
 
         {/* ═══════════════════════════════════════════════════════════════
             STEP 3: Complete Verification Page
@@ -513,10 +689,7 @@ function RegisterContent() {
             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 border-t border-slate-900/60 w-full max-w-md mx-auto">
               <button
                 type="button"
-                onClick={() => {
-                  setIframeLoads(0);
-                  setCurrentStep(2);
-                }}
+                onClick={() => setCurrentStep(2)}
                 className="px-6 py-3 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold text-sm transition-colors border border-slate-800 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />

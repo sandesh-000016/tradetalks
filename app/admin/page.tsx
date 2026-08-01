@@ -23,7 +23,12 @@ import {
   Calendar,
   Play,
   Clock,
-  Plus
+  Plus,
+  ClipboardList,
+  Download,
+  Phone,
+  Mail,
+  MapPin
 } from "lucide-react";
 
 interface Trader {
@@ -47,7 +52,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch" | "registrations">("overview");
 
   // State for traders data
   const [traders, setTraders] = useState<Trader[]>([]);
@@ -86,6 +91,11 @@ export default function AdminPage() {
   const [liveSearchResults, setLiveSearchResults] = useState<any[]>([]);
   const [searchingLive, setSearchingLive] = useState(false);
 
+  // Registrations states
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
+  const [regSearchQuery, setRegSearchQuery] = useState("");
+
   // Check auth status on mount
   useEffect(() => {
     checkAuth();
@@ -111,6 +121,53 @@ export default function AdminPage() {
       setLoadingBadges(false);
     }
   };
+
+  const fetchRegistrations = async () => {
+    setLoadingRegistrations(true);
+    try {
+      const res = await fetch("/api/registrations");
+      const data = await res.json();
+      if (data.success) {
+        setRegistrations(data.registrations);
+      }
+    } catch (err) {
+      console.error("Error loading registrations:", err);
+    } finally {
+      setLoadingRegistrations(false);
+    }
+  };
+
+  const exportToExcel = () => {
+    const headers = [
+      "Full Name", "Phone", "Email", "City", "State",
+      "Experience", "How Heard", "Trading Goal", "Client ID", "Submitted At"
+    ];
+    const rows = registrations.map((r) => [
+      r.fullName || r.clientName || "",
+      r.phone || "",
+      r.email || "",
+      r.city || "",
+      r.state || "",
+      r.experience || "",
+      r.howHeard || "",
+      r.tradingGoal || "",
+      r.clientId || "",
+      r.submittedAt ? new Date(r.submittedAt).toLocaleString() : ""
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `tradetalks_registrations_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
 
   const checkAuth = async () => {
     try {
@@ -616,6 +673,23 @@ export default function AdminPage() {
             >
               <Search className="w-5 h-5" />
               Live API Search
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("registrations");
+                fetchRegistrations();
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                activeTab === "registrations"
+                  ? "bg-brand-600/15 text-brand-400 border border-brand-500/25"
+                  : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+              }`}
+            >
+              <ClipboardList className="w-5 h-5" />
+              Registrations
+              <span className="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full">
+                {registrations.length || ""}
+              </span>
             </button>
           </nav>
         </div>
@@ -1266,6 +1340,208 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* REGISTRATIONS TAB */}
+        {activeTab === "registrations" && (
+          <div className="space-y-6 animate-fadeIn">
+
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+                  <ClipboardList className="w-7 h-7 text-brand-400" />
+                  Registrations
+                </h1>
+                <p className="text-slate-400 text-sm mt-1">All trader registration submissions from the website</p>
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={fetchRegistrations}
+                  disabled={loadingRegistrations}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-medium rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingRegistrations ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  disabled={registrations.length === 0}
+                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-700/20"
+                >
+                  <Download className="w-4 h-4" />
+                  Export to Excel
+                </button>
+              </div>
+            </div>
+
+            {/* Search bar */}
+            <div className="relative w-full sm:w-96">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={regSearchQuery}
+                onChange={(e) => setRegSearchQuery(e.target.value)}
+                placeholder="Search by name, phone, or city..."
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all"
+              />
+            </div>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: "Total Registrations", value: registrations.length, color: "text-brand-400" },
+                { label: "With Email", value: registrations.filter(r => r.email).length, color: "text-violet-400" },
+                { label: "From Kerala", value: registrations.filter(r => (r.state || "").toLowerCase().includes("kerala")).length, color: "text-emerald-400" },
+                { label: "Via Instagram", value: registrations.filter(r => r.howHeard === "Instagram").length, color: "text-pink-400" },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <span className={`text-2xl font-extrabold block ${stat.color}`}>{stat.value}</span>
+                  <span className="text-slate-400 text-xs mt-1 block">{stat.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Registrations Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              {loadingRegistrations ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-500"></div>
+                  <span className="text-slate-400 text-sm">Loading registrations...</span>
+                </div>
+              ) : (() => {
+                const filtered = registrations.filter((r) => {
+                  const q = regSearchQuery.toLowerCase();
+                  return (
+                    (r.fullName || r.clientName || "").toLowerCase().includes(q) ||
+                    (r.phone || "").toLowerCase().includes(q) ||
+                    (r.city || "").toLowerCase().includes(q) ||
+                    (r.email || "").toLowerCase().includes(q) ||
+                    (r.clientId || "").toLowerCase().includes(q)
+                  );
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-20 text-center">
+                      <ClipboardList className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                      <h3 className="text-slate-300 font-bold text-lg">No registrations found</h3>
+                      <p className="text-slate-500 text-sm mt-1">
+                        {regSearchQuery ? "Try a different search query." : "No traders have registered yet."}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider bg-slate-950/35">
+                          <th className="px-5 py-4">#</th>
+                          <th className="px-5 py-4">Trader</th>
+                          <th className="px-5 py-4">Contact</th>
+                          <th className="px-5 py-4">Location</th>
+                          <th className="px-5 py-4">Experience</th>
+                          <th className="px-5 py-4">Source</th>
+                          <th className="px-5 py-4">Registered</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {filtered.map((r, idx) => (
+                          <tr key={r._id || idx} className="hover:bg-slate-800/20 transition-all">
+                            <td className="px-5 py-4 text-slate-500 text-xs font-mono">{idx + 1}</td>
+
+                            {/* Trader */}
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(r.fullName || r.clientName || "T")}`}
+                                  alt={r.fullName}
+                                  className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700/50 shrink-0"
+                                />
+                                <div>
+                                  <span className="font-semibold text-white block text-sm">{r.fullName || r.clientName}</span>
+                                  <span className="text-slate-500 text-xs font-mono">ID: {r.clientId}</span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Contact */}
+                            <td className="px-5 py-4">
+                              <div className="space-y-1">
+                                {r.phone && (
+                                  <div className="flex items-center gap-1.5 text-slate-300 text-xs">
+                                    <Phone className="w-3 h-3 text-slate-500" />
+                                    {r.phone}
+                                  </div>
+                                )}
+                                {r.email && (
+                                  <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+                                    <Mail className="w-3 h-3 text-slate-500" />
+                                    {r.email}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Location */}
+                            <td className="px-5 py-4">
+                              {(r.city || r.state) ? (
+                                <div className="flex items-center gap-1.5 text-slate-300 text-xs">
+                                  <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
+                                  {[r.city, r.state].filter(Boolean).join(", ")}
+                                </div>
+                              ) : (
+                                <span className="text-slate-600 text-xs">—</span>
+                              )}
+                            </td>
+
+                            {/* Experience */}
+                            <td className="px-5 py-4">
+                              {r.experience ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 border border-violet-500/20 text-violet-400">
+                                  {r.experience.split("(")[0].trim()}
+                                </span>
+                              ) : (
+                                <span className="text-slate-600 text-xs">—</span>
+                              )}
+                            </td>
+
+                            {/* Source */}
+                            <td className="px-5 py-4">
+                              {r.howHeard ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-500/10 border border-brand-500/20 text-brand-400">
+                                  {r.howHeard}
+                                </span>
+                              ) : (
+                                <span className="text-slate-600 text-xs">—</span>
+                              )}
+                            </td>
+
+                            {/* Date */}
+                            <td className="px-5 py-4 text-slate-400 text-xs">
+                              {r.submittedAt
+                                ? new Date(r.submittedAt).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="px-5 py-3 border-t border-slate-800 text-slate-500 text-xs">
+                      Showing {filtered.length} of {registrations.length} registrations
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
           </div>
         )}
 

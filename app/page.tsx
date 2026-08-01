@@ -2,8 +2,9 @@ import React from "react";
 import HomePageClient from "@/components/HomePageClient";
 import { getCachedLeaderboard } from "@/lib/alpariApi";
 
-// Force dynamic so it always serves fresh cache or revalidates stale data on request
-export const dynamic = "force-dynamic";
+// ISR: Serve the cached static page instantly and revalidate in the background every 2 hours.
+// This eliminates the initial delay caused by hitting the Alpari API on every request.
+export const revalidate = 7200; // 2 hours
 
 export default async function Home() {
   let initialTraders = [];
