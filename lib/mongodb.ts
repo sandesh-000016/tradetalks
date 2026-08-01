@@ -1,6 +1,16 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, MongoClientOptions } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
+
+// Connection options tuned for low-latency production use
+const mongoOptions: MongoClientOptions = {
+  maxPoolSize: 10,          // Max connections in pool
+  minPoolSize: 1,           // Keep 1 connection warm to avoid cold starts
+  serverSelectionTimeoutMS: 5000,  // Fail fast if Atlas is unreachable (5s)
+  connectTimeoutMS: 10000,  // Max time to establish connection
+  socketTimeoutMS: 30000,   // Max time for a socket operation
+  compressors: ["zlib"],    // Compress data in transit between app and MongoDB
+};
 
 let client: MongoClient | null = null;
 let clientPromise: Promise<MongoClient> | null = null;
@@ -14,13 +24,13 @@ if (uri) {
     };
 
     if (!globalWithMongo._mongoClientPromise) {
-      client = new MongoClient(uri);
+      client = new MongoClient(uri, mongoOptions);
       globalWithMongo._mongoClientPromise = client.connect();
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
     // In production mode, it's best to not use a global variable.
-    client = new MongoClient(uri);
+    client = new MongoClient(uri, mongoOptions);
     clientPromise = client.connect();
   }
 } else {

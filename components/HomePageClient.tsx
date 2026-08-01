@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -285,7 +286,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
     setIsGenerating(true);
     setShareError(null);
 
-    const logoImg = new Image();
+    const logoImg = new window.Image();
     logoImg.src = "/logo.svg";
 
     const drawCanvas = () => {
@@ -575,65 +576,48 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
-            {/* Hero Text */}
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+            {/* Hero Text — CSS animated, zero JS overhead on mobile */}
+            <div
               className="lg:col-span-7 text-left space-y-6"
+              style={{ animation: "fadeUpHero 0.7s ease-out both" }}
             >
-              <motion.h1
-                variants={sentenceVariants}
-                initial="hidden"
-                animate="visible"
-                className="text-4xl sm:text-6xl lg:text-7xl font-display font-extrabold tracking-tight leading-[1.1] text-white"
-              >
-                <span className="inline-block">
-                  {"FOREX".split("").map((char, index) => (
-                    <motion.span
-                      key={`char-forex-${index}`}
-                      variants={letterVariants}
-                      className="inline-block"
-                    >
-                      {char}
-                    </motion.span>
-                  ))}
-                </span>
-                {" "}
-                <span className="inline-block">
-                  {"TRADING".split("").map((char, index) => (
-                    <motion.span
-                      key={`char-trading-${index}`}
-                      variants={letterVariants}
-                      className="inline-block"
-                    >
-                      {char}
-                    </motion.span>
-                  ))}
-                </span>
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-amber-300 inline-block">
-                  {"CHALLENGE".split("").map((char, index) => (
-                    <motion.span
-                      key={`char-challenge-${index}`}
-                      variants={letterVariants}
-                      className="inline-block"
-                    >
-                      {char}
-                    </motion.span>
-                  ))}
-                </span>
-              </motion.h1>
+              <style>{`
+                @keyframes fadeUpHero {
+                  from { opacity: 0; transform: translateY(30px); }
+                  to   { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes fadeUpHeroDelayed {
+                  from { opacity: 0; transform: translateY(20px); }
+                  to   { opacity: 1; transform: translateY(0); }
+                }
+              `}</style>
 
-              <h3 className="text-xl md:text-2xl font-semibold text-slate-300 font-display">
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-display font-extrabold tracking-tight leading-[1.1] text-white">
+                FOREX TRADING
+                <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-amber-300">
+                  CHALLENGE
+                </span>
+              </h1>
+
+              <h3
+                className="text-xl md:text-2xl font-semibold text-slate-300 font-display"
+                style={{ animation: "fadeUpHeroDelayed 0.8s 0.15s ease-out both" }}
+              >
                 Compete. Rank. Earn Rewards.
               </h3>
 
-              <p className="text-base md:text-lg text-slate-400 max-w-xl leading-relaxed">
+              <p
+                className="text-base md:text-lg text-slate-400 max-w-xl leading-relaxed"
+                style={{ animation: "fadeUpHeroDelayed 0.8s 0.25s ease-out both" }}
+              >
                 Join traders worldwide, climb the leaderboard, earn badges, win cash rewards, and prove your trading skills on our verified metrics portal.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
+              <div
+                className="flex flex-col sm:flex-row items-center gap-4 pt-4"
+                style={{ animation: "fadeUpHeroDelayed 0.8s 0.35s ease-out both" }}
+              >
                 <Link
                   href="/register"
                   className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-base shadow-[0_0_30px_-5px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 hover:-translate-y-0.5"
@@ -642,33 +626,31 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 </Link>
                 <Link
                   href="/leaderboard"
-                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 text-white font-semibold text-base backdrop-blur-sm transition-all flex items-center justify-center gap-2 hover:border-slate-700"
+                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 text-white font-semibold text-base transition-all flex items-center justify-center gap-2 hover:border-slate-700"
                 >
                   View Leaderboard
                   <ArrowRight className="w-4 h-4 text-violet-400" />
                 </Link>
               </div>
-            </motion.div>
+            </div>
 
-            {/* Hero Image / Trophy Illustration */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 25 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 70, damping: 15, delay: 0.15 }}
+            {/* Hero Image — Next.js Image serves WebP/AVIF, prevents layout shift */}
+            <div
               className="lg:col-span-5 relative flex justify-center items-center"
+              style={{ animation: "fadeUpHeroDelayed 0.9s 0.1s ease-out both" }}
             >
-              <div className="absolute w-[350px] h-[350px] bg-violet-600/10 rounded-full blur-3xl -z-10 animate-pulse"></div>
-              <div className="absolute w-[250px] h-[250px] bg-amber-500/5 rounded-full blur-3xl -z-10"></div>
-
               <div className="relative group max-w-[380px] w-full aspect-square flex justify-center items-center">
-                <img
+                <Image
                   src="/trading_trophy.png"
                   alt="Forex Trading Challenge Trophy"
-                  className="object-contain w-full h-full drop-shadow-[0_15px_50px_rgba(124,58,237,0.25)] group-hover:scale-105 transition-transform duration-700"
+                  width={380}
+                  height={380}
+                  priority
+                  className="object-contain drop-shadow-[0_15px_50px_rgba(124,58,237,0.25)] group-hover:scale-105 transition-transform duration-700"
                 />
 
                 {/* Floating Reward Card */}
-                <div className="absolute -bottom-4 right-4 bg-slate-900/90 border border-violet-500/30 backdrop-blur-md rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-bounce [animation-duration:4s]">
+                <div className="absolute -bottom-4 right-4 bg-slate-900/90 border border-violet-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-bounce [animation-duration:4s]">
                   <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                     <Trophy className="w-5 h-5 fill-current" />
                   </div>
@@ -679,7 +661,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 </div>
 
                 {/* Floating Active Traders Card */}
-                <div className="absolute -top-4 -left-4 bg-slate-900/90 border border-blue-500/30 backdrop-blur-md rounded-2xl p-4 shadow-2xl flex items-center gap-3">
+                <div className="absolute -top-4 -left-4 bg-slate-900/90 border border-blue-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
                     <Users className="w-5 h-5" />
                   </div>
@@ -689,15 +671,12 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
           </div>
         </div>
-
-        {/* Ambient background glows */}
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-gradient-to-tr from-violet-600/5 to-transparent rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-gradient-to-bl from-blue-600/5 to-transparent rounded-full blur-3xl pointer-events-none"></div>
       </section>
+
 
       {/* Rewards & Prizes Section */}
       <section className="py-24 bg-gradient-to-b from-[#050814] to-[#03050c] relative border-b border-slate-900/60 overflow-hidden">

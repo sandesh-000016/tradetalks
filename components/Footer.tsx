@@ -1,9 +1,38 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
+
+function LazyMap({ src, title }: { src: string; title: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold: 0.1 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="relative w-full h-32 overflow-hidden rounded-xl border border-slate-800/80 shadow-md bg-slate-900">
+      {visible ? (
+        <iframe
+          src={src}
+          title={title}
+          className="absolute inset-0 w-full h-full border-0"
+          allowFullScreen
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-slate-600 text-xs">Map loading...</div>
+      )}
+    </div>
+  );
+}
 
 export function Footer() {
   const pathname = usePathname();
@@ -29,29 +58,19 @@ export function Footer() {
             <h3 className="text-sm font-semibold text-slate-200 tracking-wider uppercase mb-4">
               Kochi Branch
             </h3>
-            <div className="relative w-full h-32 overflow-hidden rounded-xl border border-slate-800/80 shadow-md">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3927.212819308246!2d76.36767917451024!3d10.163349170203691!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3b0807c7b0e94c2b%3A0x5063d5823da7bb9e!2sTrade%20Talks%20Stock%20Market%20Trading%20Courses%20Kochi!5e0!3m2!1sen!2sin!4v1782625191798!5m2!1sen!2sin"
-                className="absolute inset-0 w-full h-full border-0"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            </div>
+            <LazyMap
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3927.212819308246!2d76.36767917451024!3d10.163349170203691!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3b0807c7b0e94c2b%3A0x5063d5823da7bb9e!2sTrade%20Talks%20Stock%20Market%20Trading%20Courses%20Kochi!5e0!3m2!1sen!2sin!4v1782625191798!5m2!1sen!2sin"
+              title="Kochi Branch Map"
+            />
           </div>
           <div className="col-span-1">
             <h3 className="text-sm font-semibold text-slate-200 tracking-wider uppercase mb-4">
               Kozhikode Branch
             </h3>
-            <div className="relative w-full h-32 overflow-hidden rounded-xl border border-slate-800/80 shadow-md">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3912.9044635197156!2d75.77647617452314!3d11.268432849926953!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba659e0fc895955%3A0xfc623bdd54154e1e!2sTrade%20Talks%20Stock%20Market%20Trading%20Courses%20in%20Kozhikode!5e0!3m2!1sen!2sin!4v1782625282390!5m2!1sen!2sin"
-                className="absolute inset-0 w-full h-full border-0"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            </div>
+            <LazyMap
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3912.9044635197156!2d75.77647617452314!3d11.268432849926953!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba659e0fc895955%3A0xfc623bdd54154e1e!2sTrade%20Talks%20Stock%20Market%20Trading%20Courses%20in%20Kozhikode!5e0!3m2!1sen!2sin!4v1782625282390!5m2!1sen!2sin"
+              title="Kozhikode Branch Map"
+            />
           </div>
         </div>
         <div className="mt-12 border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center">
