@@ -43,7 +43,8 @@ import {
   ConsistentTraderBadge,
   MostActiveTraderBadge,
   TraderOfWeekBadge,
-  BestRiskManagerBadge
+  BestRiskManagerBadge,
+  renderBadgeIcon
 } from "@/components/BadgeIcons";
 
 const BADGE_DETAILS: Record<string, {
@@ -166,6 +167,73 @@ const letterVariants = {
 
 
 
+const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
+  const [timeLeft, setTimeLeft] = React.useState("");
+
+  React.useEffect(() => {
+    if (!targetDate) return;
+    
+    const updateTime = () => {
+      const diff = new Date(targetDate).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("0d 0h 0m 0s");
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+      setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  return <span>{timeLeft || "0d 0h 0m 0s"}</span>;
+};
+
+const translateConditionToHuman = (rule: any) => {
+  if (!rule) return "No criteria defined.";
+  const conds = rule.conditions || [];
+  
+  const getSingleConditionString = (cond: any) => {
+    let metricLabel = cond.metric;
+    if (cond.metric === "profit") metricLabel = "Profit ROI";
+    else if (cond.metric === "volume") metricLabel = "Volume";
+    else if (cond.metric === "settledRebates") metricLabel = "Settled Rebates";
+    else if (cond.metric === "unsettledRebates") metricLabel = "Unsettled Rebates";
+    else if (cond.metric === "totalBalance") metricLabel = "Current Balance";
+    else if (cond.metric === "points") metricLabel = "Total Points";
+    else if (cond.metric === "avgPoints") metricLabel = "Average Points (6-Month)";
+    else if (cond.metric === "avgVolume") metricLabel = "Average Volume (6-Month)";
+    else if (cond.metric === "avgProfit") metricLabel = "Average Profit ROI (6-Month)";
+
+    let opWord = "equal to";
+    if (cond.operator === "gte") opWord = "at least";
+    else if (cond.operator === "lte") opWord = "at most";
+    else if (cond.operator === "gt") opWord = "greater than";
+    else if (cond.operator === "lt") opWord = "less than";
+    else if (cond.operator === "eq") opWord = "exactly";
+
+    let valSuffix = "";
+    if (cond.metric === "profit" || cond.metric === "avgProfit") valSuffix = "%";
+    else if (cond.metric === "volume" || cond.metric === "avgVolume") valSuffix = " Lots";
+    else if (cond.metric === "settledRebates" || cond.metric === "unsettledRebates" || cond.metric === "totalBalance") valSuffix = " USD";
+
+    return `${metricLabel} must be ${opWord} ${cond.value}${valSuffix}`;
+  };
+
+  if (conds.length === 0) {
+    if (rule.metric) {
+      return getSingleConditionString(rule);
+    }
+    return "No criteria defined.";
+  }
+  return conds.map((cond: any) => getSingleConditionString(cond)).join(" AND ");
+};
+
 interface HomePageClientProps {
   initialTraders: Trader[];
 }
@@ -275,6 +343,8 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
 
   const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
   const [openAccordion, setOpenAccordion] = React.useState<string | null>(null);
+  const [expandedBadge, setExpandedBadge] = React.useState<string | null>(null);
+  const [showFinalWinnerRules, setShowFinalWinnerRules] = React.useState(false);
 
   React.useEffect(() => {
     fetch("/api/badge-rules")
@@ -294,46 +364,16 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
     }
 
     const badge = BADGE_DETAILS[cleanBadgeName];
-    if (!badge) return;
-
     const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
-    
-    const formatConditions = (rule: any) => {
-      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
-        return rule.conditions.map((cond: any) => {
-          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
-          
-          let metricDisplay = cond.metric;
-          if (cond.metric === "profit") metricDisplay = "Profit Return";
-          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
-          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
-          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
-          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
-          
-          return `${metricDisplay} ${opSign} ${cond.value}`;
-        }).join(" AND ");
-      }
-      
-      const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
-      
-      let metricDisplay = rule.metric;
-      if (rule.metric === "profit") metricDisplay = "Profit Return";
-      else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
-      else if (rule.metric === "settledRebates") metricDisplay = "Settled Rebates";
-      else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
-      else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
-      
-      return `${metricDisplay} ${opSign} ${rule.value}`;
-    };
 
     setSelectedBadge({
       name: cleanBadgeName,
-      desc: matchedRule?.description || badge.desc,
+      desc: matchedRule?.description || (badge ? badge.desc : "No description available."),
       condition: matchedRule
-        ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
-        : badge.condition,
-      color: badge.color,
-      icon: badge.icon
+        ? `Requires: ${translateConditionToHuman(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
+        : (badge ? badge.condition : "No criteria defined."),
+      color: badge ? badge.color : "hover:scale-110",
+      icon: renderBadgeIcon(matchedRule?.icon || matchedRule?._id || cleanBadgeName, "w-10 h-10")
     });
   };
 
@@ -743,6 +783,89 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
         </div>
       </section>
 
+      {/* Countdown Timers Section */}
+      <section className="py-8 bg-slate-950/80 border-b border-slate-900/60 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[150px] bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Weekly Timer */}
+            <div className="glass-panel p-5 rounded-2xl border border-slate-800/80 bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative group hover:border-violet-500/30 transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-105 transition-transform duration-300">
+                  <Clock className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Weekly Trader Challenge</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Trader of the Week evaluation cycle</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-start sm:items-end justify-center">
+                <div className="text-lg font-black font-mono text-violet-400 tracking-wider">
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Trader of the Week");
+                    return rule && rule.nextEvaluationTime ? (
+                      <CountdownTimer targetDate={rule.nextEvaluationTime} />
+                    ) : (
+                      "0d 0h 0m 0s"
+                    );
+                  })()}
+                </div>
+                <div className="text-[9px] text-slate-500 mt-1 font-medium">
+                  Next: {(() => {
+                    const rule = badgeRules.find(r => r._id === "Trader of the Week");
+                    if (!rule || !rule.nextEvaluationTime) return "N/A";
+                    return new Date(rule.nextEvaluationTime).toLocaleString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly Timer */}
+            <div className="glass-panel p-5 rounded-2xl border border-slate-800/80 bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative group hover:border-blue-500/30 transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform duration-300">
+                  <Trophy className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Monthly Standings</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Top Rank Monthly evaluation cycle</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-start sm:items-end justify-center">
+                <div className="text-lg font-black font-mono text-blue-400 tracking-wider">
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
+                    return rule && rule.nextEvaluationTime ? (
+                      <CountdownTimer targetDate={rule.nextEvaluationTime} />
+                    ) : (
+                      "0d 0h 0m 0s"
+                    );
+                  })()}
+                </div>
+                <div className="text-[9px] text-slate-500 mt-1 font-medium">
+                  Next: {(() => {
+                    const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
+                    if (!rule || !rule.nextEvaluationTime) return "N/A";
+                    return new Date(rule.nextEvaluationTime).toLocaleString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
 
       {/* Rewards & Prizes Section */}
       <section className="py-24 bg-gradient-to-b from-[#050814] to-[#03050c] relative border-b border-slate-900/60 overflow-hidden">
@@ -772,402 +895,230 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
             </motion.p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-
-            {/* Left Card: Final Winner */}
+          {/* Row 1: Final Winner (Centered Card - Same Size) */}
+          <div className="flex justify-center mb-12 w-full">
             <motion.div
               variants={itemVariants}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
-              className="lg:col-span-4 bg-slate-950/70 border border-slate-900 rounded-3xl p-8 flex flex-col justify-between items-center text-center relative group hover:border-slate-800 hover:shadow-[0_0_50px_rgba(226,165,18,0.08)] transition-all duration-500 overflow-hidden"
+              className="uiverse-card !w-full max-w-[240px] group transition-all duration-300 relative overflow-hidden"
+              style={{ height: "260px" }}
             >
-              {/* Shiny Gold Background Glow */}
-              <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-700"></div>
-
-              <div className="w-full flex flex-col items-center">
-                {/* Trophy Container with Framer Motion Animation */}
-                <motion.div
-                  whileHover={{ scale: 1.05, rotate: 2 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                  className="w-48 h-48 flex items-center justify-center relative mb-6"
-                >
-                  <div className="absolute inset-0 bg-radial-glow from-amber-500/10 to-transparent blur-2xl rounded-full scale-125 animate-pulse"></div>
-                  <Trophy className="w-24 h-24 text-amber-400 relative z-10 drop-shadow-[0_10px_30px_rgba(226,165,18,0.3)] animate-pulse" />
-                </motion.div>
-
-                <h3 className="text-2xl font-display font-extrabold uppercase tracking-wider text-amber-400 mb-2">
-                  Final Winner
-                </h3>
-                <p className="text-slate-400 text-sm leading-relaxed max-w-sm mb-6">
-                  The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
-                </p>
-              </div>
-
-              {/* Exclusive Rewards Section */}
-              <div className="w-full border-t border-slate-900/80 pt-6 mt-4">
-                <div className="text-[10px] text-amber-500 uppercase tracking-widest font-black mb-4">
-                  Exclusive Rewards
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center p-3 rounded-xl bg-slate-900/40 border border-slate-900/60 text-center">
-                    <Award className="w-5 h-5 text-amber-400 mb-2" />
-                    <span className="text-xs font-bold text-slate-200">Physical Badge</span>
-                  </div>
-                  <div className="flex flex-col items-center p-3 rounded-xl bg-slate-900/40 border border-slate-900/60 text-center">
-                    <Gift className="w-5 h-5 text-amber-400 mb-2" />
-                    <span className="text-xs font-bold text-slate-200">Premium Gifts</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right Panel: Achievements & Badges */}
-            <div className="lg:col-span-8 flex flex-col justify-between gap-6">
-
-              <div className="bg-slate-950/40 border border-slate-900 rounded-3xl p-6 sm:p-8 flex-1">
-                <div className="text-xs text-slate-400 uppercase tracking-widest font-black mb-8 border-b border-slate-900 pb-4">
-                  Achievements & Badges
+              <div className="uiverse-card-inner !justify-between pb-6">
+                {/* Icon */}
+                <div className="mt-6 transform transition-transform duration-300 group-hover:scale-110">
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Final Winner");
+                    return renderBadgeIcon(rule?.icon || "trophy", "w-14 h-14 text-amber-400 relative z-10 drop-shadow-[0_10px_30px_rgba(226,165,18,0.3)]");
+                  })()}
                 </div>
 
-                {/* Desktop Badges Grid (Visible on md and above) */}
-                <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    {
-                      icon: <TopRankBadge className="w-10 h-10" />,
-                      title: "Top Rank Monthly",
-                      subtitle: "BEST BADGE",
-                      desc: "Awarded to the top ranked trader each month.",
-                    },
-                    {
-                      icon: <ConsistentTraderBadge className="w-10 h-10" />,
-                      title: "Consistent Trader",
-                      desc: "Awarded for consistent performance throughout the challenge.",
-                    },
-                    {
-                      icon: <MostActiveTraderBadge className="w-10 h-10" />,
-                      title: "Most Active Trader",
-                      desc: "Awarded for highest active volume (settled + unsettled).",
-                    },
-                    {
-                      icon: <TraderOfWeekBadge className="w-10 h-10" />,
-                      title: "Trader of the Week",
-                      desc: "Recognizing outstanding trading performance of the week.",
-                    },
-                    {
-                      icon: <BestRiskManagerBadge className="w-10 h-10" />,
-                      title: "Best Risk Manager",
-                      desc: "Awarded for excellent risk management and discipline.",
-                    },
-                  ].map((badge, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => handleBadgeClick(badge.title)}
-                      className="w-full text-left glass-panel rounded-2xl p-5 border border-slate-900 flex flex-col justify-between items-start gap-4 hover:border-violet-500/50 hover:bg-slate-900/40 hover:shadow-lg transition-all duration-300 relative group overflow-hidden cursor-pointer"
-                    >
-                      <div className="flex justify-between items-start w-full">
-                        <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
-                          {badge.icon}
+                {/* Title & Prize */}
+                <div className="text-center mt-3 w-full px-2">
+                  <h4 className="font-extrabold text-white text-sm tracking-wide uppercase group-hover:text-violet-400 transition-colors">
+                    {(() => {
+                      const rule = badgeRules.find(r => r._id === "Final Winner");
+                      return rule?._id || "Final Winner";
+                    })()}
+                  </h4>
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Final Winner");
+                    if (rule?.cashPrize) {
+                      return (
+                        <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
+                          <span>🏆</span>
+                          <span>{rule.cashPrize} Cash</span>
                         </div>
-                        {badge.subtitle && (
-                          <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded font-black tracking-widest uppercase">
-                            {badge.subtitle}
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-1 w-full text-left">
-                        <h4 className="font-bold text-white text-sm group-hover:text-violet-400 transition-colors">{badge.title}</h4>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">{badge.desc}</p>
-                        <span className="text-[9px] text-brand-450 font-bold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          View Rules →
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-
-                  {/* Next Evaluation Schedules Card */}
-                  <div className="glass-panel rounded-2xl p-5 border border-violet-500/20 bg-violet-500/5 flex flex-col justify-between items-start gap-4 hover:border-violet-500/45 transition-all duration-300 relative group overflow-hidden">
-                    {/* Background Glow */}
-                    <div className="absolute -top-12 -left-12 w-24 h-24 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-violet-500/20 transition-all duration-500"></div>
-
-                    <div className="flex justify-between items-start w-full relative z-10">
-                      <div className="shrink-0 w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400">
-                        <Clock className="w-5 h-5 animate-pulse" />
-                      </div>
-                      <span className="text-[8px] bg-violet-500/15 border border-violet-500/30 text-violet-400 px-2 py-0.5 rounded font-black tracking-widest uppercase">
-                        Schedule
-                      </span>
-                    </div>
-
-                    <div className="space-y-3 w-full text-left relative z-10">
-                      <h4 className="font-bold text-white text-sm">Next Evaluations</h4>
-                      
-                      <div className="space-y-2">
-                        {/* Weekly Evaluation */}
-                        <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 flex flex-col gap-1">
-                          <div className="flex justify-between items-center text-[10px]">
-                            <span className="font-bold text-slate-350">WEEKLY BADGE</span>
-                            <span className="text-[9px] text-violet-400 font-mono font-bold">
-                              {(() => {
-                                const rule = badgeRules.find(r => r._id === "Trader of the Week");
-                                if (!rule || !rule.nextEvaluationTime) return "N/A";
-                                return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit"
-                                });
-                              })()}
-                            </span>
-                          </div>
-                          <div className="text-[9px] text-slate-500 leading-tight">
-                            {(() => {
-                              const rule = badgeRules.find(r => r._id === "Trader of the Week");
-                              if (!rule || !rule.nextEvaluationTime) return "";
-                              const diff = new Date(rule.nextEvaluationTime).getTime() - Date.now();
-                              if (diff <= 0) return "Evaluation in progress";
-                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                              const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-                              return `${days}d ${hours}h remaining`;
-                            })()}
-                          </div>
-                        </div>
-
-                        {/* Monthly Evaluation */}
-                        <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-2.5 flex flex-col gap-1">
-                          <div className="flex justify-between items-center text-[10px]">
-                            <span className="font-bold text-slate-355">MONTHLY BADGE</span>
-                            <span className="text-[9px] text-violet-400 font-mono font-bold">
-                              {(() => {
-                                const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
-                                if (!rule || !rule.nextEvaluationTime) return "N/A";
-                                return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit"
-                                });
-                              })()}
-                            </span>
-                          </div>
-                          <div className="text-[9px] text-slate-500 leading-tight">
-                            {(() => {
-                              const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
-                              if (!rule || !rule.nextEvaluationTime) return "";
-                              const diff = new Date(rule.nextEvaluationTime).getTime() - Date.now();
-                              if (diff <= 0) return "Evaluation in progress";
-                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                              const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-                              return `${days}d ${hours}h remaining`;
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Mobile Accordion List (Visible on mobile only) */}
-                <div className="block md:hidden space-y-3">
-                  {[
-                    {
-                      icon: <TopRankBadge className="w-10 h-10" />,
-                      title: "Top Rank Monthly",
-                      subtitle: "BEST BADGE",
-                      desc: "Awarded to the top ranked trader each month.",
-                    },
-                    {
-                      icon: <ConsistentTraderBadge className="w-10 h-10" />,
-                      title: "Consistent Trader",
-                      desc: "Awarded for consistent performance throughout the challenge.",
-                    },
-                    {
-                      icon: <MostActiveTraderBadge className="w-10 h-10" />,
-                      title: "Most Active Trader",
-                      desc: "Awarded for highest active volume (settled + unsettled).",
-                    },
-                    {
-                      icon: <TraderOfWeekBadge className="w-10 h-10" />,
-                      title: "Trader of the Week",
-                      desc: "Recognizing outstanding trading performance of the week.",
-                    },
-                    {
-                      icon: <BestRiskManagerBadge className="w-10 h-10" />,
-                      title: "Best Risk Manager",
-                      desc: "Awarded for excellent risk management and discipline.",
-                    },
-                  ].map((badge, idx) => {
-                    const isOpen = openAccordion === badge.title;
-                    const matchedRule = badgeRules.find((r) => r._id === badge.title);
-                    
-                    const formatConditions = (rule: any) => {
-                      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
-                        return rule.conditions.map((cond: any) => {
-                          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
-                          let metricDisplay = cond.metric;
-                          if (cond.metric === "profit") metricDisplay = "Profit Return";
-                          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
-                          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
-                          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
-                          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
-                          return `${metricDisplay} ${opSign} ${cond.value}`;
-                        }).join(" AND ");
-                      }
-                      
-                      const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
-                      let metricDisplay = rule.metric;
-                      if (rule.metric === "profit") metricDisplay = "Profit Return";
-                      else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
-                      else if (rule.metric === "settledRebates") metricDisplay = "Settled Rebates";
-                      else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
-                      else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
-                      
-                      return `${metricDisplay} ${opSign} ${rule.value}`;
-                    };
-
-                    const conditionText = matchedRule
-                      ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points)`
-                      : (BADGE_DETAILS[badge.title]?.condition || "");
-
+                      );
+                    }
                     return (
-                      <div 
-                        key={idx}
-                        className="rounded-2xl border border-slate-800 bg-[#101423] overflow-hidden transition-all duration-300"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setOpenAccordion(isOpen ? null : badge.title)}
-                          className="w-full flex items-center justify-between p-4 text-left cursor-pointer hover:bg-slate-900/40 transition-colors"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="shrink-0 w-12 h-12 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
-                              {badge.icon}
-                            </div>
-                            <div>
-                              <span className="font-bold text-white text-sm block">{badge.title}</span>
-                              {badge.subtitle && (
-                                <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-black tracking-widest uppercase mt-0.5 inline-block">
-                                  {badge.subtitle}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className={`p-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 transition-transform duration-300 ${isOpen ? "rotate-180 text-violet-400" : ""}`}>
-                            <ChevronDown className="w-4 h-4" />
-                          </div>
-                        </button>
-                        
-                        {/* Accordion Content */}
-                        {isOpen && (
-                          <div className="px-4 pb-4 pt-1 border-t border-slate-900/40 bg-slate-950/20 space-y-3 animate-in fade-in duration-200">
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              {matchedRule?.description || badge.desc}
-                            </p>
-                            <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-900 text-left space-y-1.5">
-                              <div className="text-[9px] text-slate-500 uppercase tracking-wider font-black">
-                                Award Criteria & Conditions
-                              </div>
-                              <p className="text-xs text-slate-200 leading-relaxed font-semibold">
-                                {conditionText}
-                              </p>
-                              {matchedRule?.nextEvaluationTime && (
-                                <div className="text-[10px] text-violet-400 font-mono mt-1 pt-1.5 border-t border-slate-900/60">
-                                  Next evaluation: {new Date(matchedRule.nextEvaluationTime).toLocaleString()}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                      <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
+                        <span>⭐</span>
+                        <span>{rule?.points || 500} Pts</span>
                       </div>
                     );
-                  })}
-
-                  {/* Next Evaluation Schedules inside Mobile Accordion */}
-                  <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3 text-left">
-                    <div className="flex items-center gap-2 text-violet-400">
-                      <Clock className="w-4 h-4 animate-pulse" />
-                      <span className="font-bold text-xs uppercase tracking-wider">Next Evaluation Schedules</span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="bg-[#101423] border border-slate-800 rounded-xl p-2.5 flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-350">WEEKLY BADGE</span>
-                        <span className="text-violet-400 font-mono font-bold">
-                          {(() => {
-                            const rule = badgeRules.find(r => r._id === "Trader of the Week");
-                            if (!rule || !rule.nextEvaluationTime) return "N/A";
-                            return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit"
-                            });
-                          })()}
-                        </span>
-                      </div>
-                      <div className="bg-[#101423] border border-slate-800 rounded-xl p-2.5 flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-355">MONTHLY BADGE</span>
-                        <span className="text-violet-400 font-mono font-bold">
-                          {(() => {
-                            const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
-                            if (!rule || !rule.nextEvaluationTime) return "N/A";
-                            return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit"
-                            });
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  })()}
                 </div>
 
-                {/* Next Evaluation Schedules Info Bar */}
-                <div className="hidden md:flex mt-8 pt-6 border-t border-slate-900/60 flex-col md:flex-row justify-between items-center gap-4 text-xs">
-                  <div className="flex items-center gap-2 text-slate-400 text-left">
-                    <Clock className="w-4 h-4 text-violet-400 shrink-0" />
-                    <span>Traders earn badges based on automated rule evaluations. Track your metrics to qualify.</span>
-                  </div>
-                  <div className="flex gap-4 flex-wrap">
-                    <div className="bg-slate-900/40 border border-slate-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-violet-600 animate-pulse" />
-                      <span className="text-slate-400 font-medium">Next Weekly:</span>
-                      <strong className="text-white font-mono">
-                        {(() => {
-                          const rule = badgeRules.find(r => r._id === "Trader of the Week");
-                          if (!rule || !rule.nextEvaluationTime) return "N/A";
-                          return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit"
-                          });
-                        })()}
-                      </strong>
-                    </div>
-                    <div className="bg-slate-900/40 border border-slate-800/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                      <span className="text-slate-400 font-medium">Next Monthly:</span>
-                      <strong className="text-white font-mono">
-                        {(() => {
-                          const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
-                          if (!rule || !rule.nextEvaluationTime) return "N/A";
-                          return new Date(rule.nextEvaluationTime).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric"
-                          });
-                        })()}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-
+                {/* Description */}
+                <p className="text-[10px] text-slate-400 text-center leading-normal px-4 mt-3 max-h-[40px] overflow-hidden text-ellipsis line-clamp-2">
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Final Winner");
+                    return rule?.description || "The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!";
+                  })()}
+                </p>
               </div>
+            </motion.div>
+          </div>
 
+          {/* Row 2: Achievements & Badges (5 badges in same row on desktop) */}
+          <div className="w-full bg-slate-950/40 border border-slate-900 rounded-3xl p-6 sm:p-8">
+            <div className="text-xs text-slate-400 uppercase tracking-widest font-black mb-8 border-b border-slate-900 pb-4 text-center sm:text-left">
+              Achievements & Badges
             </div>
 
+            {/* Badges Grid (Fully Responsive - 5 Columns on Desktop) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
+              {(() => {
+                const normalBadges = badgeRules.length > 0 
+                  ? badgeRules.filter((r) => r._id !== "Final Winner") 
+                  : Object.keys(BADGE_DETAILS).filter(k => k !== "Final Winner").map(key => ({
+                      _id: key,
+                      points: BADGE_DETAILS[key].condition.includes("Points") ? 100 : 50,
+                      description: BADGE_DETAILS[key].desc,
+                      icon: key,
+                      cashPrize: ""
+                    }));
+                return normalBadges.map((rule) => (
+                  <div
+                    key={rule._id}
+                    className="uiverse-card !w-full group transition-all duration-300 relative overflow-hidden mx-auto sm:mx-0"
+                    style={{ height: "260px" }}
+                  >
+                    <div className="uiverse-card-inner !justify-between pb-6">
+                      {/* Icon */}
+                      <div className="mt-6 transform transition-transform duration-300 group-hover:scale-110">
+                        {renderBadgeIcon(rule.icon || rule._id, "w-14 h-14")}
+                      </div>
+
+                      {/* Title & Prize */}
+                      <div className="text-center mt-3 w-full px-2">
+                        <h4 className="font-extrabold text-white text-sm tracking-wide uppercase group-hover:text-violet-400 transition-colors">
+                          {rule._id}
+                        </h4>
+                        {rule.cashPrize ? (
+                          <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
+                            <span>🏆</span>
+                            <span>{rule.cashPrize} Cash</span>
+                          </div>
+                        ) : (
+                          <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
+                            <span>⭐</span>
+                            <span>{rule.points} Pts</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-[10px] text-slate-400 text-center leading-normal px-4 mt-3 max-h-[40px] overflow-hidden text-ellipsis line-clamp-2">
+                        {rule.description || (BADGE_DETAILS[rule._id]?.desc || "")}
+                      </p>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Detailed Accordion for Awards & Criteria */}
+            <div className="space-y-4 max-w-4xl mx-auto text-left border-t border-slate-900/60 pt-10">
+              <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-6 text-center">
+                Detailed Award Criteria & Rules
+              </h3>
+              {(() => {
+                const allRules = [];
+                const finalWinnerRule = badgeRules.find(r => r._id === "Final Winner") || {
+                  _id: "Final Winner",
+                  points: 500,
+                  description: "The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!",
+                  icon: "trophy",
+                  cashPrize: ""
+                };
+                allRules.push(finalWinnerRule);
+
+                const normalBadges = badgeRules.length > 0
+                  ? badgeRules.filter((r) => r._id !== "Final Winner")
+                  : Object.keys(BADGE_DETAILS).filter(k => k !== "Final Winner").map(key => ({
+                      _id: key,
+                      points: BADGE_DETAILS[key].condition.includes("Points") ? 100 : 50,
+                      description: BADGE_DETAILS[key].desc,
+                      icon: key,
+                      cashPrize: ""
+                    }));
+                allRules.push(...normalBadges);
+
+                return allRules.map((rule) => {
+                  const isOpen = openAccordion === rule._id;
+                  const isFinalWinner = rule._id === "Final Winner";
+                  return (
+                    <div
+                      key={rule._id}
+                      className={`rounded-2xl border overflow-hidden transition-all duration-300 ${
+                        isOpen 
+                          ? isFinalWinner 
+                            ? "border-amber-500/30 bg-amber-500/[0.02]" 
+                            : "border-violet-500/30 bg-violet-500/[0.02]" 
+                          : "border-slate-900 bg-slate-950/60 hover:border-slate-800"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenAccordion(isOpen ? null : rule._id)}
+                        className="w-full flex items-center justify-between p-5 text-left cursor-pointer hover:bg-slate-900/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`shrink-0 w-12 h-12 rounded-xl border flex items-center justify-center ${
+                            isFinalWinner 
+                              ? "bg-amber-500/5 border-amber-500/20" 
+                              : "bg-slate-900 border-slate-800"
+                          }`}>
+                            {renderBadgeIcon(rule.icon || rule._id, `w-7 h-7 ${isFinalWinner ? "text-amber-400" : ""}`)}
+                          </div>
+                          <div>
+                            <span className="font-bold text-white text-sm block">{rule._id}</span>
+                            {rule.cashPrize ? (
+                              <span className="text-[9px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded font-black tracking-widest uppercase mt-1 inline-block">
+                                🏆 {rule.cashPrize} Cash Prize
+                              </span>
+                            ) : (
+                              <span className="text-[9px] bg-violet-500/10 border border-violet-500/20 text-violet-400 px-2 py-0.5 rounded font-bold tracking-widest uppercase mt-1 inline-block">
+                                ⭐ {rule.points} Challenge Points
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`p-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 transition-transform duration-300 ${
+                          isOpen 
+                            ? isFinalWinner 
+                              ? "rotate-180 text-amber-400 border-amber-500/30" 
+                              : "rotate-180 text-violet-400 border-violet-500/30" 
+                            : ""
+                        }`}>
+                          <ChevronDown className="w-4 h-4" />
+                        </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="px-5 pb-5 pt-2 border-t border-slate-900 bg-slate-950/40 space-y-4 animate-in fade-in duration-200">
+                          <div className="space-y-1">
+                            <div className="text-[10px] text-slate-500 uppercase tracking-wider font-extrabold">
+                              Description
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                              {rule.description || (BADGE_DETAILS[rule._id]?.desc || "")}
+                            </p>
+                          </div>
+                          <div className={`rounded-xl p-4 border text-left space-y-1.5 ${
+                            isFinalWinner 
+                              ? "bg-amber-500/[0.02] border-amber-500/10" 
+                              : "bg-slate-900/45 border-slate-900"
+                          }`}>
+                            <div className={`text-[10px] uppercase tracking-wider font-extrabold ${
+                              isFinalWinner ? "text-amber-400" : "text-violet-400"
+                            }`}>
+                              Requirements to Qualify
+                            </div>
+                            <p className="text-xs text-slate-200 leading-relaxed font-semibold">
+                              {translateConditionToHuman(rule) || rule.description}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           </div>
 
         </div>
@@ -1928,16 +1879,27 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                  {/* Final Winner Highlight */}
-                  <div className="lg:col-span-4 glass-panel rounded-3xl p-6 border border-amber-500/20 bg-gradient-to-br from-slate-900/60 to-slate-950/60 text-center flex flex-col justify-between items-center space-y-4">
+                {/* Row 1: Final Winner (Centered Card) */}
+                <div className="flex justify-center mb-8 w-full">
+                  <div className="w-full max-w-xl glass-panel rounded-3xl p-6 border border-amber-500/20 bg-gradient-to-br from-slate-900/60 to-slate-950/60 text-center flex flex-col justify-between items-center space-y-4">
                     <div className="w-full flex flex-col items-center">
                       <div className="w-20 h-20 rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center mb-4">
-                        <Trophy className="w-10 h-10 text-amber-400" />
+                        {(() => {
+                          const rule = badgeRules.find(r => r._id === "Final Winner");
+                          return renderBadgeIcon(rule?.icon || "trophy", "w-10 h-10 text-amber-400");
+                        })()}
                       </div>
-                      <h4 className="text-xl font-display font-bold text-white uppercase">FINAL WINNER</h4>
+                      <h4 className="text-xl font-display font-bold text-white uppercase">
+                        {(() => {
+                          const rule = badgeRules.find(r => r._id === "Final Winner");
+                          return rule?._id || "FINAL WINNER";
+                        })()}
+                      </h4>
                       <p className="text-xs text-slate-400 max-w-[200px] leading-relaxed mt-2">
-                        The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
+                        {(() => {
+                          const rule = badgeRules.find(r => r._id === "Final Winner");
+                          return rule?.description || "The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!";
+                        })()}
                       </p>
                     </div>
                     <div className="w-full border-t border-slate-800/60 pt-4 mt-2">
@@ -1945,72 +1907,60 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                         Exclusive Rewards
                       </div>
                       <div className="flex justify-center gap-4 text-[10px] text-slate-400">
-                        <span className="flex items-center gap-1"><Award className="w-4.5 h-4.5 text-amber-400" /> Physical Badge</span>
+                        <span className="flex items-center gap-1"><Award className="w-4.5 h-4.5 text-amber-400" /> Physical Trophy</span>
                         <span className="flex items-center gap-1"><Gift className="w-4.5 h-4.5 text-amber-400" /> Premium Gifts</span>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Achievements & Badges Grid */}
-                  <div className="lg:col-span-8 bg-slate-950/40 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[
-                        {
-                          icon: <TopRankBadge className="w-9 h-9" />,
-                          title: "Top Rank Monthly",
-                          subtitle: "BEST BADGE",
-                          desc: "Awarded to the top ranked trader each month.",
-                        },
-                        {
-                          icon: <WeeklyTopBadge className="w-9 h-9" />,
-                          title: "Weekly Top",
-                          desc: "Awarded to the top performer of the week.",
-                        },
-                        {
-                          icon: <ConsistentTraderBadge className="w-9 h-9" />,
-                          title: "Consistent Trader",
-                          desc: "Awarded for consistent performance throughout the challenge.",
-                        },
-                        {
-                          icon: <MostActiveTraderBadge className="w-9 h-9" />,
-                          title: "Most Active Trader",
-                          desc: "Awarded for highest active volume (settled + unsettled).",
-                        },
-                        {
-                          icon: <TraderOfWeekBadge className="w-9 h-9" />,
-                          title: "Trader of the Week",
-                          desc: "Recognizing outstanding trading performance of the week.",
-                        },
-                        {
-                          icon: <BestRiskManagerBadge className="w-9 h-9" />,
-                          title: "Best Risk Manager",
-                          desc: "Awarded for excellent risk management and discipline.",
-                        },
-                      ].map((badge, i) => (
+                {/* Row 2: Achievements & Badges (5 badges in same row on desktop) */}
+                <div className="w-full bg-slate-950/40 border border-slate-900 rounded-3xl p-6">
+                  <div className="text-xs text-slate-400 uppercase tracking-widest font-black mb-6 border-b border-slate-900 pb-3">
+                    Achievements & Badges
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {(() => {
+                      const normalBadges = badgeRules.length > 0 
+                        ? badgeRules.filter((r) => r._id !== "Final Winner") 
+                        : Object.keys(BADGE_DETAILS).filter(k => k !== "Final Winner").map(key => ({
+                            _id: key,
+                            points: BADGE_DETAILS[key].condition.includes("Points") ? 100 : 50,
+                            description: BADGE_DETAILS[key].desc,
+                            icon: key,
+                            cashPrize: ""
+                          }));
+                      return normalBadges.map((rule) => (
                         <button
-                          key={i}
+                          key={rule._id}
                           type="button"
-                          onClick={() => handleBadgeClick(badge.title)}
+                          onClick={() => handleBadgeClick(rule._id)}
                           className="w-full text-left glass-panel rounded-xl p-4 border border-slate-900 flex gap-3 items-start hover:border-violet-500/50 hover:bg-slate-900/40 transition-all duration-200 cursor-pointer group"
                         >
                           <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
-                            {badge.icon}
+                            {renderBadgeIcon(rule.icon || rule._id, "w-9 h-9")}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-white text-xs text-left group-hover:text-violet-400 transition-colors">{badge.title}</h4>
-                            {badge.subtitle && (
+                            <h4 className="font-semibold text-white text-xs text-left group-hover:text-violet-400 transition-colors">{rule._id}</h4>
+                            {rule.cashPrize ? (
                               <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
-                                {badge.subtitle}
+                                🏆 {rule.cashPrize} Cash
+                              </span>
+                            ) : (
+                              <span className="text-[7px] bg-violet-500/10 border border-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
+                                ⭐ {rule.points} Pts
                               </span>
                             )}
-                            <p className="text-[10px] text-slate-450 text-left leading-relaxed mt-0.5">{badge.desc}</p>
+                            <p className="text-[10px] text-slate-400 text-left leading-relaxed mt-0.5">
+                              {rule.description || (BADGE_DETAILS[rule._id]?.desc || "")}
+                            </p>
                             <span className="text-[9px] text-brand-450 font-bold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                               View Rules →
                             </span>
                           </div>
                         </button>
-                      ))}
-                    </div>
+                      ));
+                    })()}
                   </div>
                 </div>
               </section>

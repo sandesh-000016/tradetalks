@@ -1,5 +1,5 @@
 import React from "react";
-import HomePageClient from "@/components/HomePageClient";
+import HomePageClient from "../components/HomePageClient";
 import { getCachedLeaderboard } from "@/lib/alpariApi";
 
 // ISR: Serve the cached static page instantly and revalidate in the background every 2 hours.

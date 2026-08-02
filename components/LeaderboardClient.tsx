@@ -15,55 +15,43 @@ import {
   Send
 } from "lucide-react";
 import { fetchLeaderboard, Trader, Timeframe } from "@/lib/leaderboardApi";
-import {
-  TopRankBadge,
-  ConsistentTraderBadge,
-  MostActiveTraderBadge,
-  TraderOfWeekBadge,
-  BestRiskManagerBadge
-} from "@/components/BadgeIcons";
-
-interface LeaderboardClientProps {
-  initialTraders: Trader[];
-}
+import { renderBadgeIcon } from "@/components/BadgeIcons";
 
 const BADGE_DETAILS: Record<string, {
-  icon: React.ReactNode;
   color: string;
   desc: string;
   condition: string;
 }> = {
   "Top Rank Monthly": {
-    icon: <TopRankBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded to the top ranked trader each month.",
     condition: "Achieve the absolute #1 rank in the monthly challenge leaderboard."
   },
   "Consistent Trader": {
-    icon: <ConsistentTraderBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded for consistent performance throughout the challenge.",
     condition: "Maintain a minimum activity level of 12 completed trades."
   },
   "Most Active Trader": {
-    icon: <MostActiveTraderBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded for highest active volume (settled + unsettled).",
     condition: "Accumulate an aggregate volume (settled + unsettled) of 8.00 Lots or more."
   },
   "Trader of the Week": {
-    icon: <TraderOfWeekBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Recognizing outstanding trading performance of the week.",
     condition: "Secure a Top 3 rank in weekly standings."
   },
   "Best Risk Manager": {
-    icon: <BestRiskManagerBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded for excellent risk management and discipline.",
     condition: "Achieve a return above 12% with at least 10 trades."
   }
 };
+
+interface LeaderboardClientProps {
+  initialTraders: Trader[];
+}
 
 const getGroupedBadges = (earnedBadges: string[]) => {
   if (!earnedBadges) return [];
@@ -122,35 +110,32 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       .catch((err) => console.error("Error fetching badge rules:", err));
   }, []);
 
-  const handleBadgeClick = (badgeName: string) => {
-    let cleanBadgeName = badgeName;
-    if (badgeName === "Weekly Top") {
-      cleanBadgeName = "Trader of the Week";
-    }
-
-    const badge = BADGE_DETAILS[cleanBadgeName];
-    if (!badge) return;
-
-    const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
+  const translateConditionToHuman = (rule: any) => {
+    if (!rule) return "No criteria defined.";
     
-    const formatConditions = (rule: any) => {
-      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
-        return rule.conditions.map((cond: any) => {
-          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
-          
-          let metricDisplay = cond.metric;
-          if (cond.metric === "profit") metricDisplay = "Profit Return";
-          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
-          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
-          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
-          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
-          
-          return `${metricDisplay} ${opSign} ${cond.value}`;
-        }).join(" AND ");
-      }
-      
+    // Check if conditions array exists
+    if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+      return rule.conditions.map((cond: any) => {
+        const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
+        let metricDisplay = cond.metric;
+        if (cond.metric === "profit") metricDisplay = "Profit Return";
+        else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
+        else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
+        else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
+        else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
+        
+        let valueDisplay = cond.value;
+        if (cond.metric === "profit") {
+          valueDisplay = `${cond.value}%`;
+        }
+        
+        return `${metricDisplay} of ${opSign} ${valueDisplay}`;
+      }).join(" AND ");
+    }
+    
+    // Fallback to legacy single fields
+    if (rule.metric && rule.operator && rule.value !== undefined) {
       const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
-      
       let metricDisplay = rule.metric;
       if (rule.metric === "profit") metricDisplay = "Profit Return";
       else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
@@ -158,17 +143,37 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
       else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
       
-      return `${metricDisplay} ${opSign} ${rule.value}`;
-    };
+      let valueDisplay = rule.value;
+      if (rule.metric === "profit") {
+        valueDisplay = `${rule.value}%`;
+      }
+      
+      return `${metricDisplay} of ${opSign} ${valueDisplay}`;
+    }
+    
+    return "Custom challenge criteria.";
+  };
+
+  const handleBadgeClick = (badgeName: string) => {
+    let cleanBadgeName = badgeName;
+    if (badgeName === "Weekly Top") {
+      cleanBadgeName = "Trader of the Week";
+    }
+
+    const badge = BADGE_DETAILS[cleanBadgeName];
+    const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
+    
+    const badgeDesc = matchedRule?.description || (badge?.desc || "Challenge badge rules.");
+    const badgeCondition = matchedRule
+      ? `Requires: ${translateConditionToHuman(matchedRule)} (${matchedRule.points} Points)${matchedRule.nextEvaluationTime ? ` - Next evaluation: ${new Date(matchedRule.nextEvaluationTime).toLocaleString()}` : ''}`
+      : (badge?.condition || "Criteria not configured.");
 
     setSelectedBadge({
       name: cleanBadgeName,
-      desc: matchedRule?.description || badge.desc,
-      condition: matchedRule
-        ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
-        : badge.condition,
-      color: badge.color,
-      icon: badge.icon
+      desc: badgeDesc,
+      condition: badgeCondition,
+      color: badge?.color || "hover:scale-110",
+      icon: renderBadgeIcon(matchedRule?.icon || cleanBadgeName, "w-12 h-12")
     });
   };
 
@@ -182,9 +187,9 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
   const [shareError, setShareError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Generate scorecard image on the fly when modal opens
   useEffect(() => {
-    if (!sharingTrader) {
+    const activeTrader = sharingTrader;
+    if (!activeTrader) {
       setPreviewImage(null);
       return;
     }
@@ -296,10 +301,10 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       // Trader's Name
       ctx.font = "bold 38px 'Space Grotesk', 'Inter', sans-serif";
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(sharingTrader.name, 400, 275);
+      ctx.fillText(activeTrader.name, 400, 275);
 
       // Rank Badge Pill
-      const rankText = `RANK #${sharingTrader.rank}`;
+      const rankText = `RANK #${activeTrader.rank}`;
       ctx.font = "bold 20px 'Space Grotesk', 'Inter', sans-serif";
       const w_text = ctx.measureText(rankText).width;
       const bW = w_text + 36;
@@ -310,13 +315,13 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
 
       // Rank badge gradient background
       const rankGradient = ctx.createLinearGradient(bX, bY, bX + bW, bY);
-      if (sharingTrader.rank === 1) {
+      if (activeTrader.rank === 1) {
         rankGradient.addColorStop(0, "#f59e0b"); // gold
         rankGradient.addColorStop(1, "#d97706");
-      } else if (sharingTrader.rank === 2) {
+      } else if (activeTrader.rank === 2) {
         rankGradient.addColorStop(0, "#cbd5e1"); // silver
         rankGradient.addColorStop(1, "#94a3b8");
-      } else if (sharingTrader.rank === 3) {
+      } else if (activeTrader.rank === 3) {
         rankGradient.addColorStop(0, "#b45309"); // bronze
         rankGradient.addColorStop(1, "#78350f");
       } else {
@@ -342,7 +347,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       ctx.fillText(rankText, 400, bY + 27);
 
       // Profit return percent
-      const profitVal = sharingTrader.profit ?? 0;
+      const profitVal = activeTrader.profit ?? 0;
       const isPositive = profitVal >= 0;
       const profitText = `${isPositive ? "+" : ""}${profitVal.toFixed(2)}%`;
       ctx.font = "bold 80px 'Space Grotesk', 'Inter', sans-serif";
@@ -365,17 +370,17 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       ctx.font = "bold 18px 'Space Grotesk', 'Inter', sans-serif";
       ctx.fillStyle = "#cbd5e1";
       ctx.textAlign = "left";
-      ctx.fillText(`VOLUME: ${(sharingTrader.volume ?? 0).toFixed(2)} Lots`, 160, 580);
+      ctx.fillText(`VOLUME: ${(activeTrader.volume ?? 0).toFixed(2)} Lots`, 160, 580);
 
       ctx.textAlign = "right";
-      ctx.fillText(`START CAPITAL: $${(sharingTrader.mtNetDeposits ?? 100).toFixed(2)}`, 640, 580);
+      ctx.fillText(`START CAPITAL: $${(activeTrader.mtNetDeposits ?? 100).toFixed(2)}`, 640, 580);
 
       // Badges & Points Count
       ctx.font = "medium 14px 'Inter', sans-serif";
       ctx.fillStyle = "#64748b";
       ctx.textAlign = "center";
-      const badgesCount = sharingTrader.earnedBadges?.length ?? 0;
-      ctx.fillText(`BADGES EARNED: ${badgesCount}  |  TOTAL POINTS: ${sharingTrader.totalPoints ?? 0} PTS`, 400, 650);
+      const badgesCount = activeTrader.earnedBadges?.length ?? 0;
+      ctx.fillText(`BADGES EARNED: ${badgesCount}  |  TOTAL POINTS: ${activeTrader.totalPoints ?? 0} PTS`, 400, 650);
 
       // Card Bottom Footer
       ctx.font = "medium 14px 'Inter', sans-serif";
@@ -462,6 +467,10 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, timeframe]);
+
+  const trader = selectedTrader;
+  const badge = selectedBadge;
+  const shareTrader = sharingTrader;
 
   return (
     <div className="w-full bg-[#050814] text-slate-100 min-h-screen">
@@ -740,8 +749,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                         <div className="flex gap-1.5 flex-wrap items-center justify-center">
                           {trader.earnedBadges && trader.earnedBadges.length > 0 ? (
                             getGroupedBadges(trader.earnedBadges).map(({ name: badgeName, count }, idx) => {
-                              const badge = BADGE_DETAILS[badgeName];
-                              if (!badge) return null;
+                              const matchedRule = badgeRules.find((r) => r._id === badgeName);
+                              const iconName = matchedRule?.icon || badgeName;
 
                               return (
                                 <button
@@ -753,7 +762,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                                   title={`Click to view condition: ${badgeName}${count > 1 ? ` (Earned ${count} times)` : ""}`}
                                   className="relative transition-all hover:scale-110 active:scale-95 cursor-pointer focus:outline-none outline-none"
                                 >
-                                  {badge.icon}
+                                  {renderBadgeIcon(iconName, "w-8 h-8")}
                                   {count > 1 && (
                                     <span className="absolute -top-1.5 -right-1.5 bg-violet-600 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 leading-none border border-slate-950 shadow-lg">
                                       x{count}
@@ -763,7 +772,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                               );
                             })
                           ) : (
-                            <span className="text-slate-655 text-xs">-</span>
+                            <span className="text-slate-500 text-xs">-</span>
                           )}
                         </div>
                       </td>
@@ -868,7 +877,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       </div>
 
       {/* Trader Profile Modal */}
-      {selectedTrader && (
+      {trader && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
@@ -894,8 +903,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 <div className="relative -mt-16 mb-4 flex justify-between items-end">
                   <div className="w-32 h-32 rounded-2xl bg-slate-800 border-4 border-slate-900 overflow-hidden shadow-xl">
                     <img
-                      src={selectedTrader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedTrader.name)}`}
-                      alt={selectedTrader.name}
+                      src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name)}`}
+                      alt={trader.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -904,41 +913,41 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                       Current Rank
                     </div>
                     <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white font-display font-bold text-xl shadow-lg shadow-accent-500/30">
-                      {selectedTrader.rank}
+                      {trader.rank}
                     </div>
                   </div>
                 </div>
 
                 <div className="mb-6">
                   <h2 className="text-2xl font-display font-bold text-white flex items-center gap-2">
-                    {selectedTrader.name}
-                    {selectedTrader.status === "online" && (
+                    {trader.name}
+                    {trader.status === "online" && (
                       <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                     )}
                   </h2>
                    <p className="text-brand-400 text-sm mb-3">
-                    {selectedTrader.title ?? "Trader"}
+                    {trader.title ?? "Trader"}
                   </p>
 
                   <div className="mb-4">
-                    {(selectedTrader.volume ?? 0) < ((selectedTrader.mtNetDeposits ?? 0) / 100) * minVolumeRatio ? (
+                    {(trader.volume ?? 0) < ((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio ? (
                       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Under Volume</span>
-                        Requires at least <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>.
+                        Requires at least <span className="font-bold font-display">{(((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{(trader.volume ?? 0).toFixed(2)} Lots</span>.
                       </div>
                     ) : (
                       <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-emerald-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Volume Qualified</span>
-                        Traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span>.
+                        Traded <span className="font-bold font-display">{(trader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span>.
                       </div>
                     )}
                   </div>
 
-                  {selectedTrader.earnedBadges && selectedTrader.earnedBadges.length > 0 && (
+                  {trader.earnedBadges && trader.earnedBadges.length > 0 && (
                      <div className="flex gap-2 flex-wrap">
-                       {getGroupedBadges(selectedTrader.earnedBadges).map(({ name: badgeName, count }, idx) => {
-                         const badge = BADGE_DETAILS[badgeName];
-                         if (!badge) return null;
+                       {getGroupedBadges(trader.earnedBadges).map(({ name: badgeName, count }, idx) => {
+                         const matchedRule = badgeRules.find((r) => r._id === badgeName);
+                         const iconName = matchedRule?.icon || badgeName;
                          return (
                            <button
                              key={idx}
@@ -950,7 +959,9 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                              title={`Click to view rules for ${badgeName}`}
                              className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-850 hover:border-violet-500/50 transition-all cursor-pointer group"
                            >
-                             <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">{badge.icon}</span>
+                             <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">
+                               {renderBadgeIcon(iconName, "w-4 h-4")}
+                             </span>
                              <span className="font-medium group-hover:text-white transition-colors">
                                {badgeName} {count > 1 && <span className="text-violet-400 font-bold ml-1">x{count}</span>}
                              </span>
@@ -963,14 +974,14 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
 
                 <div className="grid grid-cols-2 gap-4 mb-8">
                   <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
-                    <div className={`font-display font-bold text-xl mb-1 ${selectedTrader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {selectedTrader.profit >= 0 ? "+" : ""}{(selectedTrader.profit ?? 0).toFixed(2)}%
+                    <div className={`font-display font-bold text-xl mb-1 ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
                     </div>
                     <div className="text-xs text-slate-500 uppercase">Profit Return</div>
                   </div>
                   <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
                     <div className="text-white font-display font-bold text-xl mb-1">
-                      {(selectedTrader.volume ?? 0).toFixed(2)}
+                      {(trader.volume ?? 0).toFixed(2)}
                     </div>
                     <div className="text-xs text-slate-500 uppercase">
                       Lots Traded
@@ -986,27 +997,27 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                   <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
                     <div>
                       <span className="text-slate-500 block text-xs">Country</span>
-                      <span className="text-white font-medium">{selectedTrader.country || "India"}</span>
+                      <span className="text-white font-medium">{trader.country || "India"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Registered</span>
-                      <span className="text-white font-medium">{selectedTrader.registrationDate || "N/A"}</span>
+                      <span className="text-white font-medium">{trader.registrationDate || "N/A"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Total Volume</span>
-                      <span className="text-white font-medium">{selectedTrader.volume?.toFixed(2) ?? "0.00"} Lots</span>
+                      <span className="text-white font-medium">{trader.volume?.toFixed(2) ?? "0.00"} Lots</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Total Balance</span>
-                      <span className="text-white font-medium">${selectedTrader.totalBalance?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${trader.totalBalance?.toFixed(2) ?? "0.00"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Account Equity</span>
-                      <span className="text-white font-medium">${selectedTrader.totalEquity?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${trader.totalEquity?.toFixed(2) ?? "0.00"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Net Deposit</span>
-                      <span className="text-white font-medium">${selectedTrader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${trader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
                     </div>
                   </div>
                 </div>
@@ -1014,7 +1025,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 {/* Share Button in Modal */}
                 <div className="mb-6">
                   <button
-                    onClick={(e) => handleShare(e, selectedTrader)}
+                    onClick={(e) => handleShare(e, trader)}
                     className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-sm transition-all shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <Share2 className="w-4 h-4" />
@@ -1022,7 +1033,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                   </button>
                 </div>
 
-                {selectedTrader.activity && selectedTrader.activity.length > 0 && (
+                {trader.activity && trader.activity.length > 0 && (
                   <div className="mb-4">
                     <h3 className="text-sm font-medium text-slate-300 mb-3">
                       Trading Activity{" "}
@@ -1040,7 +1051,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/60">
-                          {selectedTrader.activity.slice(0, 5).map((a, i) => (
+                          {trader.activity.slice(0, 5).map((a, i) => (
                             <tr key={i} className="text-xs">
                               <td className="px-3 py-2 text-slate-300 font-medium">
                                 {a.instrument}
@@ -1066,7 +1077,6 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     </div>
                   </div>
                 )}
-
               </div>
             </div>
           </div>
@@ -1074,7 +1084,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       )}
 
       {/* Badge Condition Modal */}
-      {selectedBadge && (
+      {badge && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
@@ -1095,15 +1105,15 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
             {/* Content */}
             <div className="p-6 text-center space-y-4">
               <div className="mx-auto w-12 h-12 rounded-xl flex items-center justify-center border-2 bg-slate-950/60 shadow-inner scale-110">
-                {selectedBadge.icon}
+                {badge.icon}
               </div>
               
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-white uppercase tracking-wider">
-                  {selectedBadge.name}
+                  {badge.name}
                 </h3>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  {selectedBadge.desc}
+                  {badge.desc}
                 </p>
               </div>
 
@@ -1112,7 +1122,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                   Award Criteria & Conditions
                 </div>
                 <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                  {selectedBadge.condition}
+                  {badge.condition}
                 </p>
               </div>
 
@@ -1128,7 +1138,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       )}
 
       {/* Share Scorecard Modal */}
-      {sharingTrader && (
+      {shareTrader && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
@@ -1167,8 +1177,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 )}
                 {!isGenerating && previewImage && (
                   <img
-                    src={previewImage}
-                    alt={`${sharingTrader.name}'s Scorecard`}
+                    src={previewImage || undefined}
+                    alt={`${shareTrader.name}'s Scorecard`}
                     className="w-full h-full object-contain"
                   />
                 )}
@@ -1216,14 +1226,14 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                         const blob = await (await fetch(previewImage)).blob();
                         const file = new File(
                           [blob],
-                          `${sharingTrader.name.toLowerCase().replace(/\s+/g, "-")}-scorecard.png`,
+                          `${shareTrader.name.toLowerCase().replace(/\s+/g, "-")}-scorecard.png`,
                           { type: "image/png" }
                         );
                         
-                        const profitStr = sharingTrader.profit >= 0 
-                          ? `+${sharingTrader.profit.toFixed(2)}%` 
-                          : `${sharingTrader.profit.toFixed(2)}%`;
-                        const text = `🔥 My performance on the Trade Talks leaderboard! Rank: #${sharingTrader.rank}, Profit return: ${profitStr}.`;
+                        const profitStr = shareTrader.profit >= 0 
+                          ? `+${shareTrader.profit.toFixed(2)}%` 
+                          : `${shareTrader.profit.toFixed(2)}%`;
+                        const text = `🔥 My performance on the Trade Talks leaderboard! Rank: #${shareTrader.rank}, Profit return: ${profitStr}.`;
 
                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
                           await navigator.share({

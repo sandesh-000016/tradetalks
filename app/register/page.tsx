@@ -27,47 +27,34 @@ import {
 
 const ALPARI_REFERRAL_URL = "https://alpari.com/en/?Referral=72725";
 
-import {
-  TopRankBadge,
-  WeeklyTopBadge,
-  ConsistentTraderBadge,
-  MostActiveTraderBadge,
-  TraderOfWeekBadge,
-  BestRiskManagerBadge
-} from "@/components/BadgeIcons";
+import { renderBadgeIcon } from "@/components/BadgeIcons";
 
 const BADGE_DETAILS: Record<string, {
-  icon: React.ReactNode;
   color: string;
   desc: string;
   condition: string;
 }> = {
   "Top Rank Monthly": {
-    icon: <TopRankBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded to the top ranked trader each month.",
     condition: "Achieve the absolute #1 rank in the monthly challenge leaderboard."
   },
   "Consistent Trader": {
-    icon: <ConsistentTraderBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded for consistent performance throughout the challenge.",
     condition: "Maintain a minimum activity level of 12 completed trades."
   },
   "Most Active Trader": {
-    icon: <MostActiveTraderBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded for highest active volume (settled + unsettled).",
     condition: "Accumulate an aggregate volume (settled + unsettled) of 8.00 Lots or more."
   },
   "Trader of the Week": {
-    icon: <TraderOfWeekBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Recognizing outstanding trading performance of the week.",
     condition: "Secure a Top 3 rank in weekly standings."
   },
   "Best Risk Manager": {
-    icon: <BestRiskManagerBadge className="w-8 h-8" />,
     color: "hover:scale-110",
     desc: "Awarded for excellent risk management and discipline.",
     condition: "Achieve a return above 12% with at least 10 trades."
@@ -226,35 +213,32 @@ function RegisterContent() {
       .catch((err) => console.error("Error fetching badge rules:", err));
   }, []);
 
-  const handleBadgeClick = (badgeName: string) => {
-    let cleanBadgeName = badgeName;
-    if (badgeName === "Weekly Top") {
-      cleanBadgeName = "Trader of the Week";
-    }
-
-    const badge = BADGE_DETAILS[cleanBadgeName];
-    if (!badge) return;
-
-    const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
+  const translateConditionToHuman = (rule: any) => {
+    if (!rule) return "No criteria defined.";
     
-    const formatConditions = (rule: any) => {
-      if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
-        return rule.conditions.map((cond: any) => {
-          const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
-          
-          let metricDisplay = cond.metric;
-          if (cond.metric === "profit") metricDisplay = "Profit Return";
-          else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
-          else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
-          else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
-          else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
-          
-          return `${metricDisplay} ${opSign} ${cond.value}`;
-        }).join(" AND ");
-      }
-      
+    // Check if conditions array exists
+    if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
+      return rule.conditions.map((cond: any) => {
+        const opSign = cond.operator === "gte" ? "≥" : cond.operator === "lte" ? "≤" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
+        let metricDisplay = cond.metric;
+        if (cond.metric === "profit") metricDisplay = "Profit Return";
+        else if (cond.metric === "volume") metricDisplay = "Volume (Lots)";
+        else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
+        else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
+        else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
+        
+        let valueDisplay = cond.value;
+        if (cond.metric === "profit") {
+          valueDisplay = `${cond.value}%`;
+        }
+        
+        return `${metricDisplay} of ${opSign} ${valueDisplay}`;
+      }).join(" AND ");
+    }
+    
+    // Fallback to legacy single fields
+    if (rule.metric && rule.operator && rule.value !== undefined) {
       const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
-      
       let metricDisplay = rule.metric;
       if (rule.metric === "profit") metricDisplay = "Profit Return";
       else if (rule.metric === "volume") metricDisplay = "Volume (Lots)";
@@ -262,17 +246,37 @@ function RegisterContent() {
       else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
       else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
       
-      return `${metricDisplay} ${opSign} ${rule.value}`;
-    };
+      let valueDisplay = rule.value;
+      if (rule.metric === "profit") {
+        valueDisplay = `${rule.value}%`;
+      }
+      
+      return `${metricDisplay} of ${opSign} ${valueDisplay}`;
+    }
+    
+    return "Custom challenge criteria.";
+  };
+
+  const handleBadgeClick = (badgeName: string) => {
+    let cleanBadgeName = badgeName;
+    if (badgeName === "Weekly Top") {
+      cleanBadgeName = "Trader of the Week";
+    }
+
+    const badge = BADGE_DETAILS[cleanBadgeName];
+    const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
+    
+    const badgeDesc = matchedRule?.description || (badge?.desc || "Challenge badge rules.");
+    const badgeCondition = matchedRule
+      ? `Requires: ${translateConditionToHuman(matchedRule)} (${matchedRule.points} Points)${matchedRule.nextEvaluationTime ? ` - Next evaluation: ${new Date(matchedRule.nextEvaluationTime).toLocaleString()}` : ''}`
+      : (badge?.condition || "Criteria not configured.");
 
     setSelectedBadge({
       name: cleanBadgeName,
-      desc: matchedRule?.description || badge.desc,
-      condition: matchedRule
-        ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
-        : badge.condition,
-      color: badge.color,
-      icon: badge.icon
+      desc: badgeDesc,
+      condition: badgeCondition,
+      color: badge?.color || "hover:scale-110",
+      icon: renderBadgeIcon(matchedRule?.icon || cleanBadgeName, "w-12 h-12")
     });
   };
 
@@ -801,11 +805,22 @@ function RegisterContent() {
                 <div className="lg:col-span-4 glass-panel rounded-3xl p-6 border border-amber-500/20 bg-gradient-to-br from-slate-900/60 to-slate-950/60 text-center flex flex-col justify-between items-center space-y-4">
                   <div className="w-full flex flex-col items-center">
                     <div className="w-20 h-20 rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center mb-4">
-                      <Trophy className="w-10 h-10 text-amber-400" />
+                      {(() => {
+                        const rule = badgeRules.find(r => r._id === "Final Winner");
+                        return renderBadgeIcon(rule?.icon || "trophy", "w-10 h-10 text-amber-400");
+                      })()}
                     </div>
-                    <h3 className="text-xl font-display font-bold text-white">FINAL WINNER</h3>
+                    <h3 className="text-xl font-display font-bold text-white uppercase">
+                      {(() => {
+                        const rule = badgeRules.find(r => r._id === "Final Winner");
+                        return rule?._id || "FINAL WINNER";
+                      })()}
+                    </h3>
                     <p className="text-xs text-slate-400 max-w-[200px] leading-relaxed mt-2">
-                      The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!
+                      {(() => {
+                        const rule = badgeRules.find(r => r._id === "Final Winner");
+                        return rule?.description || "The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!";
+                      })()}
                     </p>
                   </div>
                   <div className="w-full border-t border-slate-800/60 pt-4 mt-2">
@@ -813,7 +828,7 @@ function RegisterContent() {
                       Exclusive Rewards
                     </div>
                     <div className="flex justify-center gap-4 text-[10px] text-slate-400">
-                      <span className="flex items-center gap-1"><Award className="w-4.5 h-4.5 text-amber-400" /> Physical Badge</span>
+                      <span className="flex items-center gap-1"><Award className="w-4.5 h-4.5 text-amber-400" /> Physical Trophy</span>
                       <span className="flex items-center gap-1"><Gift className="w-4.5 h-4.5 text-amber-400" /> Premium Gifts</span>
                     </div>
                   </div>
@@ -822,62 +837,47 @@ function RegisterContent() {
                 {/* Achievements & Badges Grid */}
                 <div className="lg:col-span-8 bg-slate-950/40 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[
-                      {
-                        icon: <TopRankBadge className="w-9 h-9" />,
-                        title: "Top Rank Monthly",
-                        subtitle: "BEST BADGE",
-                        desc: "Awarded to the top ranked trader each month.",
-                      },
-                      {
-                        icon: <WeeklyTopBadge className="w-9 h-9" />,
-                        title: "Weekly Top",
-                        desc: "Awarded to the top performer of the week.",
-                      },
-                      {
-                        icon: <ConsistentTraderBadge className="w-9 h-9" />,
-                        title: "Consistent Trader",
-                        desc: "Awarded for consistent performance throughout the challenge.",
-                      },
-                      {
-                        icon: <MostActiveTraderBadge className="w-9 h-9" />,
-                        title: "Most Active Trader",
-                        desc: "Awarded for highest active volume (settled + unsettled).",
-                      },
-                      {
-                        icon: <TraderOfWeekBadge className="w-9 h-9" />,
-                        title: "Trader of the Week",
-                        desc: "Recognizing outstanding trading performance of the week.",
-                      },
-                      {
-                        icon: <BestRiskManagerBadge className="w-9 h-9" />,
-                        title: "Best Risk Manager",
-                        desc: "Awarded for excellent risk management and discipline.",
-                      },
-                    ].map((badge, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => handleBadgeClick(badge.title)}
-                        className="w-full text-left glass-panel rounded-xl p-4 border border-slate-900 flex gap-3 items-start hover:border-violet-500/50 hover:bg-slate-900/40 transition-all duration-200 cursor-pointer group"
-                      >
-                        <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
-                          {badge.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-white text-xs group-hover:text-violet-400 transition-colors">{badge.title}</h4>
-                          {badge.subtitle && (
-                            <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
-                              {badge.subtitle}
+                    {(() => {
+                      const normalBadges = badgeRules.length > 0 
+                        ? badgeRules.filter((r) => r._id !== "Final Winner") 
+                        : Object.keys(BADGE_DETAILS).filter(k => k !== "Final Winner").map(key => ({
+                            _id: key,
+                            points: BADGE_DETAILS[key].condition.includes("Points") ? 100 : 50,
+                            description: BADGE_DETAILS[key].desc,
+                            icon: key,
+                            cashPrize: ""
+                          }));
+                      return normalBadges.map((rule) => (
+                        <button
+                          key={rule._id}
+                          type="button"
+                          onClick={() => handleBadgeClick(rule._id)}
+                          className="w-full text-left glass-panel rounded-xl p-4 border border-slate-900 flex gap-3 items-start hover:border-violet-500/50 hover:bg-slate-900/40 transition-all duration-200 cursor-pointer group"
+                        >
+                          <div className="shrink-0 transition-transform duration-200 group-hover:scale-110">
+                            {renderBadgeIcon(rule.icon || rule._id, "w-9 h-9")}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-white text-xs group-hover:text-violet-400 transition-colors">{rule._id}</h4>
+                            {rule.cashPrize ? (
+                              <span className="text-[7px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
+                                🏆 {rule.cashPrize} Cash
+                              </span>
+                            ) : (
+                              <span className="text-[7px] bg-violet-500/10 border border-violet-500/20 text-violet-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider inline-block mt-0.5 mb-1">
+                                ⭐ {rule.points} Pts
+                              </span>
+                            )}
+                            <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">
+                              {rule.description || (BADGE_DETAILS[rule._id]?.desc || "")}
+                            </p>
+                            <span className="text-[9px] text-brand-450 font-bold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              View Rules →
                             </span>
-                          )}
-                          <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">{badge.desc}</p>
-                          <span className="text-[9px] text-brand-450 font-bold mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            View Rules →
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                          </div>
+                        </button>
+                      ));
+                    })()}
                   </div>
                 </div>
               </div>
