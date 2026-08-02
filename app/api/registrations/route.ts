@@ -5,7 +5,7 @@ async function getCollection() {
   if (!clientPromise) throw new Error("Database not configured.");
   const mongoClient = await clientPromise;
   const db = mongoClient.db("tradetalks");
-  const col = db.collection("registrations");
+  const col = db.collection<any>("registrations");
   // Ensure indexes for fast lookups (idempotent)
   await col.createIndex({ clientId: 1 }, { unique: true, sparse: true }).catch(() => {});
   await col.createIndex({ submittedAt: -1 }).catch(() => {});

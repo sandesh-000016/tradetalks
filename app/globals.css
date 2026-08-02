@@ -60,3 +60,58 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(30, 41, 59, 0.5); /* slate-800/50 */
 }
+
+/* Custom Uiverse rotating border card design */
+.uiverse-card {
+  width: 240px;
+  height: 310px;
+  background: #020617;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  place-content: center;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.uiverse-card-inner {
+  position: absolute;
+  background: #070e1e;
+  inset: 3px;
+  border-radius: 17px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  overflow: hidden;
+}
+
+.uiverse-card::before {
+  content: '';
+  position: absolute;
+  width: 140px;
+  background-image: linear-gradient(180deg, #0ea5e9, #a855f7);
+  height: 130%;
+  animation: rotBGimg 4s linear infinite;
+  transition: all 0.2s linear;
+  z-index: 1;
+}
+
+.uiverse-card:hover::before {
+  background-image: linear-gradient(180deg, #10b981, #d97706);
+  animation: rotBGimg 2s linear infinite;
+}
+
+@keyframes rotBGimg {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+

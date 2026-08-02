@@ -9,7 +9,7 @@ export async function GET() {
 
     const mongoClient = await clientPromise;
     const db = mongoClient.db("tradetalks");
-    const collection = db.collection("awarded_badges");
+    const collection = db.collection<any>("awarded_badges");
 
     const awardedBadges = await collection.find({}).toArray();
 

@@ -65,10 +65,41 @@ const BADGE_DETAILS: Record<string, {
   }
 };
 
+const getGroupedBadges = (earnedBadges: string[]) => {
+  if (!earnedBadges) return [];
+  const counts: Record<string, number> = {};
+  earnedBadges.forEach((b) => {
+    counts[b] = (counts[b] || 0) + 1;
+  });
+  return Object.entries(counts).map(([name, count]) => ({ name, count }));
+};
+
 export default function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>("monthly");
   const [data, setData] = useState<Trader[]>(initialTraders);
   const [selectedTrader, setSelectedTrader] = useState<Trader | null>(null);
+  const [minVolumeRatio, setMinVolumeRatio] = useState(0.6);
+  const [promotedWinners, setPromotedWinners] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/admin/global-settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.settings) {
+          setMinVolumeRatio(Number(data.settings.minVolumePer100NetDeposits ?? 0.6));
+        }
+      })
+      .catch((err) => console.error("Error fetching global settings:", err));
+
+    fetch("/api/promoted-winners")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.winners)) {
+          setPromotedWinners(data.winners);
+        }
+      })
+      .catch((err) => console.error("Error fetching promoted winners:", err));
+  }, []);
   const [selectedBadge, setSelectedBadge] = useState<{
     name: string;
     desc: string;
@@ -445,8 +476,68 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
           </p>
         </div>
 
-        {/* Timeframe selector (centered) */}
-        <div className="flex justify-center mb-10">
+         {/* Promoted Winners Showcase */}
+         {promotedWinners.length > 0 && (
+           <div className="mb-16">
+             <div className="text-center mb-8">
+               <h2 className="text-xs font-bold text-violet-400 uppercase tracking-widest mb-2 flex items-center justify-center gap-1.5">
+                 <Trophy className="w-4 h-4 text-amber-450 animate-bounce" />
+                 Featured Challenge Winners & Hall of Fame
+                 <Trophy className="w-4 h-4 text-amber-450 animate-bounce" />
+               </h2>
+               <p className="text-slate-400 text-[10px] max-w-md mx-auto">Promoting our top traders who set milestones and challenge benchmarks</p>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {promotedWinners.map((winner, idx) => (
+                 <div key={winner._id || idx} className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-sm hover:border-violet-500/30 transition-all duration-300 shadow-xl group">
+                   {/* Gold gradient shine top left */}
+                   <div className="absolute -top-16 -left-16 w-32 h-32 bg-violet-600/5 rounded-full blur-2xl group-hover:bg-violet-600/10 transition-all duration-500" />
+                   
+                   {/* Small gold crown badge in corner */}
+                   <div className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/35 rounded-full px-2.5 py-0.5 text-[9px] font-bold text-amber-400 flex items-center gap-1">
+                     👑 Rank {winner.rank || "1"}
+                   </div>
+
+                   <div>
+                     {/* Winner Photo & Info */}
+                     <div className="flex items-center gap-4 mb-4">
+                       {winner.photo ? (
+                         <img
+                           src={winner.photo}
+                           alt={winner.name}
+                           className="w-14 h-14 rounded-2xl object-cover border-2 border-violet-500/20 bg-slate-950 shrink-0"
+                         />
+                       ) : (
+                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg border-2 border-violet-500/20 shrink-0">
+                           {winner.name.charAt(0)}
+                         </div>
+                       )}
+                       <div>
+                         <h3 className="font-bold text-white text-sm leading-tight group-hover:text-violet-300 transition-colors">{winner.name}</h3>
+                         <p className="text-[10px] text-slate-400 mt-0.5">{winner.challengeName}</p>
+                         {winner.profit && (
+                           <span className="text-[10px] font-bold text-emerald-400 mt-1 block">
+                             ROI: {winner.profit}
+                           </span>
+                         )}
+                       </div>
+                     </div>
+
+                     {/* Winner Description / Review */}
+                     <blockquote className="text-slate-300 text-xs italic leading-relaxed bg-slate-950/40 p-3.5 rounded-2xl border border-slate-800/40 relative">
+                       <span className="text-xl text-violet-500/30 font-serif absolute -top-1 left-2 leading-none">“</span>
+                       <p className="pl-4 pr-1 text-[11px] text-slate-350">{winner.description}</p>
+                     </blockquote>
+                   </div>
+                 </div>
+               ))}
+             </div>
+           </div>
+         )}
+
+         {/* Timeframe selector (centered) */}
+         <div className="flex justify-center mb-10">
           <div className="flex bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 backdrop-blur-sm shadow-inner">
             {(["all", "monthly", "weekly", "daily"] as const).map((t) => (
               <button
@@ -489,7 +580,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 {/* Box 2 */}
                 <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl p-3">
                   <span className="text-[9px] text-slate-500 block font-bold uppercase tracking-wider">Volume Scale</span>
-                  <span className="text-white font-medium text-[11px] sm:text-xs mt-0.5 block">0.6 Lots per $100 Balance / Month</span>
+                  <span className="text-white font-medium text-[11px] sm:text-xs mt-0.5 block">{minVolumeRatio} Lots per $100 Balance / Month</span>
                 </div>
                 {/* Box 3 */}
                 <div className="bg-slate-900/50 border border-slate-800/60 rounded-xl p-3">
@@ -632,8 +723,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                             <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2">
                               <span>{trader.country || "India"}</span>
                               {/* Volume Warning Tag */}
-                              {(trader.volume ?? 0) < ((trader.mtNetDeposits ?? 0) / 100) * 0.6 ? (
-                                <span className="text-[9px] font-bold text-amber-500/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title={`Needs at least ${(((trader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots. Currently has ${(trader.volume ?? 0).toFixed(2)} Lots.`}>
+                              {(trader.volume ?? 0) < ((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio ? (
+                                <span className="text-[9px] font-bold text-amber-500/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title={`Needs at least ${(((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots. Currently has ${(trader.volume ?? 0).toFixed(2)} Lots.`}>
                                   Under Volume
                                 </span>
                               ) : (
@@ -648,7 +739,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex gap-1.5 flex-wrap items-center justify-center">
                           {trader.earnedBadges && trader.earnedBadges.length > 0 ? (
-                            trader.earnedBadges.map((badgeName, idx) => {
+                            getGroupedBadges(trader.earnedBadges).map(({ name: badgeName, count }, idx) => {
                               const badge = BADGE_DETAILS[badgeName];
                               if (!badge) return null;
 
@@ -659,10 +750,15 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                                     e.stopPropagation(); // prevent opening trader details modal
                                     handleBadgeClick(badgeName);
                                   }}
-                                  title={`Click to view condition: ${badgeName}`}
-                                  className="transition-all hover:scale-110 active:scale-95 cursor-pointer focus:outline-none outline-none"
+                                  title={`Click to view condition: ${badgeName}${count > 1 ? ` (Earned ${count} times)` : ""}`}
+                                  className="relative transition-all hover:scale-110 active:scale-95 cursor-pointer focus:outline-none outline-none"
                                 >
                                   {badge.icon}
+                                  {count > 1 && (
+                                    <span className="absolute -top-1.5 -right-1.5 bg-violet-600 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 leading-none border border-slate-950 shadow-lg">
+                                      x{count}
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })
@@ -825,42 +921,44 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                   </p>
 
                   <div className="mb-4">
-                    {(selectedTrader.volume ?? 0) < ((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6 ? (
+                    {(selectedTrader.volume ?? 0) < ((selectedTrader.mtNetDeposits ?? 0) / 100) * minVolumeRatio ? (
                       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Under Volume</span>
-                        Requires at least <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>.
+                        Requires at least <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>.
                       </div>
                     ) : (
                       <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-emerald-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Volume Qualified</span>
-                        Traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span>.
+                        Traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span>.
                       </div>
                     )}
                   </div>
 
                   {selectedTrader.earnedBadges && selectedTrader.earnedBadges.length > 0 && (
-                    <div className="flex gap-2 flex-wrap">
-                      {selectedTrader.earnedBadges.map((badgeName, idx) => {
-                        const badge = BADGE_DETAILS[badgeName];
-                        if (!badge) return null;
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleBadgeClick(badgeName);
-                            }}
-                            title={`Click to view rules for ${badgeName}`}
-                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-850 hover:border-violet-500/50 transition-all cursor-pointer group"
-                          >
-                            <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">{badge.icon}</span>
-                            <span className="font-medium group-hover:text-white transition-colors">{badgeName}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                     <div className="flex gap-2 flex-wrap">
+                       {getGroupedBadges(selectedTrader.earnedBadges).map(({ name: badgeName, count }, idx) => {
+                         const badge = BADGE_DETAILS[badgeName];
+                         if (!badge) return null;
+                         return (
+                           <button
+                             key={idx}
+                             type="button"
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleBadgeClick(badgeName);
+                             }}
+                             title={`Click to view rules for ${badgeName}`}
+                             className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-850 hover:border-violet-500/50 transition-all cursor-pointer group"
+                           >
+                             <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">{badge.icon}</span>
+                             <span className="font-medium group-hover:text-white transition-colors">
+                               {badgeName} {count > 1 && <span className="text-violet-400 font-bold ml-1">x{count}</span>}
+                             </span>
+                           </button>
+                         );
+                       })}
+                     </div>
+                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-8">

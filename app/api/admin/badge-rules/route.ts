@@ -11,7 +11,9 @@ const DEFAULT_RULES = [
     value: 0,
     nextEvaluationTime: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 17, 0, 0).toISOString(), // End of month, 5 PM
     recurring: true,
-    description: "Awarded to the top ranked trader each month."
+    description: "Awarded to the top ranked trader each month.",
+    icon: "medal_gold",
+    cashPrize: ""
   },
   {
     _id: "Consistent Trader",
@@ -21,7 +23,9 @@ const DEFAULT_RULES = [
     value: 2.0,
     nextEvaluationTime: new Date("2026-12-30T17:00:00Z").toISOString(), // End of season
     recurring: false,
-    description: "Awarded for consistent performance throughout the challenge."
+    description: "Awarded for consistent performance throughout the challenge.",
+    icon: "shield_green",
+    cashPrize: ""
   },
   {
     _id: "Most Active Trader",
@@ -31,7 +35,9 @@ const DEFAULT_RULES = [
     value: 8.0,
     nextEvaluationTime: new Date("2026-12-30T17:00:00Z").toISOString(), // End of season
     recurring: false,
-    description: "Awarded for highest active volume (settled + unsettled)."
+    description: "Awarded for highest active volume (settled + unsettled).",
+    icon: "shield_blue",
+    cashPrize: ""
   },
   {
     _id: "Trader of the Week",
@@ -41,7 +47,9 @@ const DEFAULT_RULES = [
     value: 0,
     nextEvaluationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     recurring: true,
-    description: "Recognizing outstanding trading performance of the week."
+    description: "Recognizing outstanding trading performance of the week.",
+    icon: "shield_orange",
+    cashPrize: ""
   },
   {
     _id: "Best Risk Manager",
@@ -51,7 +59,26 @@ const DEFAULT_RULES = [
     value: 12.0,
     nextEvaluationTime: new Date("2026-12-30T17:00:00Z").toISOString(), // End of season
     recurring: false,
-    description: "Awarded for excellent risk management and discipline."
+    description: "Awarded for excellent risk management and discipline.",
+    icon: "shield_cyan",
+    cashPrize: ""
+  },
+  {
+    _id: "Final Winner",
+    points: 500,
+    metric: "points",
+    operator: "gte",
+    value: 400,
+    nextEvaluationTime: new Date("2026-12-30T17:00:00Z").toISOString(), // End of season
+    recurring: false,
+    description: "The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!",
+    icon: "trophy",
+    cashPrize: "$1000",
+    conditions: [
+      { metric: "avgPoints", operator: "gte", value: 200 },
+      { metric: "avgVolume", operator: "gte", value: 15 },
+      { metric: "avgProfit", operator: "gte", value: 20 }
+    ]
   }
 ];
 
@@ -72,15 +99,19 @@ export async function GET() {
     const collection = db.collection("badge_rules");
 
     // Fetch existing rules
-    const rules = await collection.find({}).toArray();
+    let rules = await collection.find({}).toArray();
 
-    if (rules.length === 0) {
-      // Initialize default rules
-      await collection.insertMany(DEFAULT_RULES as any);
-      return NextResponse.json({ success: true, rules: DEFAULT_RULES });
+    // Check if any default rules are missing (e.g. Final Winner added later)
+    const missingRules = DEFAULT_RULES.filter(
+      (defRule) => !rules.some((rule) => String(rule._id) === String(defRule._id))
+    );
+
+    if (missingRules.length > 0) {
+      await collection.insertMany(missingRules as any);
+      // Refetch after inserting
+      rules = await collection.find({}).toArray();
     }
 
-    // Map _id to clean rules
     return NextResponse.json({ success: true, rules });
   } catch (error: any) {
     console.error("GET Badge Rules Error:", error);
@@ -99,7 +130,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { _id, points, metric, operator, value, nextEvaluationTime, description, conditions } = body;
+    const { _id, points, metric, operator, value, nextEvaluationTime, description, conditions, icon, cashPrize } = body;
 
     if (!_id) {
       return NextResponse.json({ success: false, error: "Badge ID required" }, { status: 400 });
@@ -115,7 +146,9 @@ export async function POST(request: Request) {
       operator,
       value: Number(value ?? 0),
       nextEvaluationTime,
-      description
+      description,
+      icon: icon || "shield_green",
+      cashPrize: cashPrize || ""
     };
 
     if (Array.isArray(conditions)) {

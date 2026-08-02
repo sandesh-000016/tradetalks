@@ -28,8 +28,10 @@ import {
   Download,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Trophy
 } from "lucide-react";
+import { renderBadgeIcon } from "@/components/BadgeIcons";
 
 interface Trader {
   _id: string;
@@ -52,7 +54,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch" | "registrations">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch" | "registrations" | "promoted">("overview");
 
   // State for traders data
   const [traders, setTraders] = useState<Trader[]>([]);
@@ -75,6 +77,20 @@ export default function AdminPage() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalPeriod, setEvalPeriod] = useState("");
   const [awardingTraderId, setAwardingTraderId] = useState<string | null>(null);
+
+  // Global settings state
+  const [globalSettings, setGlobalSettings] = useState({
+    minVolumePer100NetDeposits: 0.6,
+    minEquityForWashout: 1.0,
+  });
+  const [savingGlobalSettings, setSavingGlobalSettings] = useState(false);
+
+  // Winner promotions state
+  const [winnerPromotions, setWinnerPromotions] = useState<any[]>([]);
+  const [loadingWinners, setLoadingWinners] = useState(false);
+  const [editingWinner, setEditingWinner] = useState<any | null>(null);
+  const [savingWinner, setSavingWinner] = useState(false);
+  const [isAwardingAll, setIsAwardingAll] = useState(false);
 
   // Manual Award states
   const [manualAward, setManualAward] = useState({
@@ -104,6 +120,10 @@ export default function AdminPage() {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loadingRegistrations, setLoadingRegistrations] = useState(false);
   const [regSearchQuery, setRegSearchQuery] = useState("");
+
+  // Cron History state
+  const [cronHistory, setCronHistory] = useState<any[]>([]);
+  const [loadingCronHistory, setLoadingCronHistory] = useState(false);
 
   // Check auth status on mount
   useEffect(() => {
@@ -178,6 +198,27 @@ export default function AdminPage() {
   };
 
 
+  const fetchCronHistory = async () => {
+    setLoadingCronHistory(true);
+    try {
+      const res = await fetch("/api/admin/cron-history");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCronHistory(data.logs);
+      }
+    } catch (err) {
+      console.error("Error fetching cron history:", err);
+    } finally {
+      setLoadingCronHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "overview" && isAuthenticated) {
+      fetchCronHistory();
+    }
+  }, [activeTab, isAuthenticated]);
+
   const checkAuth = async () => {
     try {
       const res = await fetch("/api/admin/login");
@@ -186,6 +227,9 @@ export default function AdminPage() {
         setIsAuthenticated(true);
         fetchData();
         fetchBadgesData();
+        fetchGlobalSettings();
+        fetchWinnerPromotions();
+        fetchCronHistory();
       } else {
         setIsAuthenticated(false);
       }
@@ -208,6 +252,9 @@ export default function AdminPage() {
         setIsAuthenticated(true);
         fetchData();
         fetchBadgesData();
+        fetchGlobalSettings();
+        fetchWinnerPromotions();
+        fetchCronHistory();
       } else {
         setLoginError(data.error || "Invalid password");
       }
@@ -424,9 +471,14 @@ export default function AdminPage() {
     setErrorMsg("");
     setSuccessMsg("");
     try {
-      const firstCond = editingRule.conditions?.[0] || { metric: "profit", operator: "gte", value: 0 };
+      const parsedConditions = (editingRule.conditions || []).map((cond: any) => ({
+        ...cond,
+        value: Number(cond.value ?? 0),
+      }));
+      const firstCond = parsedConditions[0] || { metric: "profit", operator: "gte", value: 0 };
       const payload = {
         ...editingRule,
+        conditions: parsedConditions,
         metric: firstCond.metric,
         operator: firstCond.operator,
         value: firstCond.value,
@@ -586,6 +638,189 @@ export default function AdminPage() {
     }
   };
 
+  const fetchGlobalSettings = async () => {
+    try {
+      const res = await fetch("/api/admin/global-settings");
+      const data = await res.json();
+      if (res.ok && data.success && data.settings) {
+        setGlobalSettings({
+          minVolumePer100NetDeposits: Number(data.settings.minVolumePer100NetDeposits ?? 0.6),
+          minEquityForWashout: Number(data.settings.minEquityForWashout ?? 1.0),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load global settings in admin:", err);
+    }
+  };
+
+  const handleSaveGlobalSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingGlobalSettings(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch("/api/admin/global-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(globalSettings),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to update global settings.");
+      setSuccessMsg("Global eligibility rules updated successfully! Leaderboard caches invalidated.");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to save global settings.");
+    } finally {
+      setSavingGlobalSettings(false);
+    }
+  };
+
+  const fetchWinnerPromotions = async () => {
+    setLoadingWinners(true);
+    try {
+      const res = await fetch("/api/promoted-winners");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWinnerPromotions(data.winners || []);
+      }
+    } catch (err) {
+      console.error("Failed to load winner promotions:", err);
+    } finally {
+      setLoadingWinners(false);
+    }
+  };
+
+  const handleSaveWinner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWinner) return;
+    setSavingWinner(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const isEdit = !!editingWinner._id;
+      const url = "/api/promoted-winners";
+      const method = isEdit ? "PUT" : "POST";
+      
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingWinner),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to save winner promotion.");
+      setSuccessMsg(isEdit ? "Winner promotion updated successfully!" : "Winner promotion created successfully!");
+      setEditingWinner(null);
+      await fetchWinnerPromotions();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to save winner.");
+    } finally {
+      setSavingWinner(false);
+    }
+  };
+
+  const handleToggleWinnerEnabled = async (id: string, currentlyEnabled: boolean) => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch("/api/promoted-winners", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          _id: id,
+          enabled: !currentlyEnabled,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to toggle winner visibility.");
+      setSuccessMsg("Winner visibility updated!");
+      await fetchWinnerPromotions();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to toggle status.");
+    }
+  };
+
+  const handleDeleteWinner = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this winner promotion?")) return;
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch(`/api/promoted-winners?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to delete winner promotion.");
+      setSuccessMsg("Winner promotion deleted successfully.");
+      await fetchWinnerPromotions();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to delete winner.");
+    }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (editingWinner) {
+        setEditingWinner({ ...editingWinner, photo: reader.result as string });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAwardAllProposed = async () => {
+    if (!evaluatingBadge || !evalPeriod || proposedWinners.length === 0) return;
+    
+    const pendingWinners = proposedWinners.filter((w) => {
+      return !awardedBadges.some(
+        (ab) => ab.traderId === String(w.id) && ab.badgeName === evaluatingBadge && ab.period === evalPeriod && ab.approved
+      );
+    });
+
+    if (pendingWinners.length === 0) {
+      setSuccessMsg("All proposed winners are already approved & awarded.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to approve & award badges to all ${pendingWinners.length} pending candidates?`)) {
+      return;
+    }
+
+    setIsAwardingAll(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const w of pendingWinners) {
+      try {
+        const res = await fetch("/api/admin/award-badge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            traderId: String(w.id),
+            traderName: w.name,
+            badgeName: evaluatingBadge,
+            points: proposedRule?.points || 0,
+            period: evalPeriod,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    setSuccessMsg(`Batch award complete: Successfully awarded ${successCount} badges. ${failCount > 0 ? `Failed: ${failCount}` : ""}`);
+    await fetchBadgesData();
+    setIsAwardingAll(false);
+  };
+
   // Calculations for stats
   const totalRegistered = traders.length;
   const totalNetDeposits = traders.reduce((acc, t) => acc + (t.totalNetDeposits || 0), 0);
@@ -742,6 +977,23 @@ export default function AdminPage() {
                 {registrations.length || ""}
               </span>
             </button>
+            <button
+              onClick={() => {
+                setActiveTab("promoted");
+                fetchWinnerPromotions();
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                activeTab === "promoted"
+                  ? "bg-brand-600/15 text-brand-400 border border-brand-500/25"
+                  : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+              }`}
+            >
+              <Trophy className="w-5 h-5 text-brand-450" />
+              Promoted Winners
+              <span className="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full">
+                {winnerPromotions.length || ""}
+              </span>
+            </button>
           </nav>
         </div>
 
@@ -827,11 +1079,11 @@ export default function AdminPage() {
 
             </div>
 
-            {/* Quick Actions */}
-            <div className="max-w-2xl">
+            {/* Sync Controls & Cron History */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* Force API Sync */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between h-full">
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Database className="w-5 h-5 text-brand-400" />
@@ -844,11 +1096,72 @@ export default function AdminPage() {
                 <button
                   onClick={handleSync}
                   disabled={syncing}
-                  className="w-full sm:w-auto self-start px-6 py-3 bg-brand-600 hover:bg-brand-500 disabled:bg-slate-800 text-white font-medium rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full sm:w-auto self-start px-6 py-3 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-800 text-white font-medium rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
                   {syncing ? "Synchronizing Data..." : "Force Real-Time Sync"}
                 </button>
+              </div>
+
+              {/* Cron History Log */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-indigo-400" />
+                    <h3 className="font-bold text-white text-lg">Cron Sync Logs</h3>
+                  </div>
+                  <button
+                    onClick={fetchCronHistory}
+                    disabled={loadingCronHistory}
+                    className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                    title="Refresh Cron History"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loadingCronHistory ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto max-h-[220px] pr-1 space-y-2">
+                  {loadingCronHistory && cronHistory.length === 0 ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-brand-500"></div>
+                      <span className="text-slate-500 text-xs">Fetching history...</span>
+                    </div>
+                  ) : cronHistory.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500 text-xs">
+                      No automated cron job executions recorded yet.
+                    </div>
+                  ) : (
+                    cronHistory.map((log: any, idx: number) => (
+                      <div key={log._id || idx} className="flex items-center justify-between p-3 bg-slate-950/45 border border-slate-850 rounded-xl hover:border-slate-800 transition-all">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              log.status === "success" 
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/15" 
+                                : "bg-rose-500/10 text-rose-450 border border-rose-500/15"
+                            }`}>
+                              {log.status.toUpperCase()}
+                            </span>
+                            {log.status === "success" && (
+                              <span className="text-slate-400 text-[10px]">
+                                Synced {log.syncedCount ?? 0} traders
+                              </span>
+                            )}
+                          </div>
+                          {log.error && (
+                            <span className="text-rose-405 text-[10px] block font-mono max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap" title={log.error}>
+                              {log.error}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-slate-500 text-[10px] font-mono">
+                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{" "}
+                          {new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: '2-digit' })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
             </div>
@@ -1036,6 +1349,53 @@ export default function AdminPage() {
               <p className="text-slate-400 text-sm mt-1">Configure challenge parameters, run evaluations, and approve badge awards</p>
             </div>
 
+            {/* Global Eligibility Config Card */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-brand-400" />
+                <h3 className="font-bold text-white text-lg">Global Badge Eligibility Rules</h3>
+              </div>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Configure global requirements for challenge badges. Changing these settings invalidates the leaderboard cache immediately.
+              </p>
+
+              <form onSubmit={handleSaveGlobalSettings} className="grid grid-cols-1 sm:grid-cols-3 items-end gap-4">
+                <div>
+                  <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                    Min Volume Standard (Lots per $100 net deposits)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={globalSettings.minVolumePer100NetDeposits}
+                    onChange={(e) => setGlobalSettings({ ...globalSettings, minVolumePer100NetDeposits: Number(e.target.value) })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-350 text-xs font-bold uppercase tracking-wider mb-2">
+                    Washout Equity Threshold (USD)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={globalSettings.minEquityForWashout}
+                    onChange={(e) => setGlobalSettings({ ...globalSettings, minEquityForWashout: Number(e.target.value) })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingGlobalSettings}
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-850 disabled:text-slate-500 text-white font-semibold text-xs rounded-xl shadow-lg transition-all cursor-pointer h-10"
+                >
+                  {savingGlobalSettings ? "Saving Settings..." : "Save Eligibility Settings"}
+                </button>
+              </form>
+            </div>
+
             {/* Evaluation Results Panel */}
             {evaluatingBadge && (
               <div className="bg-slate-900 border border-brand-500/20 shadow-brand-500/5 rounded-2xl p-6 relative overflow-hidden shadow-2xl animate-slideDown">
@@ -1060,9 +1420,9 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {/* Period Setting */}
-                <div className="flex flex-col sm:flex-row items-end gap-4 mb-6 bg-slate-950/40 p-4 border border-slate-800 rounded-xl max-w-xl">
-                  <div className="flex-1 w-full">
+                {/* Period Setting & Batch Actions */}
+                <div className="flex flex-col sm:flex-row items-end gap-4 mb-6 bg-slate-950/40 p-4 border border-slate-800 rounded-xl">
+                  <div className="flex-1 w-full max-w-xs">
                     <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-brand-400" />
                       Evaluation Period Key (e.g. Month, Week, or Season)
@@ -1075,14 +1435,27 @@ export default function AdminPage() {
                       placeholder="e.g. 2026-M07, 2026-W30, Season 1"
                     />
                   </div>
-                  <button
-                    onClick={() => handleEvaluateBadge(evaluatingBadge)}
-                    disabled={isEvaluating}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 text-sm font-semibold rounded-lg border border-slate-700 hover:border-slate-600 transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isEvaluating ? "animate-spin" : ""}`} />
-                    Re-evaluate
-                  </button>
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      onClick={() => handleEvaluateBadge(evaluatingBadge)}
+                      disabled={isEvaluating}
+                      className="px-4 py-2.5 bg-slate-850 hover:bg-slate-800 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 hover:border-slate-650 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isEvaluating ? "animate-spin" : ""}`} />
+                      Re-evaluate
+                    </button>
+                    
+                    {proposedWinners.length > 0 && (
+                      <button
+                        onClick={handleAwardAllProposed}
+                        disabled={isAwardingAll}
+                        className="px-4 py-2.5 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-800 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-brand-600/10"
+                      >
+                        <Check className="w-4 h-4" />
+                        {isAwardingAll ? "Awarding All..." : "Approve & Award All Candidates"}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Winners list */}
@@ -1115,6 +1488,10 @@ export default function AdminPage() {
                           else if (proposedRule?.metric === "volume") metricVal = `${(w.volume ?? 0).toFixed(2)} Lots`;
                           else if (proposedRule?.metric === "settledRebates") metricVal = `$${(w.settledRebates ?? 0).toFixed(2)}`;
                           else if (proposedRule?.metric === "totalBalance") metricVal = `$${(w.totalBalance ?? 0).toFixed(2)}`;
+                          else if (proposedRule?.metric === "points") metricVal = `${w.totalPoints ?? 0} Points`;
+                          else if (proposedRule?.metric === "avgPoints") metricVal = `${((w.totalPoints ?? 0) / 6).toFixed(1)} Pts/mo`;
+                          else if (proposedRule?.metric === "avgVolume") metricVal = `${((w.volume ?? 0) / 6).toFixed(2)} Lots/mo`;
+                          else if (proposedRule?.metric === "avgProfit") metricVal = `${((w.profit ?? 0) / 6).toFixed(2)}%/mo`;
                           
                           const isAwarded = awardedBadges.some(
                             (ab) => ab.traderId === String(w.id) && ab.badgeName === evaluatingBadge && ab.period === evalPeriod && ab.approved
@@ -1166,6 +1543,8 @@ export default function AdminPage() {
                           description: "",
                           conditions: [{ metric: "profit", operator: "gte", value: 0 }],
                           nextEvaluationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                          icon: "shield_green",
+                          cashPrize: "",
                           isNew: true
                         });
                       }}
@@ -1181,14 +1560,24 @@ export default function AdminPage() {
                 <div className="space-y-4">
                   {badgeRules.map((rule) => (
                     <div key={rule._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all flex flex-col md:flex-row justify-between md:items-center gap-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-white text-base">{rule._id}</h3>
-                          <span className="bg-slate-800 text-brand-450 text-xs px-2 py-0.5 rounded border border-brand-500/20 font-bold">
-                            +{rule.points} Points
-                          </span>
+                      <div className="flex items-start gap-3">
+                        <div className="shrink-0 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                          {renderBadgeIcon(rule.icon || rule._id, "w-10 h-10")}
                         </div>
-                        <p className="text-slate-400 text-xs leading-relaxed max-w-md">{rule.description}</p>
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-bold text-white text-base">{rule._id}</h3>
+                            <span className="bg-slate-800 text-brand-450 text-xs px-2 py-0.5 rounded border border-brand-500/20 font-bold">
+                              +{rule.points} Points
+                            </span>
+                            {rule.cashPrize && (
+                              <span className="bg-emerald-950 text-emerald-400 text-xs px-2 py-0.5 rounded border border-emerald-500/20 font-bold flex items-center gap-0.5">
+                                <DollarSign className="w-3 h-3" />
+                                {rule.cashPrize} Prize
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-400 text-xs leading-relaxed max-w-md">{rule.description}</p>
                         
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 text-slate-500 text-xs">
                           <span className="flex items-center gap-1">
@@ -1210,6 +1599,7 @@ export default function AdminPage() {
                           </span>
                         </div>
                       </div>
+                    </div>
 
                       <div className="flex items-center gap-2 self-end md:self-center">
                         <button
@@ -1440,6 +1830,7 @@ export default function AdminPage() {
                         <th className="px-6 py-4 text-right">Profit ROI</th>
                         <th className="px-6 py-4 text-center">Registration</th>
                         <th className="px-6 py-4 text-center">Status</th>
+                        <th className="px-6 py-4 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-850">
@@ -1495,6 +1886,27 @@ export default function AdminPage() {
                                   Active
                                 </span>
                               )}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <button
+                                onClick={() => {
+                                  setEditingWinner({
+                                    name: trader.name || "",
+                                    challengeName: "Weekly Challenge Winner",
+                                    description: "",
+                                    rank: 1,
+                                    profit: trader.profit !== undefined ? `${trader.profit >= 0 ? "+" : ""}${trader.profit.toFixed(2)}%` : "",
+                                    photo: "",
+                                    clientId: trader.id || "",
+                                    enabled: true
+                                  });
+                                  setActiveTab("promoted");
+                                }}
+                                className="px-3 py-1.5 bg-brand-600 hover:bg-brand-550 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 mx-auto shadow-md cursor-pointer"
+                              >
+                                <Trophy className="w-3 h-3" />
+                                Promote as Winner
+                              </button>
                             </td>
                           </tr>
                         );
@@ -1709,6 +2121,287 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* PROMOTED WINNERS TAB */}
+        {activeTab === "promoted" && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+                  <Trophy className="w-7 h-7 text-brand-400" />
+                  Promoted Winners Showcase
+                </h1>
+                <p className="text-slate-400 text-sm mt-1">Feature outstanding challenge winners directly on the storefront pages</p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingWinner({
+                    name: "",
+                    challengeName: "Weekly Challenge Winner",
+                    description: "",
+                    rank: 1,
+                    profit: "",
+                    photo: "",
+                    clientId: "",
+                    enabled: true
+                  });
+                }}
+                className="px-4 py-2.5 bg-brand-600 hover:bg-brand-550 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-brand-600/10"
+              >
+                <Plus className="w-4 h-4" />
+                Add Featured Winner
+              </button>
+            </div>
+
+            {/* Winners Grid */}
+            {loadingWinners ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-500"></div>
+                <span className="text-slate-400 text-sm">Loading winners showcase...</span>
+              </div>
+            ) : winnerPromotions.length === 0 ? (
+              <div className="py-20 text-center bg-slate-900 border border-slate-800 rounded-2xl">
+                <Trophy className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+                <h3 className="text-slate-350 font-bold text-lg">No promoted winners yet</h3>
+                <p className="text-slate-500 text-sm mt-1">Click the button to add a new winner promotion highlight.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {winnerPromotions.map((winner) => (
+                  <div key={winner._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between hover:border-slate-700 transition-all shadow-xl">
+                    
+                    {/* Status Toggle & Action Controls */}
+                    <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-800/60">
+                      <button
+                        onClick={() => handleToggleWinnerEnabled(winner._id, winner.enabled)}
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border transition-all cursor-pointer ${
+                          winner.enabled
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-slate-800 text-slate-500 border-slate-700"
+                        }`}
+                      >
+                        {winner.enabled ? "Visible" : "Hidden"}
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setEditingWinner({ ...winner })}
+                          className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-all cursor-pointer"
+                          title="Edit Winner Detail"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteWinner(winner._id)}
+                          className="p-1 bg-rose-950/20 hover:bg-rose-900/40 text-rose-400 rounded transition-all cursor-pointer"
+                          title="Delete Showcase Card"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      {/* Avatar Image + Info */}
+                      <div className="flex items-center gap-4 mb-4">
+                        {winner.photo ? (
+                          <img
+                            src={winner.photo}
+                            alt={winner.name}
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-700 bg-slate-950 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-850 flex items-center justify-center text-slate-500 font-bold shrink-0">
+                            {winner.name.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-white text-sm">{winner.name}</h4>
+                          <p className="text-[10px] text-slate-400">{winner.challengeName}</p>
+                          <div className="flex gap-2 mt-1">
+                            <span className="text-[9px] font-bold text-amber-400 bg-amber-500/5 px-1 rounded">Rank: {winner.rank || "1"}</span>
+                            {winner.profit && <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/5 px-1 rounded">{winner.profit}</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Description / Review Quote */}
+                      <p className="text-xs text-slate-300 italic bg-slate-950/30 p-3 rounded-xl border border-slate-800/40 mt-2">
+                        &ldquo;{winner.description}&rdquo;
+                      </p>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* EDIT WINNER MODAL */}
+            {editingWinner && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+                <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl relative">
+                  
+                  <button
+                    onClick={() => setEditingWinner(null)}
+                    className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-all cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    {editingWinner._id ? "Edit Winner Details" : "Create Featured Winner"}
+                  </h3>
+                  <p className="text-slate-400 text-xs mb-6">
+                    Enter the details and upload a photo to highlight this trader on the public storefront showcase.
+                  </p>
+
+                  <form onSubmit={handleSaveWinner} className="space-y-4">
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                        Winner Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editingWinner.name}
+                        onChange={(e) => setEditingWinner({ ...editingWinner, name: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                        placeholder="e.g. Adarsh Kumar"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                        External Client ID
+                      </label>
+                      <input
+                        type="text"
+                        value={editingWinner.clientId || ""}
+                        onChange={(e) => setEditingWinner({ ...editingWinner, clientId: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                        placeholder="e.g. f02611... or 420556..."
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                          Challenge Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={editingWinner.challengeName}
+                          onChange={(e) => setEditingWinner({ ...editingWinner, challengeName: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                          placeholder="e.g. Weekly Challenge"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                          Profit / ROI
+                        </label>
+                        <input
+                          type="text"
+                          value={editingWinner.profit || ""}
+                          onChange={(e) => setEditingWinner({ ...editingWinner, profit: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                          placeholder="e.g. +145% or 40.5 Lots"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                          Rank Key
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={editingWinner.rank}
+                          onChange={(e) => setEditingWinner({ ...editingWinner, rank: Number(e.target.value) })}
+                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                          Visible on storefront
+                        </label>
+                        <select
+                          value={editingWinner.enabled ? "true" : "false"}
+                          onChange={(e) => setEditingWinner({ ...editingWinner, enabled: e.target.value === "true" })}
+                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                        >
+                          <option value="true">Yes, show on website</option>
+                          <option value="false">No, hide for now</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                        Winner Image (Photo Upload)
+                      </label>
+                      <div className="flex items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        {editingWinner.photo ? (
+                          <img
+                            src={editingWinner.photo}
+                            alt="preview"
+                            className="w-12 h-12 rounded-lg object-cover border border-slate-800"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-slate-850 flex items-center justify-center text-slate-550 text-xs font-bold border border-dashed border-slate-700">
+                            No Pic
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePhotoUpload}
+                            className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-brand-600/20 file:text-brand-400 hover:file:bg-brand-600/30 cursor-pointer"
+                          />
+                          <span className="text-[9px] text-slate-500 block mt-1">Max upload 2MB. Square image works best.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                        Quote / Review / Description
+                      </label>
+                      <textarea
+                        required
+                        value={editingWinner.description}
+                        onChange={(e) => setEditingWinner({ ...editingWinner, description: e.target.value })}
+                        rows={3}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs leading-relaxed"
+                        placeholder="Describe the winner's journey, ROI success, or feedback quotes..."
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setEditingWinner(null)}
+                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition-all cursor-pointer text-xs font-bold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingWinner}
+                        className="flex-1 py-3 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-850 text-white font-medium rounded-xl shadow-lg transition-all cursor-pointer text-xs font-bold"
+                      >
+                        {savingWinner ? "Saving..." : "Save Showcase Card"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
 
       {/* EDIT DEPOSIT MODAL */}
@@ -1832,12 +2525,18 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* EDIT RULE MODAL */}
       {editingRule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl relative">
+        <div 
+          onClick={() => setEditingRule(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+          >
             
             <button
+              type="button"
               onClick={() => setEditingRule(null)}
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-all cursor-pointer"
             >
@@ -1871,18 +2570,69 @@ export default function AdminPage() {
                   />
                 </div>
               )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                    Points Allocated
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={editingRule.points}
+                    onChange={(e) => setEditingRule({ ...editingRule, points: Number(e.target.value) })}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                    placeholder="e.g. 50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                    Cash Prize (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={editingRule.cashPrize || ""}
+                    onChange={(e) => setEditingRule({ ...editingRule, cashPrize: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                    placeholder="e.g. $500"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
-                  Points Allocated
+                  Select Badge Icon
                 </label>
-                <input
-                  type="number"
-                  required
-                  value={editingRule.points}
-                  onChange={(e) => setEditingRule({ ...editingRule, points: Number(e.target.value) })}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                  placeholder="e.g. 50"
-                />
+                <div className="grid grid-cols-6 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  {[
+                    { id: "medal_gold" },
+                    { id: "shield_green" },
+                    { id: "shield_blue" },
+                    { id: "shield_orange" },
+                    { id: "clock_purple" },
+                    { id: "shield_purple_trophy" },
+                    { id: "shield_blue_chart" },
+                    { id: "shield_gold_crown" },
+                    { id: "hexagon_teal_group" },
+                    { id: "shield_red_fire" },
+                    { id: "shield_green_check" },
+                    { id: "medal_silver_star" },
+                    { id: "trophy" }
+                  ].map((badgeIcon) => (
+                    <button
+                      key={badgeIcon.id}
+                      type="button"
+                      onClick={() => setEditingRule({ ...editingRule, icon: badgeIcon.id })}
+                      className={`p-1.5 rounded-lg border-2 transition-all flex items-center justify-center cursor-pointer ${
+                        editingRule.icon === badgeIcon.id || (!editingRule.icon && badgeIcon.id === "shield_green")
+                          ? "border-brand-500 bg-brand-500/10 scale-105"
+                          : "border-transparent bg-slate-900/40 hover:bg-slate-900/80"
+                      }`}
+                      title={badgeIcon.id}
+                    >
+                      {renderBadgeIcon(badgeIcon.id, "w-8 h-8")}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-4 border-t border-b border-slate-800 py-4 my-2">
@@ -1927,6 +2677,10 @@ export default function AdminPage() {
                               <option value="settledRebates">Settled Rebates ($)</option>
                               <option value="unsettledRebates">Unsettled Rebates ($)</option>
                               <option value="totalBalance">Current Balance ($)</option>
+                              <option value="points">Total Points</option>
+                              <option value="avgPoints">Average Points (6-Month)</option>
+                              <option value="avgVolume">Average Volume Lots (6-Month)</option>
+                              <option value="avgProfit">Average Profit ROI (6-Month)</option>
                             </select>
                           </div>
 
@@ -1957,17 +2711,16 @@ export default function AdminPage() {
                             Value
                           </label>
                           <input
-                            type="number"
-                            step="0.01"
+                            type="text"
                             required
-                            value={cond.value}
+                            value={cond.value ?? ""}
                             onChange={(e) => {
                               const updated = [...editingRule.conditions];
-                              updated[idx].value = Number(e.target.value);
+                              updated[idx].value = e.target.value;
                               setEditingRule({ ...editingRule, conditions: updated });
                             }}
                             className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/50"
-                            placeholder="e.g. 8.0"
+                            placeholder="e.g. 8.0 or -10"
                           />
                         </div>
                       </div>

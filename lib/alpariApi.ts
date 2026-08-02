@@ -339,6 +339,18 @@ export async function getIntegratedLeaderboard(
     if (useDb && mongoClient) {
       try {
         const db = mongoClient.db("tradetalks");
+        
+        // Fetch dynamic global settings
+        let minEquityThreshold = 1.0;
+        try {
+          const settings = await db.collection<any>("global_settings").findOne({ _id: "global_badge_eligibility" });
+          if (settings) {
+            minEquityThreshold = Number(settings.minEquityForWashout ?? 1.0);
+          }
+        } catch (settingsErr) {
+          console.error("[Leaderboard API] Failed to load global settings:", settingsErr);
+        }
+
         const tradersCol = db.collection<any>("traders");
         
         // Fetch current database state
@@ -403,7 +415,7 @@ export async function getIntegratedLeaderboard(
             totalNetDeposits = trader.mt_net_deposits;
           }
 
-          let isWashedOut = dbTrader.isWashedOut || (apiEquity <= 1.00);
+          let isWashedOut = dbTrader.isWashedOut || (apiEquity <= minEquityThreshold);
           
           // Detect new deposit
           if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
@@ -628,7 +640,7 @@ export async function getIntegratedLeaderboard(
     if (clientPromise) {
       const mongoClient = await clientPromise;
       const db = mongoClient.db("tradetalks");
-      dbBadgesList = await db.collection("awarded_badges").find({ approved: true }).toArray();
+      dbBadgesList = await db.collection<any>("awarded_badges").find({ approved: true }).toArray();
     }
   } catch (dbErr) {
     console.error("[Leaderboard API] Error loading badges from DB:", dbErr);
@@ -662,7 +674,7 @@ export async function getIntegratedLeaderboard(
     return {
       ...t,
       rank,
-      earnedBadges: Array.from(new Set(badgeInfo.badgeNames)), // unique badge names
+      earnedBadges: badgeInfo.badgeNames, // list of all earned badges including repetitions
       totalPoints: badgeInfo.points,
     };
   });
@@ -709,30 +721,110 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
           balance: dbTrader.lastRecordedBalance ?? 0
         };
       }
+
+      // 1b. Check api_cache leaderboard_data (contains all partner clients, registered or not)
+      const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
+      if (cacheDoc && Array.isArray(cacheDoc.traders)) {
+        const found = cacheDoc.traders.find((t: any) => {
+          const extId = t.external_client_id || t.clientId || t.id;
+          const numId = t.numeric_id || t.id;
+          return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
+        });
+        
+        if (found) {
+          console.log(`[Verify Direct] Client '${clientIdStr}' found in cached api_cache leaderboard_data. Writing to traders col...`);
+          
+          const extId = found.external_client_id || found.id || input;
+          const numId = found.numeric_id || found.id || 0;
+          const clientName = found.client_name || `Trader ${extId}`;
+          const balance = Number(found.total_balance ?? 0);
+
+          let minEquityThreshold = 1.0;
+          try {
+            const settings = await db.collection<any>("global_settings").findOne({ _id: "global_badge_eligibility" });
+            if (settings) {
+              minEquityThreshold = Number(settings.minEquityForWashout ?? 1.0);
+            }
+          } catch (settingsErr) {
+            console.error("[Verify Direct] Failed to load global settings:", settingsErr);
+          }
+
+          await db.collection<any>("traders").updateOne(
+            { _id: extId },
+            {
+              $set: {
+                clientId: extId,
+                numericId: Number(numId),
+                clientName,
+                totalNetDeposits: balance > 0 ? balance : 100,
+                lastRecordedBalance: balance,
+                isWashedOut: Number(found.total_equity ?? 0) <= minEquityThreshold,
+                isRegistered: true,
+                lastUpdated: new Date()
+              },
+              $setOnInsert: {
+                twrFactor: 1.0,
+                startingBalanceOfThisPeriod: balance > 0 ? balance : 100
+              }
+            },
+            { upsert: true }
+          );
+
+          // Clear the cache so they show up in the leaderboard
+          await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
+          memoryCache = null;
+
+          // Warm up cache in background
+          getIntegratedLeaderboard("monthly", false, true)
+            .then(() => console.log("[Verify Direct] Warmup cache build complete!"))
+            .catch((e) => console.error("[Verify Direct] Warmup cache build failed:", e));
+
+          return {
+            id: extId,
+            name: clientName,
+            balance
+          };
+        }
+      }
     } catch (err) {
       console.error("[Verify Direct] MongoDB lookup error:", err);
     }
   }
 
-  // 2. Fetch insights directly from Alpari API (only if not found or not registered in MongoDB)
-  console.log(`[Verify Direct] Client '${clientIdStr}' not registered in DB. Querying Alpari Insights API...`);
+  // 2. Fetch insights directly from Alpari API (only if not found in MongoDB or api_cache)
+  console.log(`[Verify Direct] Client '${clientIdStr}' not in DB or cache. Querying Alpari Insights API...`);
   
   const SEASON_START_DATE = "2025-10-01"; 
   const SEASON_END_DATE = "2026-12-30";
-  
-  const params: AlpariApiParams = {
-    RegistrationFromDate: formatDateForApi(SEASON_START_DATE),
-    RegistrationToDate: formatDateForApi(SEASON_END_DATE),
-    DirectPartner: getDirectPartnerId(),
-  };
 
-  try {
+  // Check recent range first to speed up API responses for new clients
+  const now = new Date();
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(now.getDate() - 60);
+  const recentStartDate = sixtyDaysAgo.toISOString().split("T")[0];
+  const recentEndDate = now.toISOString().split("T")[0];
+
+  const tryFetchAndVerify = async (startDate: string, endDate: string) => {
+    const params: AlpariApiParams = {
+      RegistrationFromDate: formatDateForApi(startDate),
+      RegistrationToDate: formatDateForApi(endDate),
+      DirectPartner: getDirectPartnerId(),
+    };
     const insights = await fetchClientInsights(params);
-    const foundInsight = insights.find((i: any) => {
+    return insights.find((i: any) => {
       const extId = i.external_client_id || i.externalClientId || i.clientId || i.id;
       const numId = i.id || i.clientId || i.client_id;
       return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
     });
+  };
+
+  try {
+    // Attempt fast query of recent registrations first
+    let foundInsight = await tryFetchAndVerify(recentStartDate, recentEndDate);
+    if (!foundInsight) {
+      console.log(`[Verify Direct] Client '${clientIdStr}' not found in recent 60-day range. Fetching full season...`);
+      foundInsight = await tryFetchAndVerify(SEASON_START_DATE, SEASON_END_DATE);
+    }
 
     if (foundInsight) {
       const extId = foundInsight.external_client_id || foundInsight.externalClientId || foundInsight.clientId || foundInsight.id || input;
@@ -745,6 +837,17 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
         try {
           const mongoClient = await clientPromise;
           const db = mongoClient.db("tradetalks");
+          
+          let minEquityThreshold = 1.0;
+          try {
+            const settings = await db.collection<any>("global_settings").findOne({ _id: "global_badge_eligibility" });
+            if (settings) {
+              minEquityThreshold = Number(settings.minEquityForWashout ?? 1.0);
+            }
+          } catch (settingsErr) {
+            console.error("[Verify Direct] Failed to load global settings:", settingsErr);
+          }
+
           await db.collection<any>("traders").updateOne(
             { _id: extId },
             {
@@ -754,7 +857,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientName,
                 totalNetDeposits: balance > 0 ? balance : 100,
                 lastRecordedBalance: balance,
-                isWashedOut: Number(foundInsight.total_equity ?? 0) <= 1.00,
+                isWashedOut: Number(foundInsight.total_equity ?? 0) <= minEquityThreshold,
                 isRegistered: true,
                 lastUpdated: new Date()
               },

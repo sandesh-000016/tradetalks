@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     const mongoClient = await clientPromise;
     const db = mongoClient.db("tradetalks");
-    const collection = db.collection("awarded_badges");
+    const collection = db.collection<any>("awarded_badges");
 
     // Standardize period if empty
     const awardPeriod = period || "Season 1";
@@ -75,7 +75,7 @@ export async function DELETE(request: Request) {
 
     const mongoClient = await clientPromise;
     const db = mongoClient.db("tradetalks");
-    const collection = db.collection("awarded_badges");
+    const collection = db.collection<any>("awarded_badges");
 
     await collection.deleteOne({ traderId, badgeName, period });
 

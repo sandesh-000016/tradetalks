@@ -56,6 +56,18 @@ export async function POST(request: Request) {
         case "totalBalance":
           traderValue = trader.totalBalance ?? 0;
           break;
+        case "points":
+          traderValue = trader.totalPoints ?? 0;
+          break;
+        case "avgPoints":
+          traderValue = (trader.totalPoints ?? 0) / 6;
+          break;
+        case "avgVolume":
+          traderValue = (trader.volume ?? 0) / 6;
+          break;
+        case "avgProfit":
+          traderValue = (trader.profit ?? 0) / 6;
+          break;
         default:
           traderValue = 0;
       }
@@ -77,13 +89,28 @@ export async function POST(request: Request) {
       }
     };
 
+    // Fetch global settings
+    let minVolumeRatio = 0.6;
+    if (clientPromise) {
+      try {
+        const mongoClient = await clientPromise;
+        const db = mongoClient.db("tradetalks");
+        const settings = await db.collection<any>("global_settings").findOne({ _id: "global_badge_eligibility" });
+        if (settings) {
+          minVolumeRatio = Number(settings.minVolumePer100NetDeposits ?? 0.6);
+        }
+      } catch (err) {
+        console.error("Failed to load global settings in evaluation:", err);
+      }
+    }
+
     // 3. Evaluate criteria
     const proposedWinners = traders.filter((t) => {
       // Disqualified traders cannot earn badges
       if (t.isWashedOut) return false;
 
-      // Must meet the volume standard rule: 0.6 lots per $100 net deposits to be eligible for badges
-      const requiredVolume = ((t.mtNetDeposits ?? 0) / 100) * 0.6;
+      // Must meet the volume standard rule: minVolumeRatio lots per $100 net deposits to be eligible for badges
+      const requiredVolume = ((t.mtNetDeposits ?? 0) / 100) * minVolumeRatio;
       if ((t.volume ?? 0) < requiredVolume) return false;
 
       // Special cases for rank-based badges
@@ -113,6 +140,7 @@ export async function POST(request: Request) {
         volume: t.volume,
         settledRebates: t.settledRebates,
         totalBalance: t.totalBalance,
+        totalPoints: t.totalPoints ?? 0,
         rank: t.rank
       }))
     });
