@@ -308,8 +308,8 @@ export default function AdminPage() {
   };
 
   // Fetch registered traders and merge with live leaderboard data
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     setErrorMsg("");
     try {
       // 1. Fetch DB list of registered traders (Extremely fast MongoDB query)
@@ -328,7 +328,7 @@ export default function AdminPage() {
         lastRecordedBalance: rt.lastRecordedBalance ?? 0
       }));
       setTraders(dbTraders);
-      setLoading(false); // Stop the spinner immediately!
+      if (!silent) setLoading(false); // Stop the spinner immediately!
 
       // 2. Fetch live metrics from leaderboard API in the background (slower HTTP API call)
       fetch("/api/leaderboard?timeframe=all")
@@ -359,7 +359,7 @@ export default function AdminPage() {
 
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to fetch data.");
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
