@@ -74,9 +74,20 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-12 border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-base text-slate-400">
-            &copy; {new Date().getFullYear()} Trade Talks. All rights reserved.
-          </p>
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+            <p className="text-sm text-slate-500">
+              &copy; {new Date().getFullYear()} Trade Talks. All rights reserved.
+            </p>
+            <div className="hidden md:block text-slate-700">|</div>
+            <div className="flex gap-4">
+              <Link href="/how-it-works" className="text-xs text-slate-500 hover:text-brand-450 transition-colors">
+                How it Works
+              </Link>
+              <Link href="/terms" className="text-xs text-slate-500 hover:text-brand-450 transition-colors">
+                Terms & Conditions
+              </Link>
+            </div>
+          </div>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a
               href="https://wa.me/919072722294"

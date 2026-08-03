@@ -94,6 +94,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
     condition: string;
     color: string;
     icon: React.ReactNode;
+    displayRules?: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +174,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       desc: badgeDesc,
       condition: badgeCondition,
       color: badge?.color || "hover:scale-110",
-      icon: renderBadgeIcon(matchedRule?.icon || cleanBadgeName, "w-12 h-12")
+      icon: renderBadgeIcon(matchedRule?.icon || cleanBadgeName, "w-12 h-12"),
+      displayRules: matchedRule?.displayRules
     });
   };
 
@@ -497,55 +499,47 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                <p className="text-slate-400 text-[10px] max-w-md mx-auto">Promoting our top traders who set milestones and challenge benchmarks</p>
              </div>
              
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {promotedWinners.map((winner, idx) => (
-                 <div key={winner._id || idx} className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between relative overflow-hidden backdrop-blur-sm hover:border-violet-500/30 transition-all duration-300 shadow-xl group">
-                   {/* Gold gradient shine top left */}
-                   <div className="absolute -top-16 -left-16 w-32 h-32 bg-violet-600/5 rounded-full blur-2xl group-hover:bg-violet-600/10 transition-all duration-500" />
-                   
-                   {/* Small gold crown badge in corner */}
-                   <div className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/35 rounded-full px-2.5 py-0.5 text-[9px] font-bold text-amber-400 flex items-center gap-1">
-                     👑 Rank {winner.rank || "1"}
-                   </div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto justify-items-center">
+                {promotedWinners.map((winner, idx) => (
+                  <div key={winner._id || idx} className="relative w-full max-w-[280px] aspect-[3/4] group">
+                    {/* Background Glow */}
+                    <div className="absolute -inset-0.5 bg-gradient-to-tr from-pink-500 via-purple-600 to-cyan-400 rounded-2xl blur opacity-45 group-hover:opacity-95 transition duration-500 group-hover:blur-md" />
+                    
+                    {/* Card Container */}
+                    <div className="relative w-full h-full bg-slate-950 rounded-2xl p-[1.5px] overflow-hidden flex flex-col justify-end">
+                      {/* Winner Photo Background */}
+                      {winner.photo ? (
+                        <img
+                          src={winner.photo}
+                          alt={winner.name}
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
+                          <Trophy className="w-16 h-16 text-slate-800/60" />
+                        </div>
+                      )}
 
-                   <div>
-                     {/* Winner Photo & Info */}
-                     <div className="flex items-center gap-4 mb-4">
-                       {winner.photo ? (
-                         <img
-                           src={winner.photo}
-                           alt={winner.name}
-                           className="w-14 h-14 rounded-2xl object-cover border-2 border-violet-500/20 bg-slate-950 shrink-0"
-                         />
-                       ) : (
-                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg border-2 border-violet-500/20 shrink-0">
-                           {winner.name.charAt(0)}
-                         </div>
-                       )}
-                       <div>
-                         <h3 className="font-bold text-white text-sm leading-tight group-hover:text-violet-300 transition-colors">{winner.name}</h3>
-                         <p className="text-[10px] text-slate-400 mt-0.5">{winner.challengeName}</p>
-                         {winner.profit && (
-                           <span className="text-[10px] font-bold text-emerald-400 mt-1 block">
-                             ROI: {winner.profit}
-                           </span>
-                         )}
-                       </div>
-                     </div>
+                      {/* Dark gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 
-                     {/* Winner Description / Review */}
-                     <blockquote className="text-slate-300 text-xs italic leading-relaxed bg-slate-950/40 p-3.5 rounded-2xl border border-slate-800/40 relative">
-                       <span className="text-xl text-violet-500/30 font-serif absolute -top-1 left-2 leading-none">“</span>
-                       <p className="pl-4 pr-1 text-[11px] text-slate-350">{winner.description}</p>
-                     </blockquote>
-                   </div>
-                 </div>
-               ))}
-             </div>
-           </div>
-         )}
+                      {/* Info overlay */}
+                      <div className="relative z-10 p-5 text-center">
+                        <h3 className="font-display font-black text-white text-base tracking-wider uppercase mb-1 group-hover:text-pink-300 transition-colors duration-300">
+                          {winner.name}
+                        </h3>
+                        <p className="text-[10px] font-bold text-cyan-400 tracking-widest uppercase">
+                          {winner.challengeName}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-         {/* Timeframe selector (centered) */}
+          {/* Timeframe selector (centered) */}
          <div className="flex justify-center mb-10">
           <div className="flex bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 backdrop-blur-sm shadow-inner">
             {(["all", "monthly", "weekly", "daily"] as const).map((t) => (
@@ -1121,9 +1115,17 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 <div className="text-[10px] text-slate-500 uppercase tracking-wider font-black">
                   Award Criteria & Conditions
                 </div>
-                <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                  {badge.condition}
-                </p>
+                {badge.displayRules && typeof badge.displayRules === 'string' && badge.displayRules.trim() !== '' ? (
+                  <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-200 font-medium leading-relaxed">
+                    {badge.displayRules.split('\n').map((b: string) => b.trim()).filter((b: string) => b !== '').map((bullet: string, idx: number) => (
+                      <li key={idx}>{bullet}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                    {badge.condition}
+                  </p>
+                )}
               </div>
 
               <button

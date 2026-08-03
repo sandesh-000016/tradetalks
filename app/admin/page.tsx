@@ -54,9 +54,13 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch" | "registrations" | "promoted">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch" | "registrations" | "promoted" | "pointsHistory">("overview");
 
   // State for traders data
+  const [pointsHistory, setPointsHistory] = useState<any[]>([]);
+  const [loadingPointsHistory, setLoadingPointsHistory] = useState(false);
+  const [refreshingPointsHistory, setRefreshingPointsHistory] = useState(false);
+  const [pointsSearchQuery, setPointsSearchQuery] = useState("");
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -213,9 +217,36 @@ export default function AdminPage() {
     }
   };
 
+  const fetchPointsHistory = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      setRefreshingPointsHistory(true);
+    } else {
+      setLoadingPointsHistory(true);
+    }
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch(`/api/admin/points-history?refresh=${forceRefresh}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to load points history.");
+      setPointsHistory(data.traders || []);
+      if (forceRefresh) {
+        setSuccessMsg("Points history refreshed successfully from live API!");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to fetch points history.");
+    } finally {
+      setLoadingPointsHistory(false);
+      setRefreshingPointsHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "overview" && isAuthenticated) {
       fetchCronHistory();
+    }
+    if (activeTab === "pointsHistory" && isAuthenticated) {
+      fetchPointsHistory();
     }
   }, [activeTab, isAuthenticated]);
 
@@ -230,6 +261,7 @@ export default function AdminPage() {
         fetchGlobalSettings();
         fetchWinnerPromotions();
         fetchCronHistory();
+        fetchPointsHistory();
       } else {
         setIsAuthenticated(false);
       }
@@ -255,6 +287,7 @@ export default function AdminPage() {
         fetchGlobalSettings();
         fetchWinnerPromotions();
         fetchCronHistory();
+        fetchPointsHistory();
       } else {
         setLoginError(data.error || "Invalid password");
       }
@@ -758,6 +791,22 @@ export default function AdminPage() {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validate type (JPG/JPEG only)
+    const isJpg = file.type === "image/jpeg" || file.name.toLowerCase().endsWith(".jpg") || file.name.toLowerCase().endsWith(".jpeg");
+    if (!isJpg) {
+      setErrorMsg("Only JPG/JPEG images are allowed.");
+      e.target.value = ""; // Clear file input
+      return;
+    }
+
+    // Validate size (< 100KB)
+    if (file.size >= 100 * 1024) {
+      setErrorMsg("Image size must be less than 100KB.");
+      e.target.value = ""; // Clear file input
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       if (editingWinner) {
@@ -993,6 +1042,20 @@ export default function AdminPage() {
               <span className="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full">
                 {winnerPromotions.length || ""}
               </span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("pointsHistory");
+                fetchPointsHistory();
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                activeTab === "pointsHistory"
+                  ? "bg-brand-600/15 text-brand-400 border border-brand-500/25"
+                  : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+              }`}
+            >
+              <Award className="w-5 h-5 text-amber-500" />
+              Points History
             </button>
           </nav>
         </div>
@@ -1541,6 +1604,7 @@ export default function AdminPage() {
                           _id: "",
                           points: 50,
                           description: "",
+                          displayRules: "",
                           conditions: [{ metric: "profit", operator: "gte", value: 0 }],
                           nextEvaluationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                           icon: "shield_green",
@@ -1572,7 +1636,7 @@ export default function AdminPage() {
                             </span>
                             {rule.cashPrize && (
                               <span className="bg-emerald-950 text-emerald-400 text-xs px-2 py-0.5 rounded border border-emerald-500/20 font-bold flex items-center gap-0.5">
-                                <DollarSign className="w-3 h-3" />
+                                <span className="font-semibold text-[10px]">₹</span>
                                 {rule.cashPrize} Prize
                               </span>
                             )}
@@ -1611,6 +1675,9 @@ export default function AdminPage() {
                                 operator: initialRule.operator || "gte",
                                 value: initialRule.value ?? 0
                               }];
+                            }
+                            if (!initialRule.displayRules) {
+                              initialRule.displayRules = "";
                             }
                             setEditingRule(initialRule);
                           }}
@@ -1895,7 +1962,6 @@ export default function AdminPage() {
                                     challengeName: "Weekly Challenge Winner",
                                     description: "",
                                     rank: 1,
-                                    profit: trader.profit !== undefined ? `${trader.profit >= 0 ? "+" : ""}${trader.profit.toFixed(2)}%` : "",
                                     photo: "",
                                     clientId: trader.id || "",
                                     enabled: true
@@ -2139,7 +2205,6 @@ export default function AdminPage() {
                     challengeName: "Weekly Challenge Winner",
                     description: "",
                     rank: 1,
-                    profit: "",
                     photo: "",
                     clientId: "",
                     enabled: true
@@ -2218,7 +2283,6 @@ export default function AdminPage() {
                           <p className="text-[10px] text-slate-400">{winner.challengeName}</p>
                           <div className="flex gap-2 mt-1">
                             <span className="text-[9px] font-bold text-amber-400 bg-amber-500/5 px-1 rounded">Rank: {winner.rank || "1"}</span>
-                            {winner.profit && <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/5 px-1 rounded">{winner.profit}</span>}
                           </div>
                         </div>
                       </div>
@@ -2281,32 +2345,18 @@ export default function AdminPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
-                          Challenge Name
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={editingWinner.challengeName}
-                          onChange={(e) => setEditingWinner({ ...editingWinner, challengeName: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
-                          placeholder="e.g. Weekly Challenge"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
-                          Profit / ROI
-                        </label>
-                        <input
-                          type="text"
-                          value={editingWinner.profit || ""}
-                          onChange={(e) => setEditingWinner({ ...editingWinner, profit: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
-                          placeholder="e.g. +145% or 40.5 Lots"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                        Challenge Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editingWinner.challengeName}
+                        onChange={(e) => setEditingWinner({ ...editingWinner, challengeName: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
+                        placeholder="e.g. Weekly Challenge"
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -2356,11 +2406,11 @@ export default function AdminPage() {
                         <div className="flex-1">
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/jpg"
                             onChange={handlePhotoUpload}
                             className="text-xs text-slate-400 file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-brand-600/20 file:text-brand-400 hover:file:bg-brand-600/30 cursor-pointer"
                           />
-                          <span className="text-[9px] text-slate-500 block mt-1">Max upload 2MB. Square image works best.</span>
+                          <span className="text-[9px] text-slate-500 block mt-1">Only JPG/JPEG images under 100KB allowed.</span>
                         </div>
                       </div>
                     </div>
@@ -2399,6 +2449,173 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* POINTS HISTORY TAB */}
+        {activeTab === "pointsHistory" && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+                  <Trophy className="w-7 h-7 text-amber-500" />
+                  Trader Points History
+                </h1>
+                <p className="text-slate-400 text-sm mt-1">
+                  Accrued point aggregates and badge breakdown per trader rankings
+                </p>
+              </div>
+              <button
+                onClick={() => fetchPointsHistory(true)}
+                disabled={loadingPointsHistory || refreshingPointsHistory}
+                className="px-4 py-2.5 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-800 text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-brand-600/10"
+              >
+                <RefreshCw className={`w-4 h-4 ${(loadingPointsHistory || refreshingPointsHistory) ? "animate-spin" : ""}`} />
+                {refreshingPointsHistory ? "Refreshing..." : "Refresh Points"}
+              </button>
+            </div>
+
+            {/* Search filter */}
+            <div className="relative w-full sm:w-96">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={pointsSearchQuery}
+                onChange={(e) => setPointsSearchQuery(e.target.value)}
+                placeholder="Search by trader name or ID..."
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all"
+              />
+            </div>
+
+            {/* Table of points */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              {loadingPointsHistory && pointsHistory.length === 0 ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-brand-500"></div>
+                  <span className="text-slate-400 text-sm">Loading points history...</span>
+                </div>
+              ) : (() => {
+                const filtered = pointsHistory.filter((t) => {
+                  const q = pointsSearchQuery.toLowerCase();
+                  return (
+                    (t.name || "").toLowerCase().includes(q) ||
+                    (t.clientId || "").toLowerCase().includes(q)
+                  );
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-20 text-center">
+                      <Trophy className="w-12 h-12 text-slate-650 mx-auto mb-3" />
+                      <h3 className="text-slate-350 font-bold text-lg">No points records found</h3>
+                      <p className="text-slate-500 text-sm mt-1">
+                        {pointsSearchQuery ? "Try refining your search query." : "No points accumulated yet. Award some badges!"}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider bg-slate-950/35">
+                          <th className="px-6 py-4 text-center w-20">Rank</th>
+                          <th className="px-6 py-4">Trader Info</th>
+                          <th className="px-6 py-4">Country</th>
+                          <th className="px-6 py-4 text-center">Badges Count</th>
+                          <th className="px-6 py-4">Earned Badges</th>
+                          <th className="px-6 py-4 text-right">ROI / Profit</th>
+                          <th className="px-6 py-4 text-right pr-8">Total Points</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {filtered.map((t) => (
+                          <tr key={t.clientId} className="hover:bg-slate-800/20 transition-all">
+                            {/* Rank */}
+                            <td className="px-6 py-4 text-center">
+                              <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
+                                t.pointsRank === 1
+                                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                  : t.pointsRank === 2
+                                  ? "bg-slate-300/20 text-slate-300 border border-slate-300/30"
+                                  : t.pointsRank === 3
+                                  ? "bg-amber-700/20 text-amber-600 border border-amber-700/30"
+                                  : "text-slate-400 bg-slate-950/30 border border-slate-800/50"
+                              }`}>
+                                #{t.pointsRank}
+                              </span>
+                            </td>
+
+                            {/* Info */}
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={t.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(t.name)}`}
+                                  alt={t.name}
+                                  className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700/50 shrink-0"
+                                />
+                                <div>
+                                  <span className="font-semibold text-white block text-sm">{t.name}</span>
+                                  <span className="text-slate-500 text-xs font-mono">ID: {t.clientId}</span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Country */}
+                            <td className="px-6 py-4">
+                              <span className="text-slate-300 text-sm">{t.country || "India"}</span>
+                            </td>
+
+                            {/* Badges count */}
+                            <td className="px-6 py-4 text-center">
+                              <span className="text-slate-200 font-bold bg-slate-950/40 px-2.5 py-1 rounded-lg border border-slate-805 text-xs">
+                                {t.earnedBadges.length}
+                              </span>
+                            </td>
+
+                            {/* Earned Badges */}
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-1.5 max-w-xs">
+                                {t.earnedBadges.length === 0 ? (
+                                  <span className="text-slate-550 text-xs italic">—</span>
+                                ) : (
+                                  t.earnedBadges.map((badgeName: string, index: number) => (
+                                    <span
+                                      key={index}
+                                      className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-semibold bg-brand-500/10 border border-brand-500/20 text-brand-400"
+                                    >
+                                      {renderBadgeIcon(badgeName, "w-3 h-3")}
+                                      {badgeName}
+                                    </span>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+
+                            {/* ROI */}
+                            <td className="px-6 py-4 text-right">
+                              <span className={`text-sm font-bold ${
+                                (t.profit ?? 0) > 0 ? "text-emerald-400" : (t.profit ?? 0) < 0 ? "text-rose-400" : "text-slate-400"
+                              }`}>
+                                {(t.profit ?? 0) > 0 ? "+" : ""}{(t.profit ?? 0).toFixed(2)}%
+                              </span>
+                            </td>
+
+                            {/* Total Points */}
+                            <td className="px-6 py-4 text-right pr-8">
+                              <span className="text-amber-400 font-extrabold text-base">
+                                {t.totalPoints} pts
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
@@ -2593,7 +2810,7 @@ export default function AdminPage() {
                     value={editingRule.cashPrize || ""}
                     onChange={(e) => setEditingRule({ ...editingRule, cashPrize: e.target.value })}
                     className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-xs"
-                    placeholder="e.g. $500"
+                    placeholder="e.g. ₹50,000"
                   />
                 </div>
               </div>
@@ -2754,6 +2971,19 @@ export default function AdminPage() {
                   value={editingRule.nextEvaluationTime ? new Date(new Date(editingRule.nextEvaluationTime).getTime() - new Date(editingRule.nextEvaluationTime).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
                   onChange={(e) => setEditingRule({ ...editingRule, nextEvaluationTime: new Date(e.target.value).toISOString() })}
                   className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                  Custom Bullet Rules (One per line)
+                </label>
+                <textarea
+                  value={editingRule.displayRules || ""}
+                  onChange={(e) => setEditingRule({ ...editingRule, displayRules: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-sm"
+                  placeholder="e.g.&#10;Average Points (6-Month) must be at least 200&#10;Average Volume (6-Month) must be at least 15 Lots&#10;Average Profit ROI (6-Month) must be at least 20%"
                 />
               </div>
 

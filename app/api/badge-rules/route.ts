@@ -14,7 +14,8 @@ const DEFAULT_RULES = [
     recurring: true,
     description: "Awarded to the top ranked trader each month.",
     icon: "medal_gold",
-    cashPrize: ""
+    cashPrize: "",
+    displayRules: "Achieve the absolute #1 rank in the monthly challenge leaderboard."
   },
   {
     _id: "Consistent Trader",
@@ -26,7 +27,8 @@ const DEFAULT_RULES = [
     recurring: false,
     description: "Awarded for consistent performance throughout the challenge.",
     icon: "shield_green",
-    cashPrize: ""
+    cashPrize: "",
+    displayRules: "Maintain a minimum activity level of 12 completed trades."
   },
   {
     _id: "Most Active Trader",
@@ -38,7 +40,8 @@ const DEFAULT_RULES = [
     recurring: false,
     description: "Awarded for highest active volume (settled + unsettled).",
     icon: "shield_blue",
-    cashPrize: ""
+    cashPrize: "",
+    displayRules: "Accumulate an aggregate volume (settled + unsettled) of 8.00 Lots or more."
   },
   {
     _id: "Trader of the Week",
@@ -50,7 +53,8 @@ const DEFAULT_RULES = [
     recurring: true,
     description: "Recognizing outstanding trading performance of the week.",
     icon: "shield_orange",
-    cashPrize: ""
+    cashPrize: "",
+    displayRules: "Secure a Top 3 rank in weekly standings."
   },
   {
     _id: "Best Risk Manager",
@@ -62,7 +66,8 @@ const DEFAULT_RULES = [
     recurring: false,
     description: "Awarded for excellent risk management and discipline.",
     icon: "shield_cyan",
-    cashPrize: ""
+    cashPrize: "",
+    displayRules: "Achieve a return above 12% with at least 10 trades."
   },
   {
     _id: "Final Winner",
@@ -74,12 +79,13 @@ const DEFAULT_RULES = [
     recurring: false,
     description: "The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!",
     icon: "trophy",
-    cashPrize: "$1000",
+    cashPrize: "₹85,000",
     conditions: [
       { metric: "avgPoints", operator: "gte", value: 200 },
       { metric: "avgVolume", operator: "gte", value: 15 },
       { metric: "avgProfit", operator: "gte", value: 20 }
-    ]
+    ],
+    displayRules: "Average Points (6-Month) must be at least 200\nAverage Volume (6-Month) must be at least 15 Lots\nAverage Profit ROI (6-Month) must be at least 20%"
   }
 ];
 
@@ -105,7 +111,20 @@ export async function GET() {
       rules = await collection.find({}).toArray();
     }
 
-    return NextResponse.json(rules);
+    // Merge default displayRules if not set in MongoDB
+    const mergedRules = rules.map(rule => {
+      const def = DEFAULT_RULES.find(d => String(d._id) === String(rule._id));
+      if (def) {
+        return {
+          ...def,
+          ...rule,
+          displayRules: rule.displayRules !== undefined ? rule.displayRules : (def.displayRules || "")
+        };
+      }
+      return rule;
+    });
+
+    return NextResponse.json(mergedRules);
   } catch (error: any) {
     console.error("GET Public Badge Rules Error:", error);
     return NextResponse.json(DEFAULT_RULES);

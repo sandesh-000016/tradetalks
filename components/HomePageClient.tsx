@@ -89,19 +89,19 @@ const BADGE_DETAILS: Record<string, {
 const challengeRules = [
   {
     num: 1,
-    icon: <DollarSign className="w-5 h-5" />,
+    icon: <span className="text-sm font-extrabold font-mono">₹</span>,
     color: "text-violet-400 border-violet-500/30 bg-violet-500/10",
     title: "Minimum Deposit",
-    value: "$100",
-    desc: "Minimum deposit required to start the challenge.",
+    value: "₹10,000",
+    desc: "Minimum deposit equivalent to start the challenge.",
   },
   {
     num: 2,
     icon: <Target className="w-5 h-5" />,
     color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
     title: "Starting Balance",
-    value: "$100",
-    desc: "Every participant will start with a $100 balance.",
+    value: "₹10,000",
+    desc: "Every participant account starts scaled from a ₹10,000 base.",
   },
   {
     num: 3,
@@ -339,6 +339,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
     condition: string;
     color: string;
     icon: React.ReactNode;
+    displayRules?: string;
   } | null>(null);
 
   const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
@@ -373,7 +374,8 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
         ? `Requires: ${translateConditionToHuman(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
         : (badge ? badge.condition : "No criteria defined."),
       color: badge ? badge.color : "hover:scale-110",
-      icon: renderBadgeIcon(matchedRule?.icon || matchedRule?._id || cleanBadgeName, "w-10 h-10")
+      icon: renderBadgeIcon(matchedRule?.icon || matchedRule?._id || cleanBadgeName, "w-10 h-10"),
+      displayRules: matchedRule?.displayRules
     });
   };
 
@@ -721,18 +723,24 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               </p>
 
               <div
-                className="flex flex-col sm:flex-row items-center gap-4 pt-4"
+                className="flex flex-col sm:flex-row items-center gap-3 pt-4"
                 style={{ animation: "fadeUpHeroDelayed 0.8s 0.35s ease-out both" }}
               >
                 <Link
                   href="/register"
-                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-base shadow-[0_0_30px_-5px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 hover:-translate-y-0.5"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-[0_0_30px_-5px_rgba(124,58,237,0.5)] transition-all flex items-center justify-center gap-2 hover:-translate-y-0.5"
                 >
                   Join the Challenge
                 </Link>
                 <Link
+                  href="/how-it-works"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 hover:border-slate-700"
+                >
+                  How it Works
+                </Link>
+                <Link
                   href="/leaderboard"
-                  className="w-full sm:w-auto px-8 py-4 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 text-white font-semibold text-base transition-all flex items-center justify-center gap-2 hover:border-slate-700"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-semibold text-sm transition-all flex items-center justify-center gap-2"
                 >
                   View Leaderboard
                   <ArrowRight className="w-4 h-4 text-violet-400" />
@@ -756,7 +764,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 />
 
                 {/* Floating Reward Card */}
-                <div className="absolute -bottom-4 right-4 bg-slate-900/90 border border-violet-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-bounce [animation-duration:4s]">
+                {/* <div className="absolute -bottom-4 right-4 bg-slate-900/90 border border-violet-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-bounce [animation-duration:4s]">
                   <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                     <Trophy className="w-5 h-5 fill-current" />
                   </div>
@@ -764,10 +772,10 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     <div className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Monthly Rewards</div>
                     <div className="text-lg font-bold font-display text-white">Rs 10,000+</div>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Floating Active Traders Card */}
-                <div className="absolute -top-4 -left-4 bg-slate-900/90 border border-blue-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3">
+                {/* <div className="absolute -top-4 -left-4 bg-slate-900/90 border border-blue-500/30 rounded-2xl p-4 shadow-2xl flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
                     <Users className="w-5 h-5" />
                   </div>
@@ -775,7 +783,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     <div className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Active Now</div>
                     <div className="text-lg font-bold font-display text-white">2,500+</div>
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
 
@@ -1108,9 +1116,17 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                             }`}>
                               Requirements to Qualify
                             </div>
-                            <p className="text-xs text-slate-200 leading-relaxed font-semibold">
-                              {translateConditionToHuman(rule) || rule.description}
-                            </p>
+                            {rule.displayRules && typeof rule.displayRules === 'string' && rule.displayRules.trim() !== '' ? (
+                              <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-200 font-semibold leading-relaxed">
+                                {rule.displayRules.split('\n').map((b: string) => b.trim()).filter((b: string) => b !== '').map((bullet: string, idx: number) => (
+                                  <li key={idx}>{bullet}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-slate-200 leading-relaxed font-semibold">
+                                {translateConditionToHuman(rule) || rule.description}
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
@@ -2666,9 +2682,17 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 <div className="text-[10px] text-slate-500 uppercase tracking-wider font-black">
                   Award Criteria & Conditions
                 </div>
-                <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                  {selectedBadge.condition}
-                </p>
+                {selectedBadge.displayRules && typeof selectedBadge.displayRules === 'string' && selectedBadge.displayRules.trim() !== '' ? (
+                  <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-200 font-medium leading-relaxed">
+                    {selectedBadge.displayRules.split('\n').map((b: string) => b.trim()).filter((b: string) => b !== '').map((bullet: string, idx: number) => (
+                      <li key={idx}>{bullet}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                    {selectedBadge.condition}
+                  </p>
+                )}
               </div>
 
               <button

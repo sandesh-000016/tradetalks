@@ -65,19 +65,19 @@ const BADGE_DETAILS: Record<string, {
 const challengeRules = [
   {
     num: 1,
-    icon: <DollarSign className="w-5 h-5" />,
+    icon: <span className="text-sm font-extrabold font-mono">₹</span>,
     color: "text-violet-400 border-violet-500/30 bg-violet-500/10",
     title: "Minimum Deposit",
-    value: "$100",
-    desc: "Minimum deposit required to start the challenge.",
+    value: "₹10,000",
+    desc: "Minimum deposit equivalent required to start the challenge.",
   },
   {
     num: 2,
     icon: <Target className="w-5 h-5" />,
     color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
     title: "Starting Balance",
-    value: "$100",
-    desc: "Every participant will start with a $100 balance.",
+    value: "₹10,000",
+    desc: "Every participant account starts scaled from a ₹10,000 base.",
   },
   {
     num: 3,
@@ -112,6 +112,7 @@ function RegisterContent() {
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
   const [verifiedClient, setVerifiedClient] = React.useState<any>(null);
   const [referralChecked, setReferralChecked] = React.useState(false);
+  const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(1);
   const [selectedVideoId, setSelectedVideoId] = React.useState("lmtgjAD18nE");
 
@@ -198,6 +199,7 @@ function RegisterContent() {
     condition: string;
     color: string;
     icon: React.ReactNode;
+    displayRules?: string;
   } | null>(null);
   const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
 
@@ -276,7 +278,8 @@ function RegisterContent() {
       desc: badgeDesc,
       condition: badgeCondition,
       color: badge?.color || "hover:scale-110",
-      icon: renderBadgeIcon(matchedRule?.icon || cleanBadgeName, "w-12 h-12")
+      icon: renderBadgeIcon(matchedRule?.icon || cleanBadgeName, "w-12 h-12"),
+      displayRules: matchedRule?.displayRules
     });
   };
 
@@ -295,6 +298,11 @@ function RegisterContent() {
     }
     if (!referralChecked) {
       setErrorMsg("You must check the box confirming you registered with referral ID 72725.");
+      setSuccessMsg(null);
+      return;
+    }
+    if (!termsAccepted) {
+      setErrorMsg("You must accept the Terms and Conditions and confirm you understand how the challenge works.");
       setSuccessMsg(null);
       return;
     }
@@ -450,6 +458,31 @@ function RegisterContent() {
                         />
                         <span className="leading-snug select-none">
                           I confirm that I have registered my Alpari account using referral ID <strong className="text-amber-400">72725</strong> to join in the challenge.
+                        </span>
+                      </label>
+
+                      <div className="border-t border-slate-800/80 my-2" />
+
+                      <label className="flex items-start gap-3 cursor-pointer group text-xs text-slate-355">
+                        <input
+                          type="checkbox"
+                          checked={termsAccepted}
+                          onChange={(e) => {
+                            setTermsAccepted(e.target.checked);
+                            setErrorMsg(null);
+                          }}
+                          className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-950 text-violet-600 focus:ring-violet-655 focus:ring-offset-slate-900 cursor-pointer"
+                        />
+                        <span className="leading-snug select-none">
+                          I have read and understood{" "}
+                          <Link href="/how-it-works" target="_blank" className="text-violet-400 hover:text-violet-300 underline font-semibold decoration-violet-400/30">
+                            how the challenge works
+                          </Link>{" "}
+                          and accept the{" "}
+                          <Link href="/terms" target="_blank" className="text-violet-400 hover:text-violet-300 underline font-semibold decoration-violet-400/30">
+                            Terms and Conditions
+                          </Link>{" "}
+                          of TradeTalks.
                         </span>
                       </label>
                     </div>
@@ -1067,9 +1100,17 @@ function RegisterContent() {
                 <div className="text-[10px] text-slate-500 uppercase tracking-wider font-black">
                   Award Criteria & Conditions
                 </div>
-                <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                  {selectedBadge.condition}
-                </p>
+                {selectedBadge.displayRules && typeof selectedBadge.displayRules === 'string' && selectedBadge.displayRules.trim() !== '' ? (
+                  <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-200 font-medium leading-relaxed">
+                    {selectedBadge.displayRules.split('\n').map((b: string) => b.trim()).filter((b: string) => b !== '').map((bullet: string, idx: number) => (
+                      <li key={idx}>{bullet}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                    {selectedBadge.condition}
+                  </p>
+                )}
               </div>
 
               <button
