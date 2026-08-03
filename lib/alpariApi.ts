@@ -335,7 +335,12 @@ export async function getIntegratedLeaderboard(
         
         // Fetch current database state
         const dbList = await tradersCol.find({}).toArray();
-        const dbMap = new Map(dbList.map((d: any) => [d.clientId || d._id, d]));
+        const dbMap = new Map<string, any>();
+        dbList.forEach((d: any) => {
+          if (d._id) dbMap.set(String(d._id).toLowerCase().trim(), d);
+          if (d.clientId) dbMap.set(String(d.clientId).toLowerCase().trim(), d);
+          if (d.numericId) dbMap.set(String(d.numericId).toLowerCase().trim(), d);
+        });
 
         // Ensure all registered traders from MongoDB are included in mergedMap
         dbList.forEach((dbTrader: any) => {
@@ -370,8 +375,10 @@ export async function getIntegratedLeaderboard(
         
         for (const key of Object.keys(mergedMap)) {
           const trader = mergedMap[key];
-          const clientId = trader.external_client_id || key;
-          const dbTrader = dbMap.get(clientId);
+          const keyLower = String(key).toLowerCase().trim();
+          const extLower = trader.external_client_id ? String(trader.external_client_id).toLowerCase().trim() : "";
+          const numLower = trader.numeric_id ? String(trader.numeric_id).toLowerCase().trim() : "";
+          const dbTrader = dbMap.get(extLower) || dbMap.get(keyLower) || dbMap.get(numLower);
           
           // Only sync and save if they are registered in our DB!
           if (!dbTrader || !dbTrader.isRegistered) {
@@ -394,12 +401,12 @@ export async function getIntegratedLeaderboard(
           // Preserve registration-time deposit, fallback to starting balance or current balance
           let totalNetDeposits = dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance ?? 100;
 
-          // If the database has 100 (old hardcoded default) but the Alpari API returns a real tracked deposit, update it!
-          if (totalNetDeposits === 100 && trader.mt_net_deposits && trader.mt_net_deposits > 0) {
+          // Always update totalNetDeposits if Alpari API provides a valid tracked net deposit (> 0)
+          if (trader.mt_net_deposits && trader.mt_net_deposits > 0) {
             totalNetDeposits = trader.mt_net_deposits;
           }
 
-          let isWashedOut = dbTrader.isWashedOut || (apiEquity <= minEquityThreshold);
+          let isWashedOut = dbTrader.manualDisqualified ? true : (apiEquity < minEquityThreshold);
           
           // Detect new deposit
           if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
@@ -413,6 +420,7 @@ export async function getIntegratedLeaderboard(
           let netDeposit = totalNetDeposits;
           const extId = trader.external_client_id;
           const numId = trader.numeric_id;
+          const clientId = extId || dbTrader.clientId || String(numId || dbTrader._id);
           
           if (extId && depositOverrides[extId] !== undefined) {
             netDeposit = Number(depositOverrides[extId]);
@@ -432,8 +440,8 @@ export async function getIntegratedLeaderboard(
           
           if (trader.total_balance !== undefined) {
             if (netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
-              // If previous deposit was default 100 placeholder or uninitialized, re-baseline cleanly
-              if (dbTrader.totalNetDeposits === 100 || !dbTrader.twrFactor) {
+              // If previous deposit was default 100 placeholder, uninitialized, or distorted (< 10), re-baseline cleanly
+              if (dbTrader.totalNetDeposits === 100 || !dbTrader.twrFactor || dbTrader.totalNetDeposits < 10) {
                 twrFactor = 1.0;
                 startingBalanceOfThisPeriod = netDeposit;
               } else {
@@ -459,7 +467,7 @@ export async function getIntegratedLeaderboard(
 
           bulkOps.push({
             updateOne: {
-              filter: { _id: clientId },
+              filter: { _id: dbTrader._id },
               update: {
                 $set: {
                   clientId,
@@ -744,7 +752,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientId: extId,
                 numericId: Number(numId),
                 clientName,
-                totalNetDeposits: balance > 0 ? balance : 100,
+                totalNetDeposits: (found.mt_net_deposits && Number(found.mt_net_deposits) > 0) ? Number(found.mt_net_deposits) : (balance > 0 ? balance : 100),
                 lastRecordedBalance: balance,
                 isWashedOut: false,
                 isRegistered: true,
@@ -845,7 +853,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientId: extId,
                 numericId: Number(numId),
                 clientName,
-                totalNetDeposits: balance > 0 ? balance : 100,
+                totalNetDeposits: (foundInsight.mt_net_deposits && Number(foundInsight.mt_net_deposits) > 0) ? Number(foundInsight.mt_net_deposits) : (balance > 0 ? balance : 100),
                 lastRecordedBalance: balance,
                 isWashedOut: false,
                 isRegistered: true,

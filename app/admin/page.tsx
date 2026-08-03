@@ -64,6 +64,7 @@ export default function AdminPage() {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncCooldown, setSyncCooldown] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -133,6 +134,14 @@ export default function AdminPage() {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (syncCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setSyncCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [syncCooldown]);
 
   const fetchBadgesData = async () => {
     setLoadingBadges(true);
@@ -297,13 +306,12 @@ export default function AdminPage() {
   };
 
   const handleLogout = async () => {
-    // Clear session cookie by sending empty or wrong value, or we can refresh
-    // For simplicity, we trigger browser reload after setting a dummy login check
-    await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "wrong_password" }),
-    });
+    try {
+      await fetch("/api/admin/login", { method: "DELETE" });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+    setIsAuthenticated(false);
     window.location.reload();
   };
 
@@ -336,6 +344,7 @@ export default function AdminPage() {
 
   // Sync data with Alpari API
   const handleSync = async () => {
+    if (syncCooldown > 0) return;
     setSyncing(true);
     setErrorMsg("");
     setSuccessMsg("");
@@ -344,6 +353,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Manual synchronization failed.");
       setSuccessMsg(`Synced ${data.count} traders successfully!`);
+      setSyncCooldown(30); // 30-second cooldown to prevent API rate limiting
       await fetchData();
     } catch (err: any) {
       setErrorMsg(err.message || "Sync failed.");
@@ -697,7 +707,10 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Failed to update global settings.");
-      setSuccessMsg("Global eligibility rules updated successfully! Leaderboard caches invalidated.");
+      setSuccessMsg("Global eligibility rules updated successfully! Syncing live data to apply new rules...");
+
+      // Automatically sync live data so trader statuses update immediately
+      await handleSync();
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to save global settings.");
     } finally {
@@ -871,7 +884,7 @@ export default function AdminPage() {
   // Calculations for stats
   const totalRegistered = traders.length;
   const totalNetDeposits = traders.reduce((acc, t) => acc + (t.totalNetDeposits || 0), 0);
-  const totalDisqualified = traders.filter(t => t.isWashedOut).length;
+  const totalDisqualified = traders.filter(t => t.isWashedOut || (t.totalNetDeposits || 0) < 100).length;
 
   // Filtered list
   const filteredTraders = traders.filter(t => {
@@ -1156,11 +1169,15 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={handleSync}
-                  disabled={syncing}
-                  className="w-full sm:w-auto self-start px-6 py-3 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-800 text-white font-medium rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={syncing || syncCooldown > 0}
+                  className="w-full sm:w-auto self-start px-6 py-3 bg-brand-600 hover:bg-brand-550 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-                  {syncing ? "Synchronizing Data..." : "Force Real-Time Sync"}
+                  {syncing
+                    ? "Synchronizing Data..."
+                    : syncCooldown > 0
+                    ? `Wait ${syncCooldown}s to Sync`
+                    : "Force Real-Time Sync"}
                 </button>
               </div>
 
@@ -1350,11 +1367,15 @@ export default function AdminPage() {
                           {/* Status */}
                           <td className="px-6 py-4 text-center">
                             <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium ${
-                              t.isWashedOut
+                              t.isWashedOut || (t.totalNetDeposits ?? 0) < 100
                                 ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                 : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                             }`}>
-                              {t.isWashedOut ? "Disqualified" : "Qualified"}
+                              {t.isWashedOut
+                                ? "Disqualified"
+                                : (t.totalNetDeposits ?? 0) < 100
+                                ? "Disqualified (< $100 Deposit)"
+                                : "Qualified"}
                             </span>
                           </td>
 

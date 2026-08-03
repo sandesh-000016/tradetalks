@@ -39,3 +39,14 @@ export async function GET() {
     return NextResponse.json({ authenticated: false });
   }
 }
+
+export async function DELETE() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete("admin_session");
+    return NextResponse.json({ success: true, message: "Logged out successfully" });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "Failed to log out" }, { status: 500 });
+  }
+}
+

@@ -90,8 +90,18 @@ export async function PUT(request: Request) {
 
     const updateFields: any = {};
 
+    const numId = isNaN(Number(clientId)) ? -1 : Number(clientId);
+    const traderFilter = {
+      $or: [
+        { _id: clientId },
+        { clientId: clientId },
+        { numericId: numId },
+        { _id: numId }
+      ]
+    };
+
     if (updateType === "twr_cash_flow" && cashFlowAmount !== undefined) {
-      const dbTrader = await db.collection<any>("traders").findOne({ _id: clientId });
+      const dbTrader = await db.collection<any>("traders").findOne(traderFilter);
       if (dbTrader) {
         const cashFlow = Number(cashFlowAmount);
         const oldNetDeposits = dbTrader.totalNetDeposits ?? 100;
@@ -133,12 +143,13 @@ export async function PUT(request: Request) {
     }
     if (isWashedOut !== undefined) {
       updateFields.isWashedOut = Boolean(isWashedOut);
+      updateFields.manualDisqualified = Boolean(isWashedOut);
     }
 
     updateFields.lastUpdated = new Date();
 
     const result = await db.collection<any>("traders").updateOne(
-      { _id: clientId },
+      traderFilter,
       { $set: updateFields }
     );
 
@@ -178,9 +189,19 @@ export async function DELETE(request: Request) {
     const mongoClient = await clientPromise;
     const db = mongoClient.db("tradetalks");
 
+    const numId = isNaN(Number(clientId)) ? -1 : Number(clientId);
+    const traderFilter = {
+      $or: [
+        { _id: clientId },
+        { clientId: clientId },
+        { numericId: numId },
+        { _id: numId }
+      ]
+    };
+
     // Remove registration status (we set isRegistered to false, keeping the data in DB but removing them from leaderboard/sidebar)
     const result = await db.collection<any>("traders").updateOne(
-      { _id: clientId },
+      traderFilter,
       { $set: { isRegistered: false, lastUpdated: new Date() } }
     );
 
