@@ -403,7 +403,9 @@ export async function getIntegratedLeaderboard(
           const simOffset = dbTrader.simulatedBalanceOffset ?? 0;
           const apiBalance = rawApiBalance + simOffset;
           trader.total_balance = apiBalance;
-          const apiEquity = (trader.total_equity ?? 0) + simOffset;
+          const apiEquity = (trader.total_equity !== undefined && Number(trader.total_equity) !== 0)
+            ? (Number(trader.total_equity) + simOffset)
+            : apiBalance;
           const apiDepositDate = trader.last_deposit_date || null;
           const volume = trader.volume ?? 0;
           
@@ -758,7 +760,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientName,
                 totalNetDeposits: balance > 0 ? balance : 100,
                 lastRecordedBalance: balance,
-                isWashedOut: Number(found.total_equity ?? 0) <= minEquityThreshold,
+                isWashedOut: ((found.total_equity !== undefined && Number(found.total_equity) !== 0) ? Number(found.total_equity) : balance) <= minEquityThreshold,
                 isRegistered: true,
                 lastUpdated: new Date()
               },
@@ -857,7 +859,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientName,
                 totalNetDeposits: balance > 0 ? balance : 100,
                 lastRecordedBalance: balance,
-                isWashedOut: Number(foundInsight.total_equity ?? 0) <= minEquityThreshold,
+                isWashedOut: ((foundInsight.total_equity !== undefined && Number(foundInsight.total_equity) !== 0) ? Number(foundInsight.total_equity) : balance) <= minEquityThreshold,
                 isRegistered: true,
                 lastUpdated: new Date()
               },
