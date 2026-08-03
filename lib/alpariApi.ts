@@ -399,7 +399,9 @@ export async function getIntegratedLeaderboard(
             continue;
           }
           
-          const rawApiBalance = trader.total_balance ?? 0;
+          const rawApiBalance = trader.total_balance !== undefined
+            ? trader.total_balance
+            : (trader.mt_net_deposits || dbTrader.totalNetDeposits || 100);
           const simOffset = dbTrader.simulatedBalanceOffset ?? 0;
           const apiBalance = rawApiBalance + simOffset;
           trader.total_balance = apiBalance;

@@ -312,35 +312,53 @@ export default function AdminPage() {
     setLoading(true);
     setErrorMsg("");
     try {
-      // 1. Fetch DB list of registered traders
+      // 1. Fetch DB list of registered traders (Extremely fast MongoDB query)
       const resDb = await fetch("/api/admin/traders");
       if (!resDb.ok) throw new Error("Failed to load registered users database.");
       const dataDb = await resDb.json();
 
-      // 2. Fetch live metrics from leaderboard api
-      const resLive = await fetch("/api/leaderboard?timeframe=all");
-      const liveData = resLive.ok ? await resLive.json() : [];
+      // Render the traders list from the database immediately so the page displays instantly
+      const dbTraders = dataDb.traders.map((rt: any) => ({
+        ...rt,
+        clientId: rt.clientId || rt._id,
+        profit: rt.profit ?? 0,
+        volume: rt.volume ?? 0,
+        country: rt.country ?? "India",
+        registrationDate: rt.registrationDate ?? "N/A",
+        lastRecordedBalance: rt.lastRecordedBalance ?? 0
+      }));
+      setTraders(dbTraders);
+      setLoading(false); // Stop the spinner immediately!
 
-      // 3. Merge data
-      const mergedTraders = dataDb.traders.map((rt: any) => {
-        const live = liveData.find(
-          (lt: any) => lt.id === rt.clientId || lt.externalClientId === rt.clientId
-        );
-        return {
-          ...rt,
-          clientId: rt.clientId || rt._id,
-          profit: live?.profit ?? 0,
-          volume: live?.volume ?? 0,
-          country: live?.country ?? rt.country ?? "India",
-          registrationDate: live?.registrationDate ?? rt.registrationDate ?? "N/A",
-          lastRecordedBalance: live?.totalBalance ?? rt.lastRecordedBalance ?? 0
-        };
-      });
+      // 2. Fetch live metrics from leaderboard API in the background (slower HTTP API call)
+      fetch("/api/leaderboard?timeframe=all")
+        .then(async (resLive) => {
+          if (resLive.ok) {
+            const liveData = await resLive.json();
+            // Merge live data with current state silently
+            setTraders((prevTraders) =>
+              prevTraders.map((rt: any) => {
+                const live = liveData.find(
+                  (lt: any) => lt.id === rt.clientId || lt.externalClientId === rt.clientId
+                );
+                return {
+                  ...rt,
+                  profit: live?.profit ?? rt.profit ?? 0,
+                  volume: live?.volume ?? rt.volume ?? 0,
+                  country: live?.country ?? rt.country ?? "India",
+                  registrationDate: live?.registrationDate ?? rt.registrationDate ?? "N/A",
+                  lastRecordedBalance: live?.totalBalance ?? rt.lastRecordedBalance ?? 0
+                };
+              })
+            );
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load live metrics in the background:", err);
+        });
 
-      setTraders(mergedTraders);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to fetch data.");
-    } finally {
       setLoading(false);
     }
   };
@@ -403,7 +421,7 @@ export default function AdminPage() {
       setEditingTrader(null);
       setNewDepositAmount("");
       setCashFlowAmount("");
-      await fetchData();
+      await fetchData(true);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to update deposit.");
     } finally {
@@ -427,7 +445,7 @@ export default function AdminPage() {
       if (!res.ok) throw new Error(data.error || "Failed to reset simulation.");
       setSuccessMsg(`Reset simulation for ${editingTrader.clientName} back to live Alpari baseline!`);
       setEditingTrader(null);
-      await fetchData();
+      await fetchData(true);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to reset simulation.");
     } finally {
@@ -440,6 +458,11 @@ export default function AdminPage() {
     setErrorMsg("");
     setSuccessMsg("");
     try {
+      // Optimistic UI update for instant toggling
+      setTraders(prev =>
+        prev.map(t => t.clientId === trader.clientId ? { ...t, isWashedOut: !t.isWashedOut } : t)
+      );
+
       const res = await fetch("/api/admin/traders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -451,8 +474,12 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update status.");
       setSuccessMsg(`Disqualification status updated for ${trader.clientName}.`);
-      await fetchData();
+      await fetchData(true);
     } catch (err: any) {
+      // Rollback optimistic update on failure
+      setTraders(prev =>
+        prev.map(t => t.clientId === trader.clientId ? { ...t, isWashedOut: trader.isWashedOut } : t)
+      );
       setErrorMsg(err.message || "Failed to change status.");
     }
   };
@@ -471,7 +498,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to unregister trader.");
       setSuccessMsg(`Trader ${name} removed from active leaderboard list.`);
-      await fetchData();
+      await fetchData(true);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to delete.");
     }
