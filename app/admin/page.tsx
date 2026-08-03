@@ -307,17 +307,16 @@ export default function AdminPage() {
     window.location.reload();
   };
 
-  // Fetch registered traders and merge with live leaderboard data
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
     setErrorMsg("");
     try {
-      // 1. Fetch DB list of registered traders (Extremely fast MongoDB query)
+      // Fetch DB list of registered traders (Extremely fast MongoDB query)
       const resDb = await fetch("/api/admin/traders");
       if (!resDb.ok) throw new Error("Failed to load registered users database.");
       const dataDb = await resDb.json();
 
-      // Render the traders list from the database immediately so the page displays instantly
+      // Render the traders list from the database immediately
       const dbTraders = dataDb.traders.map((rt: any) => ({
         ...rt,
         clientId: rt.clientId || rt._id,
@@ -328,35 +327,7 @@ export default function AdminPage() {
         lastRecordedBalance: rt.lastRecordedBalance ?? 0
       }));
       setTraders(dbTraders);
-      if (!silent) setLoading(false); // Stop the spinner immediately!
-
-      // 2. Fetch live metrics from leaderboard API in the background (slower HTTP API call)
-      fetch("/api/leaderboard?timeframe=all")
-        .then(async (resLive) => {
-          if (resLive.ok) {
-            const liveData = await resLive.json();
-            // Merge live data with current state silently
-            setTraders((prevTraders) =>
-              prevTraders.map((rt: any) => {
-                const live = liveData.find(
-                  (lt: any) => lt.id === rt.clientId || lt.externalClientId === rt.clientId
-                );
-                return {
-                  ...rt,
-                  profit: live?.profit ?? rt.profit ?? 0,
-                  volume: live?.volume ?? rt.volume ?? 0,
-                  country: live?.country ?? rt.country ?? "India",
-                  registrationDate: live?.registrationDate ?? rt.registrationDate ?? "N/A",
-                  lastRecordedBalance: live?.totalBalance ?? rt.lastRecordedBalance ?? 0
-                };
-              })
-            );
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to load live metrics in the background:", err);
-        });
-
+      if (!silent) setLoading(false);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to fetch data.");
       if (!silent) setLoading(false);

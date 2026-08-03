@@ -129,29 +129,9 @@ export async function getIntegratedLeaderboard(
       const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
       
       if (cacheDoc) {
-        const cacheAge = Date.now() - new Date(cacheDoc.updatedAt).getTime();
         rawClients = cacheDoc.traders;
         cacheHit = true;
-
-        // If the cache is stale, trigger a lazy background sync to refresh it
-        if (cacheAge >= CACHE_DURATION_MS) {
-          console.log("[Leaderboard API] MongoDB cache is stale. Serving stale data and spawning background sync...");
-          if (!isSyncing) {
-            isSyncing = true;
-            getIntegratedLeaderboard(timeframe, false, true)
-              .then(() => {
-                console.log("[Leaderboard API] Background lazy sync successful!");
-              })
-              .catch((err) => {
-                console.error("[Leaderboard API] Background lazy sync failed:", err);
-              })
-              .finally(() => {
-                isSyncing = false;
-              });
-          }
-        } else {
-          console.log("[Leaderboard API] Serving from fresh MongoDB cache.");
-        }
+        console.log("[Leaderboard API] Serving from MongoDB cache.");
       }
     } catch (err) {
       console.error("[Leaderboard API] Error reading MongoDB cache:", err);
@@ -398,18 +378,18 @@ export async function getIntegratedLeaderboard(
             trader.is_registered = false;
             continue;
           }
-          
-          const rawApiBalance = trader.total_balance !== undefined
-            ? trader.total_balance
-            : (trader.mt_net_deposits || dbTrader.totalNetDeposits || 100);
+          const volume = trader.volume ?? 0;
+          const netDepositValue = trader.mt_net_deposits || dbTrader.totalNetDeposits || 100;
+          const rawApiBalance = (volume === 0 || trader.total_balance === undefined)
+            ? netDepositValue
+            : trader.total_balance;
           const simOffset = dbTrader.simulatedBalanceOffset ?? 0;
           const apiBalance = rawApiBalance + simOffset;
           trader.total_balance = apiBalance;
-          const apiEquity = (trader.total_equity !== undefined && Number(trader.total_equity) !== 0)
-            ? (Number(trader.total_equity) + simOffset)
-            : apiBalance;
+          const apiEquity = (volume === 0 || trader.total_equity === undefined)
+            ? apiBalance
+            : (Number(trader.total_equity) + simOffset);
           const apiDepositDate = trader.last_deposit_date || null;
-          const volume = trader.volume ?? 0;
           
           // Preserve registration-time deposit, fallback to starting balance or current balance
           let totalNetDeposits = dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance ?? 100;
@@ -471,10 +451,12 @@ export async function getIntegratedLeaderboard(
             }
           }
           
-          // Keep the local memory map in sync
-          trader.twr_factor = twrFactor;
-          trader.starting_balance_of_this_period = startingBalanceOfThisPeriod;
-          
+          let twrProfit = 0;
+          if (startingBalanceOfThisPeriod > 0) {
+            const currentPeriodReturn = (apiBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+            twrProfit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
+          }
+
           bulkOps.push({
             updateOne: {
               filter: { _id: clientId },
@@ -489,7 +471,9 @@ export async function getIntegratedLeaderboard(
                   isWashedOut,
                   lastUpdated: new Date(),
                   twrFactor,
-                  startingBalanceOfThisPeriod
+                  startingBalanceOfThisPeriod,
+                  profit: Number(twrProfit.toFixed(2)),
+                  volume: Number(volume)
                 }
               }
             }
@@ -762,9 +746,11 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientName,
                 totalNetDeposits: balance > 0 ? balance : 100,
                 lastRecordedBalance: balance,
-                isWashedOut: ((found.total_equity !== undefined && Number(found.total_equity) !== 0) ? Number(found.total_equity) : balance) <= minEquityThreshold,
+                isWashedOut: false,
                 isRegistered: true,
-                lastUpdated: new Date()
+                lastUpdated: new Date(),
+                profit: 0,
+                volume: 0
               },
               $setOnInsert: {
                 twrFactor: 1.0,
@@ -861,9 +847,11 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientName,
                 totalNetDeposits: balance > 0 ? balance : 100,
                 lastRecordedBalance: balance,
-                isWashedOut: ((foundInsight.total_equity !== undefined && Number(foundInsight.total_equity) !== 0) ? Number(foundInsight.total_equity) : balance) <= minEquityThreshold,
+                isWashedOut: false,
                 isRegistered: true,
-                lastUpdated: new Date()
+                lastUpdated: new Date(),
+                profit: 0,
+                volume: 0
               },
               $setOnInsert: {
                 twrFactor: 1.0,
