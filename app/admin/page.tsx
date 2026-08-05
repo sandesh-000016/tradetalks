@@ -181,18 +181,18 @@ export default function AdminPage() {
 
   const exportToExcel = () => {
     const headers = [
-      "Full Name", "Phone", "Email", "City", "State",
-      "Experience", "How Heard", "Trading Goal", "Client ID", "Submitted At"
+      "Full Name", "Phone", "Email", "Place", "Country",
+      "Occupation", "Market", "Trading Capital", "Client ID", "Submitted At"
     ];
     const rows = registrations.map((r) => [
       r.fullName || r.clientName || "",
       r.phone || "",
       r.email || "",
-      r.city || "",
-      r.state || "",
-      r.experience || "",
-      r.howHeard || "",
-      r.tradingGoal || "",
+      r.place || "",
+      r.country || "",
+      r.occupation || "",
+      r.market || "",
+      r.capital || "",
       r.clientId || "",
       r.submittedAt ? new Date(r.submittedAt).toLocaleString() : ""
     ]);
@@ -2050,12 +2050,10 @@ export default function AdminPage() {
             </div>
 
             {/* Stats row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
               {[
                 { label: "Total Registrations", value: registrations.length, color: "text-brand-400" },
-                { label: "With Email", value: registrations.filter(r => r.email).length, color: "text-violet-400" },
-                { label: "From Kerala", value: registrations.filter(r => (r.state || "").toLowerCase().includes("kerala")).length, color: "text-emerald-400" },
-                { label: "Via Instagram", value: registrations.filter(r => r.howHeard === "Instagram").length, color: "text-pink-400" },
+                { label: "International Clients", value: registrations.filter(r => r.country && r.country.toLowerCase() !== "india").length, color: "text-violet-400" },
               ].map((stat) => (
                 <div key={stat.label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                   <span className={`text-2xl font-extrabold block ${stat.color}`}>{stat.value}</span>
@@ -2077,7 +2075,8 @@ export default function AdminPage() {
                   return (
                     (r.fullName || r.clientName || "").toLowerCase().includes(q) ||
                     (r.phone || "").toLowerCase().includes(q) ||
-                    (r.city || "").toLowerCase().includes(q) ||
+                    (r.place || "").toLowerCase().includes(q) ||
+                    (r.country || "").toLowerCase().includes(q) ||
                     (r.email || "").toLowerCase().includes(q) ||
                     (r.clientId || "").toLowerCase().includes(q)
                   );
@@ -2103,9 +2102,9 @@ export default function AdminPage() {
                           <th className="px-5 py-4">#</th>
                           <th className="px-5 py-4">Trader</th>
                           <th className="px-5 py-4">Contact</th>
-                          <th className="px-5 py-4">Location</th>
-                          <th className="px-5 py-4">Experience</th>
-                          <th className="px-5 py-4">Source</th>
+                          <th className="px-5 py-4">Place & Country</th>
+                          <th className="px-5 py-4">Occupation</th>
+                          <th className="px-5 py-4">Market & Capital</th>
                           <th className="px-5 py-4">Registered</th>
                         </tr>
                       </thead>
@@ -2147,35 +2146,38 @@ export default function AdminPage() {
                               </div>
                             </td>
 
-                            {/* Location */}
+                            {/* Place & Country */}
                             <td className="px-5 py-4">
-                              {(r.city || r.state) ? (
+                              {(r.place || r.country) ? (
                                 <div className="flex items-center gap-1.5 text-slate-300 text-xs">
                                   <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
-                                  {[r.city, r.state].filter(Boolean).join(", ")}
+                                  {[r.place, r.country].filter(Boolean).join(", ")}
                                 </div>
                               ) : (
                                 <span className="text-slate-600 text-xs">—</span>
                               )}
                             </td>
 
-                            {/* Experience */}
+                            {/* Occupation */}
                             <td className="px-5 py-4">
-                              {r.experience ? (
+                              {r.occupation ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 border border-violet-500/20 text-violet-400">
-                                  {r.experience.split("(")[0].trim()}
+                                  {r.occupation}
                                 </span>
                               ) : (
                                 <span className="text-slate-600 text-xs">—</span>
                               )}
                             </td>
 
-                            {/* Source */}
+                            {/* Market & Capital */}
                             <td className="px-5 py-4">
-                              {r.howHeard ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-500/10 border border-brand-500/20 text-brand-400">
-                                  {r.howHeard}
-                                </span>
+                              {(r.market || r.capital) ? (
+                                <div className="space-y-1">
+                                  <span className="block text-slate-300 text-xs">{r.market || "—"}</span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-500/10 border border-brand-500/20 text-brand-400">
+                                    {r.capital || "—"}
+                                  </span>
+                                </div>
                               ) : (
                                 <span className="text-slate-600 text-xs">—</span>
                               )}
@@ -2991,6 +2993,16 @@ export default function AdminPage() {
                   onChange={(e) => setEditingRule({ ...editingRule, nextEvaluationTime: new Date(e.target.value).toISOString() })}
                   className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50"
                 />
+                
+                <label className="flex items-center gap-2 cursor-pointer mt-4 border border-slate-800 bg-slate-950 p-3 rounded-xl hover:bg-slate-900 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={editingRule.showTimer !== false}
+                    onChange={(e) => setEditingRule({ ...editingRule, showTimer: e.target.checked })}
+                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-brand-600 focus:ring-brand-500/50 cursor-pointer"
+                  />
+                  <span className="text-slate-300 text-xs font-semibold select-none">Enable Homepage Countdown Timer for this badge</span>
+                </label>
               </div>
 
               <div>

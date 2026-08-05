@@ -34,7 +34,7 @@ export interface AlpariClientInsight {
 // Helpers to get fresh env values on every request
 const getApiBase = () => process.env.ALPARI_API_BASE_URL || "https://api.alpariportal.com";
 const getPrivateToken = () => process.env.ALPARI_PRIVATE_TOKEN || "03764376-ec54-4a11-94aa-7c63d39d1f2f";
-const getDirectPartnerId = () => Number(process.env.ALPARI_DIRECT_PARTNER_ID || "72725");
+const getDirectPartnerId = () => Number(process.env.ALPARI_DIRECT_PARTNER_ID || "417398");
 
 // Memory cache state for leaderboard data
 let memoryCache: { timestamp: number; traders: any[] } | null = null;
@@ -387,9 +387,9 @@ export async function getIntegratedLeaderboard(
           }
           const volume = trader.volume ?? 0;
           const netDepositValue = trader.mt_net_deposits || dbTrader.totalNetDeposits || 100;
-          const rawApiBalance = (volume === 0 || trader.total_balance === undefined)
-            ? netDepositValue
-            : trader.total_balance;
+          const rawApiBalance = trader.total_balance !== undefined
+            ? trader.total_balance
+            : (volume === 0 ? netDepositValue : (dbTrader.lastRecordedBalance ?? netDepositValue));
           const simOffset = dbTrader.simulatedBalanceOffset ?? 0;
           const apiBalance = rawApiBalance + simOffset;
           trader.total_balance = apiBalance;
@@ -404,6 +404,12 @@ export async function getIntegratedLeaderboard(
           // Always update totalNetDeposits if Alpari API provides a valid tracked net deposit (> 0)
           if (trader.mt_net_deposits && trader.mt_net_deposits > 0) {
             totalNetDeposits = trader.mt_net_deposits;
+          }
+
+          // Defer net deposit update if we don't have a live balance to calculate TWR cash flow adjustments
+          if (trader.total_balance === undefined && dbTrader.totalNetDeposits !== undefined && totalNetDeposits !== dbTrader.totalNetDeposits) {
+            console.log(`[Leaderboard Sync] Deferring net deposit update for ${trader.client_name || key} ($${dbTrader.totalNetDeposits} -> $${totalNetDeposits}) because live balance is not available.`);
+            totalNetDeposits = dbTrader.totalNetDeposits;
           }
 
           let isWashedOut = dbTrader.manualDisqualified ? true : (apiEquity < minEquityThreshold);

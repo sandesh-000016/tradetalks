@@ -23,6 +23,8 @@ import {
   ArrowLeft,
   Play,
   X,
+  Wallet,
+  Calendar
 } from "lucide-react";
 
 const ALPARI_REFERRAL_URL = "https://alpari.com/en/?Referral=72725";
@@ -65,40 +67,64 @@ const BADGE_DETAILS: Record<string, {
 const challengeRules = [
   {
     num: 1,
-    icon: <span className="text-sm font-extrabold font-mono">₹</span>,
+    icon: <Wallet className="w-5 h-5" />,
     color: "text-violet-400 border-violet-500/30 bg-violet-500/10",
     title: "Minimum Deposit",
-    value: "₹10,000",
-    desc: "Minimum deposit equivalent required to start the challenge.",
+    value: "$100",
+    desc: "Minimum deposit required to start the challenge.",
   },
   {
     num: 2,
-    icon: <Target className="w-5 h-5" />,
-    color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
-    title: "Starting Balance",
-    value: "₹10,000",
-    desc: "Every participant account starts scaled from a ₹10,000 base.",
+    icon: <Scale className="w-5 h-5" />,
+    color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
+    title: "Risk Reward Ratio",
+    value: "1:1 Minimum RR",
+    desc: "Maintain at least 1:1 risk to reward ratio.",
   },
   {
     num: 3,
-    icon: <Trophy className="w-5 h-5" />,
+    icon: <Target className="w-5 h-5" />,
     color: "text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10",
+    title: "TP & SL Mandatory",
+    value: "Take Profit & Stop Loss",
+    desc: "Take Profit and Stop Loss must be maintained for every trade.",
+  },
+  {
+    num: 4,
+    icon: <Trophy className="w-5 h-5" />,
+    color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
     title: "Winner",
     value: "Highest % Return",
     desc: "Trader with the highest percentage return at the end wins.",
   },
   {
-    num: 4,
-    icon: <Clock className="w-5 h-5" />,
+    num: 5,
+    icon: <TrendingDown className="w-5 h-5" />,
+    color: "text-rose-400 border-rose-500/30 bg-rose-500/10",
+    title: "Daily Drawdown",
+    value: "25%",
+    desc: "Maximum daily drawdown allowed is 25%.",
+  },
+  {
+    num: 6,
+    icon: <Shield className="w-5 h-5" />,
+    color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+    title: "Maximum Drawdown",
+    value: "100%",
+    desc: "Account washout at 100% drawdown.",
+  },
+  {
+    num: 7,
+    icon: <Calendar className="w-5 h-5" />,
     color: "text-orange-400 border-orange-500/30 bg-orange-500/10",
     title: "Challenge Duration",
     value: "Fixed Period",
-    desc: "Challenge runs for a fixed duration of 6 months.",
+    desc: "Challenge runs for a fixed duration (e.g., 6 Months, 1 year).",
   },
   {
-    num: 5,
+    num: 8,
     icon: <Activity className="w-5 h-5" />,
-    color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
+    color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
     title: "Minimum Trading Activity",
     value: "10 Trades",
     desc: "At least 10 trades must be placed in a month.",
@@ -120,6 +146,7 @@ function RegisterContent() {
   const [regForm, setRegForm] = React.useState({
     fullName: "",
     place: "",
+    country: "",
     email: "",
     phone: "",
     occupation: "",
@@ -139,6 +166,7 @@ function RegisterContent() {
     if (
       !regForm.fullName.trim() ||
       !regForm.place.trim() ||
+      !regForm.country.trim() ||
       !regForm.email.trim() ||
       !regForm.phone.trim() ||
       !regForm.occupation.trim() ||
@@ -217,7 +245,7 @@ function RegisterContent() {
 
   const translateConditionToHuman = (rule: any) => {
     if (!rule) return "No criteria defined.";
-    
+
     // Check if conditions array exists
     if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
       return rule.conditions.map((cond: any) => {
@@ -228,16 +256,16 @@ function RegisterContent() {
         else if (cond.metric === "settledRebates") metricDisplay = "Settled Rebates";
         else if (cond.metric === "totalBalance") metricDisplay = "Account Balance";
         else if (cond.metric === "totalEquity") metricDisplay = "Account Equity";
-        
+
         let valueDisplay = cond.value;
         if (cond.metric === "profit") {
           valueDisplay = `${cond.value}%`;
         }
-        
+
         return `${metricDisplay} of ${opSign} ${valueDisplay}`;
       }).join(" AND ");
     }
-    
+
     // Fallback to legacy single fields
     if (rule.metric && rule.operator && rule.value !== undefined) {
       const opSign = rule.operator === "gte" ? "≥" : rule.operator === "lte" ? "≤" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
@@ -247,15 +275,15 @@ function RegisterContent() {
       else if (rule.metric === "settledRebates") metricDisplay = "Settled Rebates";
       else if (rule.metric === "totalBalance") metricDisplay = "Account Balance";
       else if (rule.metric === "totalEquity") metricDisplay = "Account Equity";
-      
+
       let valueDisplay = rule.value;
       if (rule.metric === "profit") {
         valueDisplay = `${rule.value}%`;
       }
-      
+
       return `${metricDisplay} of ${opSign} ${valueDisplay}`;
     }
-    
+
     return "Custom challenge criteria.";
   };
 
@@ -267,7 +295,7 @@ function RegisterContent() {
 
     const badge = BADGE_DETAILS[cleanBadgeName];
     const matchedRule = badgeRules.find((r) => r._id === cleanBadgeName);
-    
+
     const badgeDesc = matchedRule?.description || (badge?.desc || "Challenge badge rules.");
     const badgeCondition = matchedRule
       ? `Requires: ${translateConditionToHuman(matchedRule)} (${matchedRule.points} Points)${matchedRule.nextEvaluationTime ? ` - Next evaluation: ${new Date(matchedRule.nextEvaluationTime).toLocaleString()}` : ''}`
@@ -367,24 +395,21 @@ function RegisterContent() {
             return (
               <div key={step.num} className="flex items-center gap-3 md:gap-5">
                 <div className="flex flex-col items-center text-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm mb-2 transition-all duration-300 ${
-                    isActive 
-                      ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30 ring-2 ring-violet-500/20" 
-                      : isCompleted 
-                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                      : "bg-slate-900 border border-slate-800 text-slate-500"
-                  }`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm mb-2 transition-all duration-300 ${isActive
+                      ? "bg-violet-600 text-white shadow-lg shadow-violet-600/30 ring-2 ring-violet-500/20"
+                      : isCompleted
+                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+                        : "bg-slate-900 border border-slate-800 text-slate-500"
+                    }`}>
                     {isCompleted ? "✓" : step.num}
                   </div>
-                  <div className={`text-xs md:text-sm font-semibold transition-colors ${
-                    isActive ? "text-violet-400 font-bold" : isCompleted ? "text-emerald-400" : "text-slate-500"
-                  }`}>{step.label}</div>
+                  <div className={`text-xs md:text-sm font-semibold transition-colors ${isActive ? "text-violet-400 font-bold" : isCompleted ? "text-emerald-400" : "text-slate-500"
+                    }`}>{step.label}</div>
                   <div className="text-[10px] text-slate-500 hidden sm:block">{step.sub}</div>
                 </div>
                 {i < 4 && (
-                  <div className={`w-6 md:w-10 h-px mb-6 transition-colors duration-300 ${
-                    currentStep > step.num ? "bg-emerald-500" : "bg-slate-850"
-                  } hidden md:block`}></div>
+                  <div className={`w-6 md:w-10 h-px mb-6 transition-colors duration-300 ${currentStep > step.num ? "bg-emerald-500" : "bg-slate-850"
+                    } hidden md:block`}></div>
                 )}
               </div>
             );
@@ -599,7 +624,7 @@ function RegisterContent() {
                     value={regForm.place}
                     onChange={handleRegFormChange}
                     required
-                    placeholder="City, State / Country"
+                    placeholder="City, State"
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
                   />
                 </div>
@@ -608,15 +633,15 @@ function RegisterContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Email Address <span className="text-rose-400">*</span>
+                    Country <span className="text-rose-400">*</span>
                   </label>
                   <input
-                    type="email"
-                    name="email"
-                    value={regForm.email}
+                    type="text"
+                    name="country"
+                    value={regForm.country}
                     onChange={handleRegFormChange}
                     required
-                    placeholder="your@email.com"
+                    placeholder="Your country"
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
                   />
                 </div>
@@ -639,65 +664,62 @@ function RegisterContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Email Address <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={regForm.email}
+                    onChange={handleRegFormChange}
+                    required
+                    placeholder="your@email.com"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Occupation <span className="text-rose-400">*</span>
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="occupation"
                     value={regForm.occupation}
                     onChange={handleRegFormChange}
                     required
+                    placeholder="Your occupation"
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  >
-                    <option value="">Select occupation</option>
-                    <option value="Student">Student</option>
-                    <option value="Salaried Professional">Salaried Professional</option>
-                    <option value="Self-Employed / Business Owner">Self-Employed / Business Owner</option>
-                    <option value="Full-Time Trader">Full-Time Trader</option>
-                    <option value="Unemployed / Looking for Work">Unemployed / Looking for Work</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Which Market You Trade <span className="text-rose-400">*</span>
-                  </label>
-                  <select
-                    name="market"
-                    value={regForm.market}
-                    onChange={handleRegFormChange}
-                    required
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  >
-                    <option value="">Select market</option>
-                    <option value="Forex Market">Forex Market</option>
-                    <option value="Indian Stock Market (NSE/BSE)">Indian Stock Market (NSE/BSE)</option>
-                    <option value="Cryptocurrency">Cryptocurrency</option>
-                    <option value="US Stock Market">US Stock Market</option>
-                    <option value="Commodities & F&O">Commodities & F&O</option>
-                    <option value="Multiple / Other">Multiple / Other</option>
-                  </select>
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Which Market You Trade <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="market"
+                    value={regForm.market}
+                    onChange={handleRegFormChange}
+                    required
+                    placeholder="Market you trade"
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Trading Capital <span className="text-rose-400">*</span>
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="capital"
                     value={regForm.capital}
                     onChange={handleRegFormChange}
                     required
+                    placeholder="Your trading capital"
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all"
-                  >
-                    <option value="">Select trading capital</option>
-                    <option value="Below $100">Below $100</option>
-                    <option value="$100 - $500">$100 - $500</option>
-                    <option value="$500 - $2,000">$500 - $2,000</option>
-                    <option value="$2,000 - $10,000">$2,000 - $10,000</option>
-                    <option value="Above $10,000">Above $10,000</option>
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -871,15 +893,15 @@ function RegisterContent() {
                 <div className="lg:col-span-8 bg-slate-950/40 border border-slate-900 rounded-3xl p-6 flex flex-col justify-between">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {(() => {
-                      const normalBadges = badgeRules.length > 0 
-                        ? badgeRules.filter((r) => r._id !== "Final Winner") 
+                      const normalBadges = badgeRules.length > 0
+                        ? badgeRules.filter((r) => r._id !== "Final Winner")
                         : Object.keys(BADGE_DETAILS).filter(k => k !== "Final Winner").map(key => ({
-                            _id: key,
-                            points: BADGE_DETAILS[key].condition.includes("Points") ? 100 : 50,
-                            description: BADGE_DETAILS[key].desc,
-                            icon: key,
-                            cashPrize: ""
-                          }));
+                          _id: key,
+                          points: BADGE_DETAILS[key].condition.includes("Points") ? 100 : 50,
+                          description: BADGE_DETAILS[key].desc,
+                          icon: key,
+                          cashPrize: ""
+                        }));
                       return normalBadges.map((rule) => (
                         <button
                           key={rule._id}
@@ -1013,11 +1035,10 @@ function RegisterContent() {
                       <button
                         key={video.id}
                         onClick={() => setSelectedVideoId(video.id)}
-                        className={`w-full flex gap-3 p-2.5 rounded-xl border text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${
-                          isActive
+                        className={`w-full flex gap-3 p-2.5 rounded-xl border text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] ${isActive
                             ? "bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-500/5"
                             : "bg-slate-900/30 border-slate-850 hover:border-slate-800 hover:bg-slate-900/50"
-                        }`}
+                          }`}
                       >
                         {/* Thumbnail */}
                         <div className="relative w-20 aspect-video rounded-lg overflow-hidden border border-slate-800 shrink-0 bg-slate-950">
@@ -1086,7 +1107,7 @@ function RegisterContent() {
               <div className="mx-auto w-12 h-12 rounded-xl flex items-center justify-center border-2 bg-slate-950/60 shadow-inner scale-110">
                 {selectedBadge.icon}
               </div>
-              
+
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-white uppercase tracking-wider">
                   {selectedBadge.name}

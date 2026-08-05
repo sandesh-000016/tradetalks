@@ -125,7 +125,8 @@ export async function GET() {
         return {
           ...def,
           ...rule,
-          displayRules: rule.displayRules !== undefined ? rule.displayRules : (def.displayRules || "")
+          displayRules: rule.displayRules !== undefined ? rule.displayRules : (def.displayRules || ""),
+          showTimer: rule.showTimer !== undefined ? rule.showTimer : true
         };
       }
       return rule;
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { _id, points, metric, operator, value, nextEvaluationTime, description, conditions, icon, cashPrize, displayRules } = body;
+    const { _id, points, metric, operator, value, nextEvaluationTime, description, conditions, icon, cashPrize, displayRules, showTimer } = body;
 
     if (!_id) {
       return NextResponse.json({ success: false, error: "Badge ID required" }, { status: 400 });
@@ -168,7 +169,8 @@ export async function POST(request: Request) {
       description,
       icon: icon || "shield_green",
       cashPrize: cashPrize || "",
-      displayRules: displayRules || ""
+      displayRules: displayRules || "",
+      showTimer: showTimer !== undefined ? !!showTimer : true
     };
 
     if (Array.isArray(conditions)) {

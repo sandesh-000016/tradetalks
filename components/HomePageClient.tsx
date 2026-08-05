@@ -34,7 +34,8 @@ import {
   Medal,
   Share2,
   Copy,
-  Check
+  Check,
+  Wallet
 } from "lucide-react";
 import { Trader } from "@/lib/leaderboardApi";
 import {
@@ -89,40 +90,64 @@ const BADGE_DETAILS: Record<string, {
 const challengeRules = [
   {
     num: 1,
-    icon: <span className="text-sm font-extrabold font-mono">₹</span>,
+    icon: <Wallet className="w-5 h-5" />,
     color: "text-violet-400 border-violet-500/30 bg-violet-500/10",
     title: "Minimum Deposit",
-    value: "₹10,000",
-    desc: "Minimum deposit equivalent to start the challenge.",
+    value: "$100",
+    desc: "Minimum deposit required to start the challenge.",
   },
   {
     num: 2,
-    icon: <Target className="w-5 h-5" />,
-    color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
-    title: "Starting Balance",
-    value: "₹10,000",
-    desc: "Every participant account starts scaled from a ₹10,000 base.",
+    icon: <Scale className="w-5 h-5" />,
+    color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
+    title: "Risk Reward Ratio",
+    value: "1:1 Minimum RR",
+    desc: "Maintain at least 1:1 risk to reward ratio.",
   },
   {
     num: 3,
-    icon: <Trophy className="w-5 h-5" />,
+    icon: <Target className="w-5 h-5" />,
     color: "text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10",
+    title: "TP & SL Mandatory",
+    value: "Take Profit & Stop Loss",
+    desc: "Take Profit and Stop Loss must be maintained for every trade.",
+  },
+  {
+    num: 4,
+    icon: <Trophy className="w-5 h-5" />,
+    color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
     title: "Winner",
     value: "Highest % Return",
     desc: "Trader with the highest percentage return at the end wins.",
   },
   {
-    num: 4,
-    icon: <Clock className="w-5 h-5" />,
+    num: 5,
+    icon: <TrendingDown className="w-5 h-5" />,
+    color: "text-rose-400 border-rose-500/30 bg-rose-500/10",
+    title: "Daily Drawdown",
+    value: "25%",
+    desc: "Maximum daily drawdown allowed is 25%.",
+  },
+  {
+    num: 6,
+    icon: <Shield className="w-5 h-5" />,
+    color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+    title: "Maximum Drawdown",
+    value: "100%",
+    desc: "Account washout at 100% drawdown.",
+  },
+  {
+    num: 7,
+    icon: <Calendar className="w-5 h-5" />,
     color: "text-orange-400 border-orange-500/30 bg-orange-500/10",
     title: "Challenge Duration",
     value: "Fixed Period",
-    desc: "Challenge runs for a fixed duration of 6 months.",
+    desc: "Challenge runs for a fixed duration (e.g., 6 Months, 1 year).",
   },
   {
-    num: 5,
+    num: 8,
     icon: <Activity className="w-5 h-5" />,
-    color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
+    color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
     title: "Minimum Trading Activity",
     value: "10 Trades",
     desc: "At least 10 trades must be placed in a month.",
@@ -167,8 +192,28 @@ const letterVariants = {
 
 
 
-const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
-  const [timeLeft, setTimeLeft] = React.useState("");
+const FlipCard = ({ label, value }: { label: string, value: string }) => {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-14 h-16 sm:w-20 sm:h-24 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)] overflow-hidden">
+        {/* Top half gradient styling */}
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none"></div>
+        
+        {/* Horizontal divider lines for flip clock look */}
+        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black/80 z-10"></div>
+        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-white/10 z-10 translate-y-[1px]"></div>
+        
+        <span className="relative z-20 text-3xl sm:text-5xl font-black text-blue-400 font-mono tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          {value.padStart(2, '0')}
+        </span>
+      </div>
+      <span className="text-[9px] sm:text-[10px] text-blue-500/70 font-bold uppercase tracking-widest mt-3">{label}</span>
+    </div>
+  );
+};
+
+const FlipCountdown = ({ targetDate, label }: { targetDate: string, label: string }) => {
+  const [timeLeft, setTimeLeft] = React.useState({ days: "00", hours: "00", minutes: "00", seconds: "00" });
 
   React.useEffect(() => {
     if (!targetDate) return;
@@ -176,14 +221,19 @@ const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
     const updateTime = () => {
       const diff = new Date(targetDate).getTime() - Date.now();
       if (diff <= 0) {
-        setTimeLeft("0d 0h 0m 0s");
+        setTimeLeft({ days: "00", hours: "00", minutes: "00", seconds: "00" });
         return;
       }
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const minutes = Math.floor((diff / (1000 * 60)) % 60);
       const seconds = Math.floor((diff / 1000) % 60);
-      setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+      setTimeLeft({
+        days: days.toString(),
+        hours: hours.toString(),
+        minutes: minutes.toString(),
+        seconds: seconds.toString(),
+      });
     };
 
     updateTime();
@@ -191,7 +241,20 @@ const CountdownTimer = ({ targetDate }: { targetDate: string }) => {
     return () => clearInterval(interval);
   }, [targetDate]);
 
-  return <span>{timeLeft || "0d 0h 0m 0s"}</span>;
+  return (
+    <div className="flex flex-col items-center">
+      <h3 className="text-sm sm:text-base font-black text-slate-300 uppercase tracking-widest mb-6">{label}</h3>
+      <div className="flex items-center gap-1.5 sm:gap-3 justify-center">
+        <FlipCard label="Days" value={timeLeft.days} />
+        <span className="text-xl sm:text-4xl font-black text-slate-800 pb-8 sm:pb-10 animate-pulse">:</span>
+        <FlipCard label="Hours" value={timeLeft.hours} />
+        <span className="text-xl sm:text-4xl font-black text-slate-800 pb-8 sm:pb-10 animate-pulse">:</span>
+        <FlipCard label="Minutes" value={timeLeft.minutes} />
+        <span className="text-xl sm:text-4xl font-black text-slate-800 pb-8 sm:pb-10 animate-pulse">:</span>
+        <FlipCard label="Seconds" value={timeLeft.seconds} />
+      </div>
+    </div>
+  );
 };
 
 const translateConditionToHuman = (rule: any) => {
@@ -792,86 +855,59 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
       </section>
 
       {/* Countdown Timers Section */}
-      <section className="py-8 bg-slate-950/80 border-b border-slate-900/60 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[150px] bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Weekly Timer */}
-            <div className="glass-panel p-5 rounded-2xl border border-slate-800/80 bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative group hover:border-violet-500/30 transition-all duration-300">
-              <div className="flex items-center gap-3">
-                <div className="shrink-0 w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-105 transition-transform duration-300">
-                  <Clock className="w-5 h-5 animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Weekly Trader Challenge</h4>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Trader of the Week evaluation cycle</p>
-                </div>
-              </div>
-              <div className="flex flex-col items-start sm:items-end justify-center">
-                <div className="text-lg font-black font-mono text-violet-400 tracking-wider">
-                  {(() => {
-                    const rule = badgeRules.find(r => r._id === "Trader of the Week");
-                    return rule && rule.nextEvaluationTime ? (
-                      <CountdownTimer targetDate={rule.nextEvaluationTime} />
-                    ) : (
-                      "0d 0h 0m 0s"
-                    );
-                  })()}
-                </div>
-                <div className="text-[9px] text-slate-500 mt-1 font-medium">
-                  Next: {(() => {
-                    const rule = badgeRules.find(r => r._id === "Trader of the Week");
-                    if (!rule || !rule.nextEvaluationTime) return "N/A";
-                    return new Date(rule.nextEvaluationTime).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit"
-                    });
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* Monthly Timer */}
-            <div className="glass-panel p-5 rounded-2xl border border-slate-800/80 bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative group hover:border-blue-500/30 transition-all duration-300">
-              <div className="flex items-center gap-3">
-                <div className="shrink-0 w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform duration-300">
-                  <Trophy className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Monthly Standings</h4>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Top Rank Monthly evaluation cycle</p>
-                </div>
-              </div>
-              <div className="flex flex-col items-start sm:items-end justify-center">
-                <div className="text-lg font-black font-mono text-blue-400 tracking-wider">
-                  {(() => {
-                    const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
-                    return rule && rule.nextEvaluationTime ? (
-                      <CountdownTimer targetDate={rule.nextEvaluationTime} />
-                    ) : (
-                      "0d 0h 0m 0s"
-                    );
-                  })()}
-                </div>
-                <div className="text-[9px] text-slate-500 mt-1 font-medium">
-                  Next: {(() => {
-                    const rule = badgeRules.find(r => r._id === "Top Rank Monthly");
-                    if (!rule || !rule.nextEvaluationTime) return "N/A";
-                    return new Date(rule.nextEvaluationTime).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit"
-                    });
-                  })()}
-                </div>
-              </div>
-            </div>
-
+      <section className="py-16 sm:py-24 bg-[#050814] border-b border-slate-900/60 relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-blue-600/5 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-16">
+          
+          {/* Main Launch Timer */}
+          <div className="flex justify-center">
+            <FlipCountdown targetDate="August 10, 2026 00:00:00" label="CHALLENGE LAUNCHING DATE" />
           </div>
+
+          <div className="w-full max-w-4xl mx-auto h-px bg-gradient-to-r from-transparent via-slate-800 to-transparent"></div>
+
+          {/* Sub Timers */}
+          {(() => {
+            const monthlyRule = badgeRules.find(r => r._id === "Top Rank Monthly");
+            const weeklyRule = badgeRules.find(r => r._id === "Trader of the Week");
+            
+            const showMonthly = monthlyRule ? monthlyRule.showTimer !== false : true;
+            const showWeekly = weeklyRule ? weeklyRule.showTimer !== false : true;
+
+            if (!showMonthly && !showWeekly) return null;
+
+            return (
+              <div className={`grid grid-cols-1 ${showMonthly && showWeekly ? 'md:grid-cols-2' : ''} gap-12 sm:gap-6 pt-4`}>
+                {/* Monthly Timer */}
+                {showMonthly && (
+                  <div className="flex justify-center">
+                    {monthlyRule && monthlyRule.nextEvaluationTime ? (
+                      <FlipCountdown targetDate={monthlyRule.nextEvaluationTime} label="MONTHLY EVALUATION" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <span className="text-slate-500 text-xs tracking-wider uppercase font-bold">Monthly Evaluation</span>
+                        <span className="text-slate-600 text-[10px] mt-2">Time not set by Admin</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Weekly Timer */}
+                {showWeekly && (
+                  <div className="flex justify-center">
+                    {weeklyRule && weeklyRule.nextEvaluationTime ? (
+                      <FlipCountdown targetDate={weeklyRule.nextEvaluationTime} label="WEEKLY EVALUATION" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <span className="text-slate-500 text-xs tracking-wider uppercase font-bold">Weekly Evaluation</span>
+                        <span className="text-slate-600 text-[10px] mt-2">Time not set by Admin</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </section>
 
@@ -932,18 +968,18 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   </h4>
                   {(() => {
                     const rule = badgeRules.find(r => r._id === "Final Winner");
-                    if (rule?.cashPrize) {
-                      return (
-                        <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
-                          <span>🏆</span>
-                          <span>{rule.cashPrize} Cash</span>
-                        </div>
-                      );
-                    }
                     return (
-                      <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
-                        <span>⭐</span>
-                        <span>{rule?.points || 500} Pts</span>
+                      <div className="flex flex-col items-center gap-1.5 mt-1.5">
+                        <div className="px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
+                          <span>⭐</span>
+                          <span>{rule?.points || 500} Pts</span>
+                        </div>
+                        {rule?.cashPrize && (
+                          <div className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
+                            <span>🏆</span>
+                            <span>₹{rule.cashPrize} Cash</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -995,17 +1031,18 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                         <h4 className="font-extrabold text-white text-sm tracking-wide uppercase group-hover:text-violet-400 transition-colors">
                           {rule._id}
                         </h4>
-                        {rule.cashPrize ? (
-                          <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
-                            <span>🏆</span>
-                            <span>{rule.cashPrize} Cash</span>
-                          </div>
-                        ) : (
-                          <div className="mt-1.5 px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
+                        <div className="flex flex-col items-center gap-1.5 mt-1.5">
+                          <div className="px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
                             <span>⭐</span>
                             <span>{rule.points} Pts</span>
                           </div>
-                        )}
+                          {rule.cashPrize && (
+                            <div className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
+                              <span>🏆</span>
+                              <span>₹{rule.cashPrize} Cash</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Description */}
@@ -1373,7 +1410,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
           )}
 
           {/* Stats Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-16 border-t border-slate-900 pt-16">
+          {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-16 border-t border-slate-900 pt-16">
 
             <motion.div
               variants={itemVariants}
@@ -1399,14 +1436,8 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               viewport={{ once: true, amount: 0.15 }}
               className="flex gap-4 p-5 rounded-2xl bg-slate-900/30 border border-slate-900/60 backdrop-blur-sm items-start"
             >
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                <Gift className="w-6 h-6" />
-              </div>
-              <div>
-                <h4 className="text-lg font-bold text-white font-display">Rs.10,000</h4>
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mt-1">Monthly Rewards</p>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">Earn prizes based on profit, drawdown & consistency.</p>
-              </div>
+             
+              
             </motion.div>
 
             <motion.div
@@ -1443,7 +1474,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               </div>
             </motion.div>
 
-          </div>
+          </div> */}
 
         </div>
       </section>

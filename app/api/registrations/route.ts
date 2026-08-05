@@ -34,13 +34,14 @@ export async function POST(req: NextRequest) {
       phone,
       email,
       place,
+      country,
       occupation,
       market,
       capital,
     } = body;
 
-    if (!fullName || !phone || !email || !place || !occupation || !market || !capital) {
-      return NextResponse.json({ error: "All fields (Name, Place, Email, Mobile number, Occupation, Market, Capital) are required." }, { status: 400 });
+    if (!fullName || !phone || !email || !place || !country || !occupation || !market || !capital) {
+      return NextResponse.json({ error: "All fields (Name, Place, Country, Email, Mobile number, Occupation, Market, Capital) are required." }, { status: 400 });
     }
 
     // Email validation
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
       phone: finalPhone,
       email,
       place,
+      country,
       occupation,
       market,
       capital,

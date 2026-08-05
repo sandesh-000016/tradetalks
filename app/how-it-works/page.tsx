@@ -27,7 +27,9 @@ import {
   ExternalLink,
   CheckCircle2,
   Info,
-  DollarSign
+  DollarSign,
+  Wallet,
+  TrendingDown
 } from "lucide-react";
 import { renderBadgeIcon } from "@/components/BadgeIcons";
 
@@ -66,45 +68,82 @@ const BADGE_DETAILS: Record<string, {
 const challengeRules = [
   {
     num: 1,
-    icon: <span className="text-[10px] font-bold">₹</span>,
+    icon: <Wallet className="w-4 h-4" />,
     color: "text-violet-400 border-violet-500/30 bg-violet-500/10",
     title: "Minimum Deposit",
-    value: "₹10,000",
-    desc: "Starting balance equivalent required to join the challenge.",
+    value: "$100",
+    desc: "Minimum deposit required to start the challenge.",
   },
   {
     num: 2,
-    icon: <Target className="w-4 h-4" />,
-    color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
-    title: "Starting Capital",
-    value: "₹10,000",
-    desc: "All participant metrics start scaled from a ₹10,000 base.",
+    icon: <Scale className="w-4 h-4" />,
+    color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
+    title: "Risk Reward Ratio",
+    value: "1:1 Minimum RR",
+    desc: "Maintain at least 1:1 risk to reward ratio.",
   },
   {
     num: 3,
-    icon: <Trophy className="w-4 h-4" />,
+    icon: <Target className="w-4 h-4" />,
     color: "text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10",
-    title: "Winner Criteria",
-    value: "Highest % Return",
-    desc: "The trader with the highest percentage profit ROI at the end wins.",
+    title: "TP & SL Mandatory",
+    value: "Take Profit & Stop Loss",
+    desc: "Take Profit and Stop Loss must be maintained for every trade.",
   },
   {
     num: 4,
-    icon: <Clock className="w-4 h-4" />,
-    color: "text-orange-400 border-orange-500/30 bg-orange-500/10",
-    title: "Duration",
-    value: "6 Months",
-    desc: "Challenge runs for a fixed season of 6 months.",
+    icon: <Trophy className="w-4 h-4" />,
+    color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
+    title: "Winner",
+    value: "Highest % Return",
+    desc: "Trader with the highest percentage return at the end wins.",
   },
   {
     num: 5,
+    icon: <TrendingDown className="w-4 h-4" />,
+    color: "text-rose-400 border-rose-500/30 bg-rose-500/10",
+    title: "Daily Drawdown",
+    value: "25%",
+    desc: "Maximum daily drawdown allowed is 25%.",
+  },
+  {
+    num: 6,
+    icon: <Shield className="w-4 h-4" />,
+    color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+    title: "Maximum Drawdown",
+    value: "100%",
+    desc: "Account washout at 100% drawdown.",
+  },
+  {
+    num: 7,
+    icon: <Calendar className="w-4 h-4" />,
+    color: "text-orange-400 border-orange-500/30 bg-orange-500/10",
+    title: "Challenge Duration",
+    value: "Fixed Period",
+    desc: "Challenge runs for a fixed duration (e.g., 6 Months, 1 year).",
+  },
+  {
+    num: 8,
     icon: <Activity className="w-4 h-4" />,
-    color: "text-indigo-400 border-indigo-500/30 bg-indigo-500/10",
-    title: "Activity Requirement",
-    value: "10 Trades/mo",
-    desc: "Must complete at least 10 trades monthly to remain eligible.",
+    color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10",
+    title: "Minimum Trading Activity",
+    value: "10 Trades",
+    desc: "At least 10 trades must be placed in a month.",
   },
 ];
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 50 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring" as const,
+      stiffness: 90,
+      damping: 14,
+    },
+  },
+};
 
 export default function HowItWorksPage() {
   const [badgeRules, setBadgeRules] = React.useState<any[]>([]);
@@ -329,24 +368,50 @@ export default function HowItWorksPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {challengeRules.map((rule) => (
-              <div
+              <motion.div
                 key={rule.num}
-                className="bg-slate-950/60 border border-slate-900 rounded-2xl p-5 space-y-3 relative overflow-hidden flex flex-col justify-between"
+                variants={itemVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.15 }}
+                className="glass-panel rounded-3xl p-6 border border-slate-800/80 relative group hover:border-slate-700/80 transition-all duration-300 flex flex-col justify-between"
               >
-                <div className="space-y-2">
-                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${rule.color}`}>
+                {/* Rule Number Badge */}
+                <div className="absolute top-4 left-4 w-6 h-6 rounded-md bg-violet-600/20 border border-violet-500/30 text-violet-400 flex items-center justify-center text-[10px] font-black font-display">
+                  {rule.num}
+                </div>
+
+                <div className="flex flex-col items-center text-center pt-6 space-y-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${rule.color}`}>
                     {rule.icon}
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider leading-snug">{rule.title}</h4>
-                    <p className="text-base font-extrabold text-white mt-0.5">{rule.value}</p>
-                  </div>
+                  <h4 className="font-bold text-white text-base">{rule.title}</h4>
+                  <div className="font-display font-black text-brand-400 text-xl">{rule.value}</div>
+                  <p className="text-xs text-slate-400 leading-relaxed">{rule.desc}</p>
                 </div>
-                <p className="text-[10px] text-slate-500 leading-normal">{rule.desc}</p>
-              </div>
+              </motion.div>
             ))}
+
+            {/* Important Note Card */}
+            <motion.div
+              variants={itemVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.15 }}
+              className="glass-panel rounded-3xl p-6 border border-amber-500/20 bg-amber-500/5 relative flex flex-col justify-center items-center"
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center border text-amber-400 bg-amber-500/10 border-amber-500/30">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <h4 className="font-bold text-amber-400 text-base">Important Note</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Violation of any rule may lead to disqualification. We promote fair trading and a level playing field for all participants.
+                </p>
+              </div>
+            </motion.div>
           </div>
         </section>
 
@@ -361,64 +426,116 @@ export default function HowItWorksPage() {
             </p>
           </div>
 
-          {/* Badges Grid */}
-          <div className="flex flex-wrap justify-center gap-6">
-
-            {/* Final Winner Card */}
-            {(() => {
-              const rule = badgeRules.find((r) => r._id === "Final Winner");
-              return (
-                <div
-                  className="uiverse-card !w-full max-w-[220px] group transition-all duration-300 relative overflow-hidden cursor-pointer"
-                  style={{ height: "250px" }}
-                  onClick={() => handleBadgeClick("Final Winner")}
-                >
-                  <div className="uiverse-card-inner !justify-between pb-6">
-                    <div className="mt-6 transform transition-transform duration-300 group-hover:scale-110">
-                      {renderBadgeIcon(rule?.icon || "trophy", "w-14 h-14 text-amber-400 drop-shadow-[0_10px_30px_rgba(226,165,18,0.3)]")}
-                    </div>
-                    <div className="text-center mt-3 w-full px-2">
-                      <h4 className="font-extrabold text-white text-xs tracking-wider uppercase group-hover:text-violet-400 transition-colors">
-                        {rule?._id || "Final Winner"}
-                      </h4>
-                      {rule?.cashPrize && (
-                        <div className="mt-1.5 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
-                          <span>🏆</span>
-                          <span>{rule.cashPrize} Cash</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+          {/* Row 1: Final Winner (Centered Card - Same Size) */}
+          <div className="flex justify-center mb-12 w-full">
+            <motion.div
+              variants={itemVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="uiverse-card !w-full max-w-[240px] group transition-all duration-300 relative overflow-hidden cursor-pointer"
+              style={{ height: "260px" }}
+              onClick={() => handleBadgeClick("Final Winner")}
+            >
+              <div className="uiverse-card-inner !justify-between pb-6">
+                {/* Icon */}
+                <div className="mt-6 transform transition-transform duration-300 group-hover:scale-110">
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Final Winner");
+                    return renderBadgeIcon(rule?.icon || "trophy", "w-14 h-14 text-amber-400 relative z-10 drop-shadow-[0_10px_30px_rgba(226,165,18,0.3)]");
+                  })()}
                 </div>
-              );
-            })()}
 
-            {/* Other badges */}
-            {badgeRules
-              .filter((r) => r._id !== "Final Winner")
-              .map((rule) => (
+                {/* Title & Prize */}
+                <div className="text-center mt-3 w-full px-2">
+                  <h4 className="font-extrabold text-white text-sm tracking-wide uppercase group-hover:text-violet-400 transition-colors">
+                    {(() => {
+                      const rule = badgeRules.find(r => r._id === "Final Winner");
+                      return rule?._id || "Final Winner";
+                    })()}
+                  </h4>
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Final Winner");
+                    return (
+                      <div className="flex flex-col items-center gap-1.5 mt-1.5">
+                        <div className="px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
+                          <span>⭐</span>
+                          <span>{rule?.points || 500} Pts</span>
+                        </div>
+                        {rule?.cashPrize && (
+                          <div className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
+                            <span>🏆</span>
+                            <span>₹{rule.cashPrize} Cash</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Description */}
+                <p className="text-[10px] text-slate-400 text-center leading-normal px-4 mt-3 max-h-[40px] overflow-hidden text-ellipsis line-clamp-2">
+                  {(() => {
+                    const rule = badgeRules.find(r => r._id === "Final Winner");
+                    return rule?.description || "The trader with the most Top Rank Monthly badges will be crowned the Ultimate FX Champion!";
+                  })()}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Badges Grid (Fully Responsive - 5 Columns on Desktop) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
+            {(() => {
+              const normalBadges = badgeRules.length > 0 
+                ? badgeRules.filter((r) => r._id !== "Final Winner") 
+                : Object.keys(BADGE_DETAILS).filter(k => k !== "Final Winner").map(key => ({
+                    _id: key,
+                    points: BADGE_DETAILS[key].condition.includes("Points") ? 100 : 50,
+                    description: BADGE_DETAILS[key].desc,
+                    icon: key,
+                    cashPrize: ""
+                  }));
+              return normalBadges.map((rule) => (
                 <div
                   key={rule._id}
-                  className="uiverse-card !w-full max-w-[220px] group transition-all duration-300 relative overflow-hidden cursor-pointer"
-                  style={{ height: "250px" }}
+                  className="uiverse-card !w-full group transition-all duration-300 relative overflow-hidden mx-auto sm:mx-0 cursor-pointer"
+                  style={{ height: "260px" }}
                   onClick={() => handleBadgeClick(rule._id)}
                 >
                   <div className="uiverse-card-inner !justify-between pb-6">
+                    {/* Icon */}
                     <div className="mt-6 transform transition-transform duration-300 group-hover:scale-110">
-                      {renderBadgeIcon(rule.icon || rule._id, "w-12 h-12 text-violet-400 drop-shadow-[0_8px_20px_rgba(124,58,237,0.25)]")}
+                      {renderBadgeIcon(rule.icon || rule._id, "w-14 h-14")}
                     </div>
+
+                    {/* Title & Prize */}
                     <div className="text-center mt-3 w-full px-2">
-                      <h4 className="font-bold text-white text-xs tracking-wider uppercase group-hover:text-brand-400 transition-colors">
+                      <h4 className="font-extrabold text-white text-sm tracking-wide uppercase group-hover:text-violet-400 transition-colors">
                         {rule._id}
                       </h4>
-                      <div className="mt-1.5 px-2 py-0.5 rounded bg-violet-500/15 border border-violet-500/25 text-violet-300 text-[9px] font-extrabold inline-flex items-center gap-1 uppercase tracking-wider">
-                        <span>⭐</span>
-                        <span>+{rule.points} Pts</span>
+                      <div className="flex flex-col items-center gap-1.5 mt-1.5">
+                        <div className="px-2.5 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-bold inline-flex items-center gap-1 uppercase tracking-wider">
+                          <span>⭐</span>
+                          <span>{rule.points} Pts</span>
+                        </div>
+                        {rule.cashPrize && (
+                          <div className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black inline-flex items-center gap-1 uppercase tracking-wider">
+                            <span>🏆</span>
+                            <span>₹{rule.cashPrize} Cash</span>
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Description */}
+                    <p className="text-[10px] text-slate-400 text-center leading-normal px-4 mt-3 max-h-[40px] overflow-hidden text-ellipsis line-clamp-2">
+                      {rule.description || (BADGE_DETAILS[rule._id]?.desc || "")}
+                    </p>
                   </div>
                 </div>
-              ))}
+              ));
+            })()}
           </div>
         </section>
 
