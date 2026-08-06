@@ -1257,8 +1257,15 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               <p className="text-xs text-slate-600 mt-1">Be the first to join the challenge and claim the top rank!</p>
             </div>
           ) : (
-            <div className="glass-panel rounded-2xl overflow-hidden border border-slate-800/85">
-              <div className="overflow-x-auto">
+            <>
+              {/* Sync Info Note */}
+              <div className="flex items-center gap-2 mb-4 px-2 text-slate-400 text-xs font-medium">
+                <Clock className="w-4 h-4 text-violet-400" />
+                <span>Leaderboard data will be updated every 2.5 hours.</span>
+              </div>
+              
+              <div className="glass-panel rounded-2xl overflow-hidden border border-slate-800/85">
+                <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-800 bg-slate-900/50 text-xs uppercase tracking-wider text-slate-400">
@@ -1407,6 +1414,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                 </table>
               </div>
             </div>
+            </>
           )}
 
           {/* Stats Bar */}

@@ -12,7 +12,8 @@ import {
   Download,
   Copy,
   Check,
-  Send
+  Send,
+  Clock
 } from "lucide-react";
 import { fetchLeaderboard, Trader, Timeframe } from "@/lib/leaderboardApi";
 import { renderBadgeIcon } from "@/components/BadgeIcons";
@@ -637,6 +638,12 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
               className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all font-medium"
             />
           </div>
+        </div>
+
+        {/* Sync Info Note */}
+        <div className="flex items-center gap-2 mb-4 px-2 text-slate-400 text-xs font-medium">
+          <Clock className="w-4 h-4 text-violet-400" />
+          <span>Leaderboard data will be updated every 2.5 hours.</span>
         </div>
 
         {/* Table */}
