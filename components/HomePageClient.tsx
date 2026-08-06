@@ -939,6 +939,48 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
             </motion.p>
           </div>
 
+          {/* Total Prize Pool Highlight Banner */}
+          <div className="flex justify-center mb-16 w-full animate-fade-in">
+            <motion.div
+              variants={itemVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="relative max-w-4xl w-full rounded-3xl border border-slate-800 bg-slate-950/45 p-6 sm:p-8 flex flex-col md:flex-row items-center gap-8 md:gap-12 shadow-[0_0_50px_-12px_rgba(139,92,246,0.15)] backdrop-blur-sm"
+            >
+              {/* Glow spots */}
+              <div className="absolute -top-10 -left-10 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              
+              {/* Image side */}
+              <div className="w-full md:w-2/5 max-w-[280px] shrink-0 aspect-square relative rounded-2xl overflow-hidden border border-slate-850 bg-slate-900/30 flex items-center justify-center">
+                <Image
+                  src="/prize_pool_banner.png"
+                  alt="Total 5 Lakh Worth of Cash Prizes"
+                  width={280}
+                  height={280}
+                  className="object-contain w-full h-full hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+
+              {/* Text description side */}
+              <div className="flex-1 text-center md:text-left space-y-4">
+                <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
+                  🏆 Grand Season Reward
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-white leading-tight">
+                  TOTAL <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-fuchsia-400 to-violet-400">₹5 LAKH</span>
+                  <br />
+                  WORTH OF CASH PRIZES
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-lg">
+                  Join our elite challenge, stack up challenge points by demonstrating outstanding trading discipline, and claim your share of the massive <strong>₹5,00,000</strong> cash prize pool! Evaluated weekly and monthly.
+                </p>
+
+              </div>
+            </motion.div>
+          </div>
+
           {/* Row 1: Final Winner (Centered Card - Same Size) */}
           <div className="flex justify-center mb-12 w-full">
             <motion.div
