@@ -357,13 +357,13 @@ export async function getIntegratedLeaderboard(
               client_name: dbTrader.clientName || `Trader ${clientId.substring(0, 8)}`,
               country: dbTrader.country || "India",
               registration_date: dbTrader.registrationDate || dbTrader.lastUpdated || new Date().toISOString(),
-              total_balance: dbTrader.lastRecordedBalance ?? 100,
-              total_equity: dbTrader.lastRecordedBalance ?? 100,
+              total_balance: dbTrader.lastRecordedBalance ?? undefined,
+              total_equity: dbTrader.lastRecordedBalance ?? undefined,
               volume: dbTrader.volume ?? 0,
               settled_rebates: dbTrader.settledRebates ?? 0,
               is_registered: true,
               is_washed_out: dbTrader.isWashedOut || false,
-              mt_net_deposits: dbTrader.totalNetDeposits ?? 100
+              mt_net_deposits: dbTrader.totalNetDeposits ?? undefined
             };
           }
           // Copy database TWR values to the merged map for later profit calculations
@@ -385,11 +385,24 @@ export async function getIntegratedLeaderboard(
             trader.is_registered = false;
             continue;
           }
+
+          // Dummy traders are managed by admin directly — bypass Alpari sync entirely
+          if (dbTrader.isDummy) {
+            trader.is_registered = true;
+            trader.is_washed_out = dbTrader.isWashedOut || false;
+            trader.total_balance = dbTrader.lastRecordedBalance;
+            trader.total_equity = dbTrader.lastRecordedBalance;
+            trader.mt_net_deposits = dbTrader.totalNetDeposits;
+            trader.volume = dbTrader.volume ?? 0;
+            trader.twr_factor = 1.0;
+            trader.starting_balance_of_this_period = dbTrader.startingBalanceOfThisPeriod ?? dbTrader.totalNetDeposits;
+            continue;
+          }
           const volume = trader.volume ?? 0;
-          const netDepositValue = trader.mt_net_deposits || dbTrader.totalNetDeposits || 100;
+          const netDepositValue = trader.mt_net_deposits || dbTrader.totalNetDeposits || undefined;
           const rawApiBalance = trader.total_balance !== undefined
             ? trader.total_balance
-            : (volume === 0 ? netDepositValue : (dbTrader.lastRecordedBalance ?? netDepositValue));
+            : (dbTrader.lastRecordedBalance ?? undefined);
           const simOffset = dbTrader.simulatedBalanceOffset ?? 0;
           const apiBalance = rawApiBalance + simOffset;
           trader.total_balance = apiBalance;
@@ -398,8 +411,8 @@ export async function getIntegratedLeaderboard(
             : (Number(trader.total_equity) + simOffset);
           const apiDepositDate = trader.last_deposit_date || null;
           
-          // Preserve registration-time deposit, fallback to starting balance or current balance
-          let totalNetDeposits = dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance ?? 100;
+          // Preserve registration-time deposit, fallback to last recorded balance only (no hardcoded placeholder)
+          let totalNetDeposits = dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance;
 
           // Always update totalNetDeposits if Alpari API provides a valid tracked net deposit (> 0)
           if (trader.mt_net_deposits && trader.mt_net_deposits > 0) {
@@ -446,8 +459,8 @@ export async function getIntegratedLeaderboard(
           
           if (trader.total_balance !== undefined) {
             if (netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
-              // If previous deposit was default 100 placeholder, uninitialized, or distorted (< 10), re-baseline cleanly
-              if (dbTrader.totalNetDeposits === 100 || !dbTrader.twrFactor || dbTrader.totalNetDeposits < 10) {
+              // If TWR factor is uninitialized or previous deposit was distorted (< 10), re-baseline cleanly
+              if (!dbTrader.twrFactor || dbTrader.totalNetDeposits < 10) {
                 twrFactor = 1.0;
                 startingBalanceOfThisPeriod = netDeposit;
               } else {
@@ -550,8 +563,8 @@ export async function getIntegratedLeaderboard(
       // 2. Washout Filter: If a trader is washed out, they are disqualified and out of the leaderboard
       if (t.is_washed_out) return false;
 
-      // 3. Minimum Deposit Filter: Must have deposited at least $100
-      if ((t.mt_net_deposits ?? 0) < 100) return false;
+      // 3. Minimum Deposit Filter: Must have at least $1 net deposit on record
+      if (t.mt_net_deposits !== undefined && t.mt_net_deposits !== null && t.mt_net_deposits < 1) return false;
 
       // 4. All activity metric filters (Volume, Rebates, Balance, Equity checks) have been removed
       // to display all registered traders from Jan to Dec.
@@ -562,9 +575,9 @@ export async function getIntegratedLeaderboard(
     const settledRebates = t.settled_rebates ?? 0;
     const unsettledRebates = t.unsettled_rebates ?? 0;
     const mtNetDeposits = t.mt_net_deposits ?? 0;
-    // Fallback: if Insights is down, total_equity & total_balance will be undefined.
-    const totalEquity = t.total_equity || mtNetDeposits || 100;
-    const totalBalance = t.total_balance || mtNetDeposits || 100;
+    // If Insights API is delayed, keep undefined — UI shows a hyphen instead of a wrong fallback value.
+    const totalEquity = t.total_equity ?? undefined;
+    const totalBalance = t.total_balance ?? undefined;
 
     let profit = 0;
     let tradesCount = 0;

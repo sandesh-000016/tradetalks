@@ -54,7 +54,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch" | "registrations" | "promoted" | "pointsHistory">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "traders" | "badges" | "liveSearch" | "registrations" | "promoted" | "pointsHistory" | "dummyTraders">("overview");
 
   // State for traders data
   const [pointsHistory, setPointsHistory] = useState<any[]>([]);
@@ -130,6 +130,19 @@ export default function AdminPage() {
   const [cronHistory, setCronHistory] = useState<any[]>([]);
   const [loadingCronHistory, setLoadingCronHistory] = useState(false);
 
+  // Dummy traders state
+  const [dummyTraders, setDummyTraders] = useState<any[]>([]);
+  const [loadingDummies, setLoadingDummies] = useState(false);
+  const [editingDummy, setEditingDummy] = useState<any | null>(null);
+  const [savingDummy, setSavingDummy] = useState(false);
+  const [dummyForm, setDummyForm] = useState({
+    clientName: "",
+    country: "India",
+    netDeposit: "",
+    currentBalance: "",
+    volume: "",
+  });
+
   // Check auth status on mount
   useEffect(() => {
     checkAuth();
@@ -176,6 +189,76 @@ export default function AdminPage() {
       console.error("Error loading registrations:", err);
     } finally {
       setLoadingRegistrations(false);
+    }
+  };
+
+  const fetchDummyTraders = async () => {
+    setLoadingDummies(true);
+    try {
+      const res = await fetch("/api/admin/dummy-traders");
+      const data = await res.json();
+      if (data.success) setDummyTraders(data.traders);
+    } catch (err) {
+      console.error("Error loading dummy traders:", err);
+    } finally {
+      setLoadingDummies(false);
+    }
+  };
+
+  const handleSaveDummyTrader = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDummy(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const isEdit = !!editingDummy?._id;
+      const payload = isEdit
+        ? {
+            _id: editingDummy._id,
+            clientName: dummyForm.clientName,
+            country: dummyForm.country,
+            netDeposit: Number(dummyForm.netDeposit),
+            currentBalance: Number(dummyForm.currentBalance),
+            volume: Number(dummyForm.volume || 0),
+          }
+        : {
+            clientName: dummyForm.clientName,
+            country: dummyForm.country,
+            netDeposit: Number(dummyForm.netDeposit),
+            currentBalance: Number(dummyForm.currentBalance),
+            volume: Number(dummyForm.volume || 0),
+          };
+
+      const res = await fetch("/api/admin/dummy-traders", {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to save.");
+      setSuccessMsg(isEdit ? `Dummy trader "${dummyForm.clientName}" updated!` : `Dummy trader "${dummyForm.clientName}" created and will appear on the leaderboard!`);
+      setEditingDummy(null);
+      setDummyForm({ clientName: "", country: "India", netDeposit: "", currentBalance: "", volume: "" });
+      await fetchDummyTraders();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to save dummy trader.");
+    } finally {
+      setSavingDummy(false);
+    }
+  };
+
+  const handleDeleteDummyTrader = async (id: string, name: string) => {
+    if (!confirm(`Delete dummy trader "${name}"? They will be removed from the leaderboard.`)) return;
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch(`/api/admin/dummy-traders?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to delete.");
+      setSuccessMsg(`Dummy trader "${name}" deleted.`);
+      await fetchDummyTraders();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to delete dummy trader.");
     }
   };
 
@@ -884,7 +967,7 @@ export default function AdminPage() {
   // Calculations for stats
   const totalRegistered = traders.length;
   const totalNetDeposits = traders.reduce((acc, t) => acc + (t.totalNetDeposits || 0), 0);
-  const totalDisqualified = traders.filter(t => t.isWashedOut || (t.totalNetDeposits || 0) < 100).length;
+  const totalDisqualified = traders.filter(t => t.isWashedOut).length;
 
   // Filtered list
   const filteredTraders = traders.filter(t => {
@@ -1039,6 +1122,23 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => {
+                setActiveTab("dummyTraders");
+                fetchDummyTraders();
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                activeTab === "dummyTraders"
+                  ? "bg-brand-600/15 text-brand-400 border border-brand-500/25"
+                  : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+              }`}
+            >
+              <Users className="w-5 h-5 text-violet-400" />
+              Dummy Traders
+              <span className="ml-auto bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full">
+                {dummyTraders.length || ""}
+              </span>
+            </button>
+            <button
+              onClick={() => {
                 setActiveTab("promoted");
                 fetchWinnerPromotions();
               }}
@@ -1148,7 +1248,7 @@ export default function AdminPage() {
                 </div>
                 <span className="text-slate-400 text-sm font-medium">Disqualified Traders</span>
                 <span className="block text-4xl font-extrabold text-white mt-2">{totalDisqualified}</span>
-                <span className="text-slate-500 text-xs mt-1 block">Disqualified due to washout (&le;$1.00)</span>
+                <span className="text-slate-500 text-xs mt-1 block">Manually disqualified (washout) traders</span>
               </div>
 
             </div>
@@ -1367,14 +1467,14 @@ export default function AdminPage() {
                           {/* Status */}
                           <td className="px-6 py-4 text-center">
                             <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium ${
-                              t.isWashedOut || (t.totalNetDeposits ?? 0) < 100
+                              t.isWashedOut || (t.totalNetDeposits ?? 0) < 1
                                 ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                 : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                             }`}>
                               {t.isWashedOut
                                 ? "Disqualified"
-                                : (t.totalNetDeposits ?? 0) < 100
-                                ? "Disqualified (< $100 Deposit)"
+                                : (t.totalNetDeposits ?? 0) < 1
+                                ? "Disqualified (< $1 Deposit)"
                                 : "Qualified"}
                             </span>
                           </td>
@@ -2070,17 +2170,38 @@ export default function AdminPage() {
                   <span className="text-slate-400 text-sm">Loading registrations...</span>
                 </div>
               ) : (() => {
-                const filtered = registrations.filter((r) => {
-                  const q = regSearchQuery.toLowerCase();
-                  return (
-                    (r.fullName || r.clientName || "").toLowerCase().includes(q) ||
-                    (r.phone || "").toLowerCase().includes(q) ||
-                    (r.place || "").toLowerCase().includes(q) ||
-                    (r.country || "").toLowerCase().includes(q) ||
-                    (r.email || "").toLowerCase().includes(q) ||
-                    (r.clientId || "").toLowerCase().includes(q)
-                  );
-                });
+                const filtered = registrations
+                  .filter((r) => {
+                    const q = regSearchQuery.toLowerCase();
+                    return (
+                      (r.fullName || r.clientName || "").toLowerCase().includes(q) ||
+                      (r.phone || "").toLowerCase().includes(q) ||
+                      (r.place || "").toLowerCase().includes(q) ||
+                      (r.country || "").toLowerCase().includes(q) ||
+                      (r.email || "").toLowerCase().includes(q) ||
+                      (r.clientId || "").toLowerCase().includes(q)
+                    );
+                  })
+                  .map((r) => {
+                    const matchedTrader = traders.find(
+                      (t) => t.clientId === r.clientId
+                    );
+                    return {
+                      ...r,
+                      _roi: matchedTrader ? (matchedTrader.profit ?? null) : null,
+                    };
+                  })
+                  .sort((a, b) => {
+                    // Leaderboard-style: positive ROI first (desc), then 0, then negative (desc)
+                    const roiA = a._roi;
+                    const roiB = b._roi;
+                    // Unmatched traders (no ROI data) go to the bottom
+                    if (roiA === null && roiB === null) return 0;
+                    if (roiA === null) return 1;
+                    if (roiB === null) return -1;
+                    // Both have ROI — sort descending (highest ROI first)
+                    return roiB - roiA;
+                  });
 
                 if (filtered.length === 0) {
                   return (
@@ -2105,6 +2226,7 @@ export default function AdminPage() {
                           <th className="px-5 py-4">Place & Country</th>
                           <th className="px-5 py-4">Occupation</th>
                           <th className="px-5 py-4">Market & Capital</th>
+                          <th className="px-5 py-4 text-right">ROI</th>
                           <th className="px-5 py-4">Registered</th>
                         </tr>
                       </thead>
@@ -2178,6 +2300,25 @@ export default function AdminPage() {
                                     {r.capital || "—"}
                                   </span>
                                 </div>
+                              ) : (
+                                <span className="text-slate-600 text-xs">—</span>
+                              )}
+                            </td>
+
+                            {/* ROI */}
+                            <td className="px-5 py-4 text-right">
+                              {r._roi !== null && r._roi !== undefined ? (
+                                <span
+                                  className={`font-bold text-xs ${
+                                    r._roi > 0
+                                      ? "text-emerald-400"
+                                      : r._roi < 0
+                                      ? "text-rose-400"
+                                      : "text-slate-400"
+                                  }`}
+                                >
+                                  {r._roi > 0 ? "+" : ""}{r._roi.toFixed(2)}%
+                                </span>
                               ) : (
                                 <span className="text-slate-600 text-xs">—</span>
                               )}
@@ -2473,7 +2614,269 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* DUMMY TRADERS TAB */}
+        {activeTab === "dummyTraders" && (
+          <div className="space-y-6 animate-fadeIn">
+
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+                  <Users className="w-7 h-7 text-violet-400" />
+                  Dummy Traders
+                </h1>
+                <p className="text-slate-400 text-sm mt-1">
+                  Create fake traders that appear on the public leaderboard to boost outreach
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingDummy({});
+                  setDummyForm({ clientName: "", country: "India", netDeposit: "", currentBalance: "", volume: "" });
+                }}
+                className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-violet-600/20"
+              >
+                <Plus className="w-4 h-4" />
+                Add Dummy Trader
+              </button>
+            </div>
+
+            {/* Create / Edit Form */}
+            {editingDummy !== null && (
+              <div className="bg-slate-900 border border-violet-500/25 rounded-2xl p-6 shadow-xl">
+                <h3 className="text-lg font-bold text-white mb-1">
+                  {editingDummy._id ? "Edit Dummy Trader" : "Create New Dummy Trader"}
+                </h3>
+                <p className="text-slate-400 text-xs mb-5">
+                  Fill in the details below. ROI is auto-calculated from Net Deposit and Current Balance.
+                </p>
+                <form onSubmit={handleSaveDummyTrader} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-1.5">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={dummyForm.clientName}
+                        onChange={(e) => setDummyForm({ ...dummyForm, clientName: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 text-sm transition-all"
+                        placeholder="e.g. Arjun Sharma"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-1.5">
+                        Country
+                      </label>
+                      <input
+                        type="text"
+                        value={dummyForm.country}
+                        onChange={(e) => setDummyForm({ ...dummyForm, country: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 text-sm transition-all"
+                        placeholder="India"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-1.5">
+                        Net Deposit ($) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">$</span>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          step="0.01"
+                          value={dummyForm.netDeposit}
+                          onChange={(e) => setDummyForm({ ...dummyForm, netDeposit: e.target.value })}
+                          className="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm transition-all"
+                          placeholder="1000.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-1.5">
+                        Current Balance ($) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">$</span>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step="0.01"
+                          value={dummyForm.currentBalance}
+                          onChange={(e) => setDummyForm({ ...dummyForm, currentBalance: e.target.value })}
+                          className="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm transition-all"
+                          placeholder="1200.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 text-xs font-semibold uppercase tracking-wider mb-1.5">
+                        Volume / Lots
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={dummyForm.volume}
+                        onChange={(e) => setDummyForm({ ...dummyForm, volume: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm transition-all"
+                        placeholder="12.5"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live ROI preview */}
+                  {dummyForm.netDeposit && dummyForm.currentBalance && Number(dummyForm.netDeposit) > 0 && (
+                    <div className="flex items-center gap-3 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3">
+                      <TrendingUp className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="text-slate-400 text-xs">Auto-calculated ROI:</span>
+                      <span className={`font-bold text-sm ${
+                        (Number(dummyForm.currentBalance) - Number(dummyForm.netDeposit)) >= 0
+                          ? "text-emerald-400"
+                          : "text-rose-400"
+                      }`}>
+                        {(((Number(dummyForm.currentBalance) - Number(dummyForm.netDeposit)) / Number(dummyForm.netDeposit)) * 100).toFixed(2)}%
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingDummy(null)}
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition-all cursor-pointer text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingDummy}
+                      className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-semibold rounded-xl shadow-lg shadow-violet-600/20 transition-all cursor-pointer text-sm"
+                    >
+                      {savingDummy ? "Saving..." : editingDummy._id ? "Update Trader" : "Create & Publish"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Dummy Traders Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              {loadingDummies ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-500"></div>
+                  <span className="text-slate-400 text-sm">Loading dummy traders...</span>
+                </div>
+              ) : dummyTraders.length === 0 ? (
+                <div className="py-20 text-center">
+                  <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+                  <h3 className="text-slate-300 font-bold text-lg">No dummy traders yet</h3>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Click "Add Dummy Trader" above to create your first one.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider bg-slate-950/35">
+                        <th className="px-5 py-4">#</th>
+                        <th className="px-5 py-4">Trader</th>
+                        <th className="px-5 py-4">Country</th>
+                        <th className="px-5 py-4 text-right">Net Deposit</th>
+                        <th className="px-5 py-4 text-right">Balance</th>
+                        <th className="px-5 py-4 text-right">ROI</th>
+                        <th className="px-5 py-4 text-right">Volume</th>
+                        <th className="px-5 py-4 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {dummyTraders.map((d, idx) => {
+                        const roi = d.totalNetDeposits > 0
+                          ? (((d.lastRecordedBalance - d.totalNetDeposits) / d.totalNetDeposits) * 100)
+                          : 0;
+                        return (
+                          <tr key={d._id} className="hover:bg-slate-800/20 transition-all">
+                            <td className="px-5 py-4 text-slate-500 text-xs font-mono">{idx + 1}</td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(d.clientName)}`}
+                                  alt={d.clientName}
+                                  className="w-9 h-9 rounded-lg bg-slate-800 border border-violet-500/30 shrink-0"
+                                />
+                                <div>
+                                  <span className="font-semibold text-white block text-sm">{d.clientName}</span>
+                                  <span className="text-[10px] font-mono text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded">DUMMY</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-slate-300 text-xs">{d.country || "India"}</td>
+                            <td className="px-5 py-4 text-right text-slate-300 text-sm font-medium">
+                              ${(d.totalNetDeposits || 0).toFixed(2)}
+                            </td>
+                            <td className="px-5 py-4 text-right text-slate-200 text-sm font-medium">
+                              ${(d.lastRecordedBalance || 0).toFixed(2)}
+                            </td>
+                            <td className="px-5 py-4 text-right">
+                              <span className={`font-bold text-sm ${roi >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                {roi >= 0 ? "+" : ""}{roi.toFixed(2)}%
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-right text-slate-400 text-sm">
+                              {(d.volume || 0).toFixed(2)}
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingDummy(d);
+                                    setDummyForm({
+                                      clientName: d.clientName,
+                                      country: d.country || "India",
+                                      netDeposit: String(d.totalNetDeposits || ""),
+                                      currentBalance: String(d.lastRecordedBalance || ""),
+                                      volume: String(d.volume || ""),
+                                    });
+                                  }}
+                                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteDummyTrader(String(d._id), d.clientName)}
+                                  className="p-1.5 bg-rose-950/20 hover:bg-rose-900/40 text-rose-400 rounded-lg transition-all cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="px-5 py-3 border-t border-slate-800 text-slate-500 text-xs">
+                    {dummyTraders.length} dummy trader{dummyTraders.length !== 1 ? "s" : ""} active on leaderboard
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
         {/* POINTS HISTORY TAB */}
+
         {activeTab === "pointsHistory" && (
           <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
