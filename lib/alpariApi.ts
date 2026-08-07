@@ -570,10 +570,13 @@ export async function getIntegratedLeaderboard(
       // 2. Washout Filter: If a trader is washed out, they are disqualified and out of the leaderboard
       if (t.is_washed_out) return false;
 
-      // 3. Minimum Deposit Filter: Must have at least $1 net deposit on record
-      if (t.mt_net_deposits !== undefined && t.mt_net_deposits !== null && t.mt_net_deposits < 1) return false;
+      // 3. Minimum Deposit Filter: Must have at least $100 net deposit on record
+      if (t.mt_net_deposits !== undefined && t.mt_net_deposits !== null && t.mt_net_deposits < 100) return false;
 
-      // 4. All activity metric filters (Volume, Rebates, Balance, Equity checks) have been removed
+      // 4. Washout Filter: Must maintain at least $1 in current balance to stay on the leaderboard
+      if (t.total_balance !== undefined && t.total_balance !== null && t.total_balance < 1) return false;
+
+      // 5. All activity metric filters (Volume, Rebates, Equity checks) have been removed
       // to display all registered traders from Jan to Dec.
       return true;
     })
@@ -761,6 +764,12 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
           const clientName = found.client_name || `Trader ${extId}`;
           const balance = Number(found.total_balance ?? 0);
 
+          // Check for $100 minimum deposit before allowing registration
+          const resolvedNetDeposit = (found.mt_net_deposits && Number(found.mt_net_deposits) > 0) ? Number(found.mt_net_deposits) : (balance > 0 ? balance : 0);
+          if (resolvedNetDeposit < 100) {
+            throw new Error("INSUFFICIENT_FUNDS");
+          }
+
           let minEquityThreshold = 1.0;
           try {
             const settings = await db.collection<any>("global_settings").findOne({ _id: "global_badge_eligibility" });
@@ -855,6 +864,12 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
       const numId = foundInsight.id || foundInsight.clientId || foundInsight.client_id || 0;
       const clientName = foundInsight.client_name || foundInsight.name || `Trader ${extId}`;
       const balance = Number(foundInsight.total_balance ?? 0);
+
+      // Check for $100 minimum deposit before allowing registration
+      const resolvedNetDeposit = (foundInsight.mt_net_deposits && Number(foundInsight.mt_net_deposits) > 0) ? Number(foundInsight.mt_net_deposits) : (balance > 0 ? balance : 0);
+      if (resolvedNetDeposit < 100) {
+        throw new Error("INSUFFICIENT_FUNDS");
+      }
 
       // Save/upsert to MongoDB so it's cached for future lookups
       if (clientPromise) {

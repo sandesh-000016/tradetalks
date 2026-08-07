@@ -32,6 +32,14 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error("Verification API Error:", error);
+    
+    if (error.message === "INSUFFICIENT_FUNDS") {
+      return NextResponse.json({
+        success: false,
+        error: "Your account does not meet the minimum $100 net deposit requirement to participate in the leaderboard."
+      });
+    }
+
     return NextResponse.json(
       { success: false, error: "Server verification failed. Please try again later." },
       { status: 500 }
