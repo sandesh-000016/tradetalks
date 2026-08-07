@@ -363,7 +363,8 @@ export async function getIntegratedLeaderboard(
               settled_rebates: dbTrader.settledRebates ?? 0,
               is_registered: true,
               is_washed_out: dbTrader.isWashedOut || false,
-              mt_net_deposits: dbTrader.totalNetDeposits ?? undefined
+              mt_net_deposits: dbTrader.totalNetDeposits ?? undefined,
+              isDummy: dbTrader.isDummy || false
             };
           }
           // Copy database TWR values to the merged map for later profit calculations
@@ -388,6 +389,7 @@ export async function getIntegratedLeaderboard(
 
           // Dummy traders are managed by admin directly — bypass Alpari sync entirely
           if (dbTrader.isDummy) {
+            trader.isDummy = true;
             trader.is_registered = true;
             trader.is_washed_out = dbTrader.isWashedOut || false;
             trader.total_balance = dbTrader.lastRecordedBalance;
@@ -548,6 +550,11 @@ export async function getIntegratedLeaderboard(
       // For verification, we bypass all date, washout, and deposit filters
       if (forVerification) {
         return true;
+      }
+
+      // Dummy traders are managed explicitly by the admin, so they bypass standard eligibility filters
+      if (t.isDummy) {
+        return !t.is_washed_out;
       }
 
       // 0. Only show registered/verified traders

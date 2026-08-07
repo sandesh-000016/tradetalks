@@ -51,7 +51,13 @@ export async function POST(request: Request) {
     // ROI = ((currentBalance - netDeposit) / netDeposit) * 100
     const profit = net > 0 ? Number((((bal - net) / net) * 100).toFixed(2)) : 0;
 
-    const clientId = `dummy_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    // Generate a realistic looking Client ID (e.g. f0465c52555)
+    const hexChars = "0123456789abcdef";
+    let randomHex = "";
+    for (let i = 0; i < 9; i++) {
+      randomHex += hexChars[Math.floor(Math.random() * 16)];
+    }
+    const clientId = `f0${randomHex}`;
 
     const client = await clientPromise;
     if (!client) throw new Error("Database connection failed");
@@ -76,6 +82,10 @@ export async function POST(request: Request) {
     };
 
     const result = await db.collection("traders").insertOne(doc);
+    
+    // Invalidate leaderboard cache
+    await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
+
     return NextResponse.json({ success: true, trader: { ...doc, _id: result.insertedId } });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -121,6 +131,9 @@ export async function PUT(request: Request) {
       }
     );
 
+    // Invalidate leaderboard cache
+    await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -152,6 +165,9 @@ export async function DELETE(request: Request) {
     if (result.deletedCount === 0) {
       return NextResponse.json({ success: false, error: "Dummy trader not found." }, { status: 404 });
     }
+
+    // Invalidate leaderboard cache
+    await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

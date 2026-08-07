@@ -44,6 +44,9 @@ export async function POST(request: Request) {
       { upsert: true }
     );
 
+    // Invalidate leaderboard cache
+    await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
+
     return NextResponse.json({
       success: true,
       message: `Successfully awarded "${badgeName}" to ${traderName} for period ${awardPeriod}!`
@@ -78,6 +81,9 @@ export async function DELETE(request: Request) {
     const collection = db.collection<any>("awarded_badges");
 
     await collection.deleteOne({ traderId, badgeName, period });
+
+    // Invalidate leaderboard cache
+    await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
 
     return NextResponse.json({
       success: true,
