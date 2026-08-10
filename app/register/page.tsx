@@ -771,7 +771,7 @@ function RegisterContent() {
                 You have successfully unlocked access to the trading challenge and our Forex educational series.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 border-t border-slate-900/60 w-full max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4 border-t border-slate-900/60 w-full max-w-2xl mx-auto">
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
@@ -780,6 +780,17 @@ function RegisterContent() {
                 <ArrowLeft className="w-4 h-4" />
                 Back to Form
               </button>
+              <a
+                href="https://chat.whatsapp.com/L4gRIkZ1soiAZCcKkZvvu5?s=sh&p=a&ilr=1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.864.002-2.637-1.03-5.116-2.905-6.994C16.257 1.87 13.772 1.08 11.135 1.08c-5.441 0-9.866 4.425-9.87 9.87-.001 1.702.447 3.361 1.299 4.81l-.995 3.636 3.73-.978zm11.597-5.748c-.307-.154-1.817-.897-2.097-.999-.28-.102-.484-.154-.688.154-.204.306-.79.999-.968 1.203-.178.204-.356.229-.663.076-.306-.154-1.295-.477-2.464-1.52-1.077-.96-1.803-2.148-2.014-2.505-.212-.357-.023-.55.155-.727.16-.16.356-.417.535-.626.178-.209.238-.357.356-.596.119-.239.059-.449-.03-.603-.089-.154-.688-1.659-.942-2.27-.248-.598-.5-.517-.688-.526-.178-.009-.382-.01-.587-.01s-.536.077-.817.383c-.281.306-1.071 1.047-1.071 2.552 0 1.505 1.096 2.96 1.248 3.164.153.204 2.155 3.292 5.221 4.618.729.315 1.298.503 1.742.645.733.233 1.399.2 1.925.121.587-.089 1.817-.74 2.072-1.455.255-.715.255-1.328.178-1.455-.076-.128-.28-.204-.586-.358z" />
+                </svg>
+                Join our WhatsApp Community
+              </a>
               <button
                 type="button"
                 onClick={() => setCurrentStep(4)}
