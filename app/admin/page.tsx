@@ -44,7 +44,8 @@ interface Trader {
   isRegistered: boolean;
   lastUpdated?: string;
   // Merged fields
-  profit?: number;
+  profit?: number | null;
+  isCorrupted?: boolean;
   volume?: number;
   country?: string;
   registrationDate?: string;
@@ -411,7 +412,8 @@ export default function AdminPage() {
       const dbTraders = dataDb.traders.map((rt: any) => ({
         ...rt,
         clientId: rt.clientId || rt._id,
-        profit: rt.profit ?? 0,
+        profit: rt.profit,
+        isCorrupted: rt.isCorrupted || false,
         volume: rt.volume ?? 0,
         country: rt.country ?? "India",
         registrationDate: rt.registrationDate ?? "N/A",
@@ -1418,6 +1420,11 @@ export default function AdminPage() {
                               <div>
                                 <span className="font-semibold text-white block text-sm">{t.clientName}</span>
                                 <span className="text-slate-500 text-xs block font-mono">ID: {t.clientId}</span>
+                                {t.isCorrupted && (
+                                  <span className="text-amber-500 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5" title="Data inconsistency detected. Please verify or update deposit.">
+                                    <AlertTriangle className="w-3 h-3" /> Corrupted Data
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -1456,12 +1463,16 @@ export default function AdminPage() {
 
                           {/* ROI */}
                           <td className="px-6 py-4 text-right">
-                            <div className={`flex items-center justify-end gap-1 text-sm font-bold ${
-                              (t.profit ?? 0) > 0 ? "text-emerald-400" : (t.profit ?? 0) < 0 ? "text-rose-400" : "text-slate-400"
-                            }`}>
-                              <TrendingUp className="w-3.5 h-3.5" />
-                              <span>{(t.profit ?? 0) > 0 ? "+" : ""}{(t.profit ?? 0).toFixed(2)}%</span>
-                            </div>
+                            {t.isCorrupted || t.profit == null ? (
+                              <span className="text-slate-500 font-bold text-lg">-</span>
+                            ) : (
+                              <div className={`flex items-center justify-end gap-1 text-sm font-bold ${
+                                t.profit > 0 ? "text-emerald-400" : t.profit < 0 ? "text-rose-400" : "text-slate-400"
+                              }`}>
+                                <TrendingUp className="w-3.5 h-3.5" />
+                                <span>{t.profit > 0 ? "+" : ""}{t.profit.toFixed(2)}%</span>
+                              </div>
+                            )}
                           </td>
 
                           {/* Status */}

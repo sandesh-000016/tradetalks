@@ -459,8 +459,20 @@ export async function getIntegratedLeaderboard(
           let twrFactor = dbTrader.twrFactor ?? 1.0;
           let startingBalanceOfThisPeriod = dbTrader.startingBalanceOfThisPeriod ?? netDeposit;
           
+          // Sanity guard: if twrFactor is clearly corrupted (absurdly large), reset it
+          if (Math.abs(twrFactor) > 50 || isNaN(twrFactor) || !isFinite(twrFactor)) {
+            console.log(`[Leaderboard Sync] TWR factor for ${trader.client_name || key} is corrupted (${twrFactor}). Resetting to 1.0.`);
+            twrFactor = 1.0;
+            startingBalanceOfThisPeriod = netDeposit;
+          }
+          
           if (trader.total_balance !== undefined) {
-            if (netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
+            // Only recalculate TWR when a REAL deposit event is detected via deposit date change.
+            // Do NOT trigger on mt_net_deposits fluctuations — those can change due to API timing/settlement
+            // and cause the twrFactor to compound incorrectly on every sync.
+            const hasNewDeposit = apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate;
+            
+            if (hasNewDeposit && netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
               // If TWR factor is uninitialized or previous deposit was distorted (< 10), re-baseline cleanly
               if (!dbTrader.twrFactor || dbTrader.totalNetDeposits < 10) {
                 twrFactor = 1.0;
@@ -474,6 +486,9 @@ export async function getIntegratedLeaderboard(
                   periodReturn = (balanceBefore - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
                 }
                 
+                // Cap individual period returns to prevent compounding explosion
+                periodReturn = Math.max(-0.99, Math.min(periodReturn, 50));
+                
                 twrFactor = twrFactor * (1 + periodReturn);
                 startingBalanceOfThisPeriod = apiBalance;
               }
@@ -484,6 +499,13 @@ export async function getIntegratedLeaderboard(
           if (startingBalanceOfThisPeriod > 0) {
             const currentPeriodReturn = (apiBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
             twrProfit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
+          }
+          
+          // Sanity: mark as corrupted if TWR produces an unreasonable value
+          let isCorrupted = false;
+          if (Math.abs(twrProfit) > 5000 || isNaN(twrProfit) || !isFinite(twrProfit)) {
+            console.log(`[Leaderboard Sync] TWR profit for ${trader.client_name || key} is unreasonable (${twrProfit}). Marking as corrupted.`);
+            isCorrupted = true;
           }
 
           bulkOps.push({
@@ -501,7 +523,8 @@ export async function getIntegratedLeaderboard(
                   lastUpdated: new Date(),
                   twrFactor,
                   startingBalanceOfThisPeriod,
-                  profit: Number(twrProfit.toFixed(2)),
+                  profit: isCorrupted ? null : Number(twrProfit.toFixed(2)),
+                  isCorrupted,
                   volume: Number(volume)
                 }
               }
@@ -625,6 +648,12 @@ export async function getIntegratedLeaderboard(
         currentPeriodReturn = (currentBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
       }
       profit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
+      // Sanity: if TWR is unreasonable, mark as corrupted
+      if (Math.abs(profit) > 5000 || isNaN(profit) || !isFinite(profit)) {
+        t.isCorrupted = true;
+        profit = NaN;
+      }
+      
       tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
     }
 
@@ -635,7 +664,8 @@ export async function getIntegratedLeaderboard(
       name: t.client_name || `Trader ${String(t.id).substring(0, 8)}`,
       title: (volume > 10 || profit > 30) ? "Elite Trader" : (volume > 2 || profit > 15) ? "Pro Trader" : "Rising Star",
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(t.client_name || String(t.id))}`,
-      profit: Number(profit.toFixed(2)),
+      profit: isNaN(profit) || t.isCorrupted ? null : Number(profit.toFixed(2)),
+      isCorrupted: t.isCorrupted || false,
       tradesCount: tradesCount,
       status: (volume > 0 || totalBalance > 0) ? "online" : "offline",
 
