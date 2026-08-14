@@ -465,12 +465,22 @@ export async function getIntegratedLeaderboard(
             twrFactor = 1.0;
             startingBalanceOfThisPeriod = netDeposit;
           }
+
+          // Auto-heal for traders affected by the previous tiny-fluctuation bug
+          let simpleROI = netDeposit > 0 ? ((apiBalance - netDeposit) / netDeposit) * 100 : 0;
+          if (key === "f05d8b86111" || (simpleROI > 300 && twrFactor < 5.0 && startingBalanceOfThisPeriod > netDeposit * 3)) {
+            console.log(`[Leaderboard Sync] Auto-healing TWR for ${trader.client_name || key}. Simple ROI: ${simpleROI}%, TWR Factor: ${twrFactor}`);
+            twrFactor = 1.0;
+            startingBalanceOfThisPeriod = netDeposit;
+          }
           
           if (trader.total_balance !== undefined) {
-            // Only recalculate TWR when a REAL deposit event is detected via deposit date change.
-            // Do NOT trigger on mt_net_deposits fluctuations — those can change due to API timing/settlement
+            // Only recalculate TWR when a REAL deposit event is detected.
+            // Since Alpari API doesn't provide last_deposit_date reliably, we detect deposits by looking for significant changes in net deposits (>= $2).
+            // Do NOT trigger on minor mt_net_deposits fluctuations (< $2) — those can change due to API timing/settlement
             // and cause the twrFactor to compound incorrectly on every sync.
-            const hasNewDeposit = apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate;
+            const diff = dbTrader.totalNetDeposits !== undefined ? Math.abs(netDeposit - dbTrader.totalNetDeposits) : 0;
+            const hasNewDeposit = diff >= 2.0;
             
             if (hasNewDeposit && netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
               // If TWR factor is uninitialized or previous deposit was distorted (< 10), re-baseline cleanly
