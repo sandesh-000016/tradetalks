@@ -1520,7 +1520,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
               <div>
                 <h4 className="text-lg font-bold text-white font-display">Multiple</h4>
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mt-1">Leaderboards</p>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">Rankings computed Daily, Weekly, Monthly & All Time.</p>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">Live rankings computed from current performance data.</p>
               </div>
             </motion.div>
 

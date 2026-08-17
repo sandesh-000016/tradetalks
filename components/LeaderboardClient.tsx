@@ -540,7 +540,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
             </div>
           )}
 
-          {/* Timeframe selector (centered) */}
+          {/* Timeframe selector (centered) - HIDDEN until backend snapshotting is built
          <div className="flex justify-center mb-10">
           <div className="flex bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 backdrop-blur-sm shadow-inner">
             {(["all", "monthly", "weekly", "daily"] as const).map((t) => (
@@ -558,6 +558,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
             ))}
           </div>
         </div>
+        */}
         {/* Rules & Requirements Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
           {/* Rules Card (2/3 width on large screens) */}
