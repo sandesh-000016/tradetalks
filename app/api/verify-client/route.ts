@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     if (error.message === "INSUFFICIENT_FUNDS") {
       return NextResponse.json({
         success: false,
-        error: "Your account does not meet the minimum $100 net deposit requirement to participate in the leaderboard."
+        error: "Your account does not meet the minimum $100 net deposit requirement. If you just deposited, please wait 1-2 hours for the broker API to process it before registering."
       });
     }
 

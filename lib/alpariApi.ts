@@ -805,7 +805,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
           const balance = Number(found.total_balance ?? 0);
 
           // Check for $100 minimum deposit before allowing registration
-          const resolvedNetDeposit = (found.mt_net_deposits && Number(found.mt_net_deposits) > 0) ? Number(found.mt_net_deposits) : (balance > 0 ? balance : 0);
+          const resolvedNetDeposit = found.mt_net_deposits ? Number(found.mt_net_deposits) : 0;
           if (resolvedNetDeposit < 100) {
             throw new Error("INSUFFICIENT_FUNDS");
           }
@@ -827,7 +827,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientId: extId,
                 numericId: Number(numId),
                 clientName,
-                totalNetDeposits: (found.mt_net_deposits && Number(found.mt_net_deposits) > 0) ? Number(found.mt_net_deposits) : (balance > 0 ? balance : 100),
+                totalNetDeposits: resolvedNetDeposit,
                 lastRecordedBalance: balance,
                 isWashedOut: false,
                 isRegistered: true,
@@ -883,12 +883,27 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
       RegistrationToDate: formatDateForApi(endDate),
       DirectPartner: getDirectPartnerId(),
     };
-    const insights = await fetchClientInsights(params);
-    return insights.find((i: any) => {
+    const [insights, performances] = await Promise.all([
+      fetchClientInsights(params).catch(() => []),
+      fetchClientPerformance(params).catch(() => []),
+    ]);
+
+    const insight = insights.find((i: any) => {
       const extId = i.external_client_id || i.externalClientId || i.clientId || i.id;
       const numId = i.id || i.clientId || i.client_id;
       return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
     });
+
+    const perf = performances.find((p: any) => {
+      const extId = p.external_client_id || p.externalClientId || p.clientId || p.id;
+      const numId = p.id || p.clientId || p.client_id;
+      return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
+    });
+
+    if (insight || perf) {
+      return { ...(insight || {}), ...(perf || {}) };
+    }
+    return undefined;
   };
 
   try {
@@ -905,8 +920,8 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
       const clientName = foundInsight.client_name || foundInsight.name || `Trader ${extId}`;
       const balance = Number(foundInsight.total_balance ?? 0);
 
-      // Check for $100 minimum deposit before allowing registration
-      const resolvedNetDeposit = (foundInsight.mt_net_deposits && Number(foundInsight.mt_net_deposits) > 0) ? Number(foundInsight.mt_net_deposits) : (balance > 0 ? balance : 0);
+      // Check for $100 minimum deposit before allowing registration strictly using mt_net_deposits
+      const resolvedNetDeposit = foundInsight.mt_net_deposits ? Number(foundInsight.mt_net_deposits) : 0;
       if (resolvedNetDeposit < 100) {
         throw new Error("INSUFFICIENT_FUNDS");
       }
@@ -934,7 +949,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
                 clientId: extId,
                 numericId: Number(numId),
                 clientName,
-                totalNetDeposits: (foundInsight.mt_net_deposits && Number(foundInsight.mt_net_deposits) > 0) ? Number(foundInsight.mt_net_deposits) : (balance > 0 ? balance : 100),
+                totalNetDeposits: resolvedNetDeposit,
                 lastRecordedBalance: balance,
                 isWashedOut: false,
                 isRegistered: true,
