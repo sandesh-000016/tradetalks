@@ -884,11 +884,9 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
       DirectPartner: getDirectPartnerId(),
     };
     const [insights, performances] = await Promise.all([
-      fetchClientInsights(params).catch((e) => { require('fs').appendFileSync('C:\\Users\\SANDESH\\tradetalks\\debug.log', 'Insights Error: ' + e.message + '\n'); return []; }),
-      fetchClientPerformance(params).catch((e) => { require('fs').appendFileSync('C:\\Users\\SANDESH\\tradetalks\\debug.log', 'Perf Error: ' + e.message + '\n'); return []; }),
+      fetchClientInsights(params).catch(() => []),
+      fetchClientPerformance(params).catch(() => []),
     ]);
-
-    require('fs').appendFileSync('C:\\Users\\SANDESH\\tradetalks\\debug.log', `tryFetchAndVerify fetched ${insights.length} insights and ${performances.length} performances for ${startDate} to ${endDate}\n`);
 
     const insight = insights.find((i: any) => {
       const extId = i.external_client_id || i.externalClientId || i.clientId || i.id;
@@ -901,8 +899,6 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
       const numId = p.id || p.clientId || p.client_id;
       return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
     });
-
-    require('fs').appendFileSync('C:\\Users\\SANDESH\\tradetalks\\debug.log', `tryFetchAndVerify found insight: ${!!insight}, found perf: ${!!perf}\n`);
 
     if (insight || perf) {
       return { ...(insight || {}), ...(perf || {}) };
@@ -924,12 +920,9 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
       const clientName = foundInsight.client_name || foundInsight.name || `Trader ${extId}`;
       const balance = Number(foundInsight.total_balance ?? 0);
 
-      require('fs').appendFileSync('C:\\Users\\SANDESH\\tradetalks\\debug.log', `Found insight in verify, checking mt_net_deposits: ${foundInsight.mt_net_deposits}\n`);
-
       // Check for $100 minimum deposit before allowing registration strictly using mt_net_deposits
       const resolvedNetDeposit = foundInsight.mt_net_deposits ? Number(foundInsight.mt_net_deposits) : 0;
       if (resolvedNetDeposit < 100) {
-        require('fs').appendFileSync('C:\\Users\\SANDESH\\tradetalks\\debug.log', `Insufficient funds: ${resolvedNetDeposit} < 100\n`);
         throw new Error("INSUFFICIENT_FUNDS");
       }
 
