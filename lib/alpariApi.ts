@@ -139,11 +139,10 @@ export async function getIntegratedLeaderboard(
   }
 
   if (!cacheHit) {
-    // 1. Always use the custom season range starting from October 1, 2025
-    const SEASON_START_DATE = "2025-10-01"; // Challenge season starts from Oct 1, 2025
-    const SEASON_END_DATE = "2026-12-30";   // Challenge season ends on Dec 30, 2026
-    const fromDate = SEASON_START_DATE; 
-    const customToDate = SEASON_END_DATE;
+    // 1. Fetch all clients from Alpari (API date filtering is bugged and drops valid clients)
+    // We fetch all time and rely on the local JS filter at the bottom of this file.
+    const fromDate = "2020-01-01"; 
+    const customToDate = "2028-12-30";
 
     const params: AlpariApiParams = {
       RegistrationFromDate: formatDateForApi(fromDate),
@@ -456,6 +455,7 @@ export async function getIntegratedLeaderboard(
           trader.is_registered = true;
 
           // Track Time-Weighted Return (TWR) cash flows
+          // Track Time-Weighted Return (TWR) cash flows
           let twrFactor = dbTrader.twrFactor ?? 1.0;
           let startingBalanceOfThisPeriod = dbTrader.startingBalanceOfThisPeriod ?? netDeposit;
           
@@ -511,7 +511,6 @@ export async function getIntegratedLeaderboard(
             twrProfit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
           }
           
-          // Sanity: mark as corrupted if TWR produces an unreasonable value
           let isCorrupted = false;
           if (Math.abs(twrProfit) > 5000 || isNaN(twrProfit) || !isFinite(twrProfit)) {
             console.log(`[Leaderboard Sync] TWR profit for ${trader.client_name || key} is unreasonable (${twrProfit}). Marking as corrupted.`);
@@ -658,6 +657,7 @@ export async function getIntegratedLeaderboard(
         currentPeriodReturn = (currentBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
       }
       profit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
+      
       // Sanity: if TWR is unreasonable, mark as corrupted
       if (Math.abs(profit) > 5000 || isNaN(profit) || !isFinite(profit)) {
         t.isCorrupted = true;
