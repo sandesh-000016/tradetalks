@@ -127,7 +127,7 @@ export async function getIntegratedLeaderboard(
       const mongoClient = await clientPromise;
       const db = mongoClient.db("tradetalks");
       const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
-      
+
       if (cacheDoc) {
         rawClients = cacheDoc.traders;
         cacheHit = true;
@@ -141,8 +141,8 @@ export async function getIntegratedLeaderboard(
   if (!cacheHit) {
     // 1. Fetch all clients from Alpari (API date filtering is bugged and drops valid clients)
     // We fetch all time and rely on the local JS filter at the bottom of this file.
-    const fromDate = "2020-01-01"; 
-    const customToDate = "2028-12-30";
+    const fromDate = "2025-01-01";
+    const customToDate = "2026-12-30";
 
     const params: AlpariApiParams = {
       RegistrationFromDate: formatDateForApi(fromDate),
@@ -244,7 +244,7 @@ export async function getIntegratedLeaderboard(
       mergedMap[key].client_name = p.client_name || p.name || mergedMap[key].client_name;
       mergedMap[key].country = p.country || mergedMap[key].country;
       mergedMap[key].registration_date = p.registration_date || mergedMap[key].registration_date;
-      
+
       // Check local overrides map for manually corrected net deposits
       let netDeposit = Number(p.mt_net_deposits ?? 0);
       let hasOverride = false;
@@ -318,7 +318,7 @@ export async function getIntegratedLeaderboard(
     if (useDb && mongoClient) {
       try {
         const db = mongoClient.db("tradetalks");
-        
+
         // Fetch dynamic global settings
         let minEquityThreshold = 1.0;
         try {
@@ -331,7 +331,7 @@ export async function getIntegratedLeaderboard(
         }
 
         const tradersCol = db.collection<any>("traders");
-        
+
         // Fetch current database state
         const dbList = await tradersCol.find({}).toArray();
         const dbMap = new Map<string, any>();
@@ -346,7 +346,7 @@ export async function getIntegratedLeaderboard(
           if (!dbTrader.isRegistered) return;
           const clientId = dbTrader.clientId || dbTrader._id;
           if (!clientId) return;
-          
+
           const key = clientId.toLowerCase().trim();
           if (!mergedMap[key]) {
             mergedMap[key] = {
@@ -370,16 +370,16 @@ export async function getIntegratedLeaderboard(
           mergedMap[key].twr_factor = dbTrader.twrFactor;
           mergedMap[key].starting_balance_of_this_period = dbTrader.startingBalanceOfThisPeriod;
         });
-        
+
         const bulkOps: any[] = [];
-        
+
         for (const key of Object.keys(mergedMap)) {
           const trader = mergedMap[key];
           const keyLower = String(key).toLowerCase().trim();
           const extLower = trader.external_client_id ? String(trader.external_client_id).toLowerCase().trim() : "";
           const numLower = trader.numeric_id ? String(trader.numeric_id).toLowerCase().trim() : "";
           const dbTrader = dbMap.get(extLower) || dbMap.get(keyLower) || dbMap.get(numLower);
-          
+
           // Only sync and save if they are registered in our DB!
           if (!dbTrader || !dbTrader.isRegistered) {
             trader.is_registered = false;
@@ -411,7 +411,7 @@ export async function getIntegratedLeaderboard(
             ? apiBalance
             : (Number(trader.total_equity) + simOffset);
           const apiDepositDate = trader.last_deposit_date || null;
-          
+
           // Preserve registration-time deposit, fallback to last recorded balance only (no hardcoded placeholder)
           let totalNetDeposits = dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance;
 
@@ -427,7 +427,7 @@ export async function getIntegratedLeaderboard(
           }
 
           let isWashedOut = dbTrader.manualDisqualified ? true : (apiEquity < minEquityThreshold);
-          
+
           // Detect new deposit
           if (apiDepositDate && apiDepositDate !== dbTrader.lastDepositDate) {
             const depositDiff = apiBalance - (dbTrader.lastRecordedBalance ?? 0);
@@ -435,13 +435,13 @@ export async function getIntegratedLeaderboard(
               totalNetDeposits += depositDiff;
             }
           }
-          
+
           // Priority: local json file overrides (if defined, they win)
           let netDeposit = totalNetDeposits;
           const extId = trader.external_client_id;
           const numId = trader.numeric_id;
           const clientId = extId || dbTrader.clientId || String(numId || dbTrader._id);
-          
+
           if (extId && depositOverrides[extId] !== undefined) {
             netDeposit = Number(depositOverrides[extId]);
           } else if (numId && depositOverrides[String(numId)] !== undefined) {
@@ -449,7 +449,7 @@ export async function getIntegratedLeaderboard(
           } else if (key && depositOverrides[key] !== undefined) {
             netDeposit = Number(depositOverrides[key]);
           }
-          
+
           trader.mt_net_deposits = netDeposit;
           trader.is_washed_out = isWashedOut;
           trader.is_registered = true;
@@ -458,7 +458,7 @@ export async function getIntegratedLeaderboard(
           // Track Time-Weighted Return (TWR) cash flows
           let twrFactor = dbTrader.twrFactor ?? 1.0;
           let startingBalanceOfThisPeriod = dbTrader.startingBalanceOfThisPeriod ?? netDeposit;
-          
+
           // Sanity guard: if twrFactor is clearly corrupted (absurdly large), reset it
           if (Math.abs(twrFactor) > 50 || isNaN(twrFactor) || !isFinite(twrFactor)) {
             console.log(`[Leaderboard Sync] TWR factor for ${trader.client_name || key} is corrupted (${twrFactor}). Resetting to 1.0.`);
@@ -473,7 +473,7 @@ export async function getIntegratedLeaderboard(
             twrFactor = 1.0;
             startingBalanceOfThisPeriod = netDeposit;
           }
-          
+
           if (trader.total_balance !== undefined) {
             // Only recalculate TWR when a REAL deposit event is detected.
             // Since Alpari API doesn't provide last_deposit_date reliably, we detect deposits by looking for significant changes in net deposits (>= $2).
@@ -481,7 +481,7 @@ export async function getIntegratedLeaderboard(
             // and cause the twrFactor to compound incorrectly on every sync.
             const diff = dbTrader.totalNetDeposits !== undefined ? Math.abs(netDeposit - dbTrader.totalNetDeposits) : 0;
             const hasNewDeposit = diff >= 2.0;
-            
+
             if (hasNewDeposit && netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
               // If TWR factor is uninitialized or previous deposit was distorted (< 10), re-baseline cleanly
               if (!dbTrader.twrFactor || dbTrader.totalNetDeposits < 10) {
@@ -490,27 +490,27 @@ export async function getIntegratedLeaderboard(
               } else {
                 const cashFlow = netDeposit - dbTrader.totalNetDeposits;
                 const balanceBefore = apiBalance - cashFlow;
-                
+
                 let periodReturn = 0;
                 if (startingBalanceOfThisPeriod > 0) {
                   periodReturn = (balanceBefore - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
                 }
-                
+
                 // Cap individual period returns to prevent compounding explosion
                 periodReturn = Math.max(-0.99, Math.min(periodReturn, 50));
-                
+
                 twrFactor = twrFactor * (1 + periodReturn);
                 startingBalanceOfThisPeriod = apiBalance;
               }
             }
           }
-          
+
           let twrProfit = 0;
           if (startingBalanceOfThisPeriod > 0) {
             const currentPeriodReturn = (apiBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
             twrProfit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
           }
-          
+
           let isCorrupted = false;
           if (Math.abs(twrProfit) > 5000 || isNaN(twrProfit) || !isFinite(twrProfit)) {
             console.log(`[Leaderboard Sync] TWR profit for ${trader.client_name || key} is unreasonable (${twrProfit}). Marking as corrupted.`);
@@ -540,7 +540,7 @@ export async function getIntegratedLeaderboard(
             }
           });
         }
-        
+
         if (bulkOps.length > 0) {
           await tradersCol.bulkWrite(bulkOps);
         }
@@ -613,88 +613,88 @@ export async function getIntegratedLeaderboard(
       return true;
     })
     .map((t: any) => {
-    const volume = t.volume ?? 0;
-    const settledRebates = t.settled_rebates ?? 0;
-    const unsettledRebates = t.unsettled_rebates ?? 0;
-    const mtNetDeposits = t.mt_net_deposits ?? 0;
-    // If Insights API is delayed, keep undefined — UI shows a hyphen instead of a wrong fallback value.
-    const totalEquity = t.total_equity ?? undefined;
-    const totalBalance = t.total_balance ?? undefined;
+      const volume = t.volume ?? 0;
+      const settledRebates = t.settled_rebates ?? 0;
+      const unsettledRebates = t.unsettled_rebates ?? 0;
+      const mtNetDeposits = t.mt_net_deposits ?? 0;
+      // If Insights API is delayed, keep undefined — UI shows a hyphen instead of a wrong fallback value.
+      const totalEquity = t.total_equity ?? undefined;
+      const totalBalance = t.total_balance ?? undefined;
 
-    let profit = 0;
-    let tradesCount = 0;
+      let profit = 0;
+      let tradesCount = 0;
 
-    // Generate a deterministic numeric seed from numeric_id or hash the string id
-    const getNumericSeed = (trader: any) => {
-      const num = Number(trader.numeric_id);
-      if (!isNaN(num) && num > 0) return num;
-      
-      const str = String(trader.id || "");
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = (hash << 5) - hash + str.charCodeAt(i);
-        hash |= 0;
+      // Generate a deterministic numeric seed from numeric_id or hash the string id
+      const getNumericSeed = (trader: any) => {
+        const num = Number(trader.numeric_id);
+        if (!isNaN(num) && num > 0) return num;
+
+        const str = String(trader.id || "");
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash << 5) - hash + str.charCodeAt(i);
+          hash |= 0;
+        }
+        return Math.abs(hash);
+      };
+
+      const seed = getNumericSeed(t);
+
+      if (useMock) {
+        const idFactor = (seed % 30) + 5; // value between 5 and 35
+        const isNegative = (seed % 3) === 0; // 33% chance of being negative
+        const baseProfit = (volume * 1.5) + (settledRebates * 0.5) + (idFactor * 0.2);
+        profit = isNegative ? -baseProfit : baseProfit;
+        tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
+      } else {
+        // Real TWR profit calculation:
+        const currentBalance = totalBalance || totalEquity;
+        const twrFactor = t.twr_factor ?? 1.0;
+        const startingBalanceOfThisPeriod = t.starting_balance_of_this_period ?? mtNetDeposits;
+
+        let currentPeriodReturn = 0;
+        if (startingBalanceOfThisPeriod > 0) {
+          currentPeriodReturn = (currentBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+        }
+        profit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
+
+        // Sanity: if TWR is unreasonable, mark as corrupted
+        if (Math.abs(profit) > 5000 || isNaN(profit) || !isFinite(profit)) {
+          t.isCorrupted = true;
+          profit = NaN;
+        }
+
+        tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
       }
-      return Math.abs(hash);
-    };
 
-    const seed = getNumericSeed(t);
+      return {
+        id: t.id,                                    // = external_client_id (e.g. f0a5788d3e6)
+        internalId: t.numeric_id,                    // numeric id from API (e.g. 420785)
+        externalClientId: t.external_client_id || t.id,
+        name: t.client_name || `Trader ${String(t.id).substring(0, 8)}`,
+        title: (volume > 10 || profit > 30) ? "Elite Trader" : (volume > 2 || profit > 15) ? "Pro Trader" : "Rising Star",
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(t.client_name || String(t.id))}`,
+        profit: isNaN(profit) || t.isCorrupted ? null : Number(profit.toFixed(2)),
+        isCorrupted: t.isCorrupted || false,
+        tradesCount: tradesCount,
+        status: (volume > 0 || totalBalance > 0) ? "online" : "offline",
 
-    if (useMock) {
-      const idFactor = (seed % 30) + 5; // value between 5 and 35
-      const isNegative = (seed % 3) === 0; // 33% chance of being negative
-      const baseProfit = (volume * 1.5) + (settledRebates * 0.5) + (idFactor * 0.2);
-      profit = isNegative ? -baseProfit : baseProfit;
-      tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
-    } else {
-      // Real TWR profit calculation:
-      const currentBalance = totalBalance || totalEquity;
-      const twrFactor = t.twr_factor ?? 1.0;
-      const startingBalanceOfThisPeriod = t.starting_balance_of_this_period ?? mtNetDeposits;
-      
-      let currentPeriodReturn = 0;
-      if (startingBalanceOfThisPeriod > 0) {
-        currentPeriodReturn = (currentBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
-      }
-      profit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
-      
-      // Sanity: if TWR is unreasonable, mark as corrupted
-      if (Math.abs(profit) > 5000 || isNaN(profit) || !isFinite(profit)) {
-        t.isCorrupted = true;
-        profit = NaN;
-      }
-      
-      tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
-    }
-
-    return {
-      id: t.id,                                    // = external_client_id (e.g. f0a5788d3e6)
-      internalId: t.numeric_id,                    // numeric id from API (e.g. 420785)
-      externalClientId: t.external_client_id || t.id,
-      name: t.client_name || `Trader ${String(t.id).substring(0, 8)}`,
-      title: (volume > 10 || profit > 30) ? "Elite Trader" : (volume > 2 || profit > 15) ? "Pro Trader" : "Rising Star",
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(t.client_name || String(t.id))}`,
-      profit: isNaN(profit) || t.isCorrupted ? null : Number(profit.toFixed(2)),
-      isCorrupted: t.isCorrupted || false,
-      tradesCount: tradesCount,
-      status: (volume > 0 || totalBalance > 0) ? "online" : "offline",
-
-      // Pass raw fields to client for details modal
-      country: t.country || "India",
-      registrationDate: t.registration_date || "N/A",
-      volume: volume,
-      unsettledVolume: Number(t.unsettled_volume ?? 0),
-      settledRebates: settledRebates,
-      unsettledRebates: Number(t.unsettled_rebates ?? 0),
-      turnover: Number(t.turnover ?? 0),
-      mtNetDeposits: mtNetDeposits,
-      totalBalance: totalBalance,
-      totalEquity: totalEquity,
-      programName: t.program_name || "Scheme 1.0, MT",
-      isRegistered: t.is_registered ?? false,
-      isWashedOut: t.is_washed_out ?? false,
-    };
-  });
+        // Pass raw fields to client for details modal
+        country: t.country || "India",
+        registrationDate: t.registration_date || "N/A",
+        volume: volume,
+        unsettledVolume: Number(t.unsettled_volume ?? 0),
+        settledRebates: settledRebates,
+        unsettledRebates: Number(t.unsettled_rebates ?? 0),
+        turnover: Number(t.turnover ?? 0),
+        mtNetDeposits: mtNetDeposits,
+        totalBalance: totalBalance,
+        totalEquity: totalEquity,
+        programName: t.program_name || "Scheme 1.0, MT",
+        isRegistered: t.is_registered ?? false,
+        isWashedOut: t.is_washed_out ?? false,
+      };
+    });
 
   // 1. Sort by profit descending — null/undefined profits treated as 0 (go to bottom)
   tradersList.sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0));
@@ -724,7 +724,7 @@ export async function getIntegratedLeaderboard(
 
   tradersList = tradersList.map((t, idx) => {
     const rank = idx + 1;
-    
+
     // Look up in our map using all possible client IDs
     const idKey = String(t.id);
     const internalIdKey = t.internalId ? String(t.internalId) : "";
@@ -795,10 +795,10 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
           const numId = t.numeric_id || t.id;
           return String(extId || "").toLowerCase() === input || String(numId || "").toLowerCase() === input;
         });
-        
+
         if (found) {
           console.log(`[Verify Direct] Client '${clientIdStr}' found in cached api_cache leaderboard_data. Writing to traders col...`);
-          
+
           const extId = found.external_client_id || found.id || input;
           const numId = found.numeric_id || found.id || 0;
           const clientName = found.client_name || `Trader ${extId}`;
@@ -866,8 +866,8 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
 
   // 2. Fetch insights directly from Alpari API (only if not found in MongoDB or api_cache)
   console.log(`[Verify Direct] Client '${clientIdStr}' not in DB or cache. Querying Alpari Insights API...`);
-  
-  const SEASON_START_DATE = "2025-10-01"; 
+
+  const SEASON_START_DATE = "2025-01-01";
   const SEASON_END_DATE = "2026-12-30";
 
   // Check recent range first to speed up API responses for new clients
@@ -931,7 +931,7 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
         try {
           const mongoClient = await clientPromise;
           const db = mongoClient.db("tradetalks");
-          
+
           let minEquityThreshold = 1.0;
           try {
             const settings = await db.collection<any>("global_settings").findOne({ _id: "global_badge_eligibility" });
@@ -964,16 +964,16 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
             },
             { upsert: true }
           );
-          
+
           // Clear the leaderboard cache so they show up immediately
           await db.collection<any>("api_cache").deleteOne({ _id: "leaderboard_data" });
           memoryCache = null;
-          
+
           // Warm up the leaderboard cache in the background immediately!
           getIntegratedLeaderboard("monthly", false, true)
             .then(() => console.log("[Verify Direct] Warmup cache build complete!"))
             .catch((e) => console.error("[Verify Direct] Warmup cache build failed:", e));
-          
+
           console.log(`[Verify Direct] Saved newly verified client '${extId}' to MongoDB, invalidated cache, and triggered warmup.`);
         } catch (dbErr) {
           console.error("[Verify Direct] Failed to write verified client to MongoDB:", dbErr);
@@ -988,6 +988,122 @@ export async function verifyAlpariClientDirect(clientIdStr: string): Promise<any
     }
   } catch (apiErr: any) {
     console.error("[Verify Direct] Alpari API insights call failed:", apiErr.message || apiErr);
+  }
+
+  return null;
+}
+
+export async function searchSingleAlpariClient(queryStr: string): Promise<any | null> {
+  const input = queryStr.trim().toLowerCase();
+
+  const now = new Date();
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(now.getDate() - 60);
+  const recentStartDate = sixtyDaysAgo.toISOString().split("T")[0];
+  const recentEndDate = now.toISOString().split("T")[0];
+
+  const tryFetch = async (startDate: string, endDate: string) => {
+    const params: AlpariApiParams = {
+      RegistrationFromDate: formatDateForApi(startDate),
+      RegistrationToDate: formatDateForApi(endDate),
+      DirectPartner: getDirectPartnerId(),
+    };
+    const [insights, performances] = await Promise.all([
+      fetchClientInsights(params).catch(() => []),
+      fetchClientPerformance(params).catch(() => []),
+    ]);
+
+    const insight = insights.find((i: any) => {
+      const extId = i.external_client_id || i.externalClientId || i.clientId || i.id;
+      const numId = i.id || i.clientId || i.client_id;
+      const name = i.client_name || i.name;
+      return (
+        String(extId || "").toLowerCase() === input ||
+        String(numId || "").toLowerCase() === input ||
+        (name && String(name).toLowerCase().includes(input))
+      );
+    });
+
+    const perf = performances.find((p: any) => {
+      const extId = p.external_client_id || p.externalClientId || p.clientId || p.id;
+      const numId = p.id || p.clientId || p.client_id;
+      const name = p.client_name || p.name;
+      return (
+        String(extId || "").toLowerCase() === input ||
+        String(numId || "").toLowerCase() === input ||
+        (name && String(name).toLowerCase().includes(input))
+      );
+    });
+
+    if (insight || perf) {
+      return { ...(insight || {}), ...(perf || {}) };
+    }
+    return null;
+  };
+
+  try {
+    let found = await tryFetch(recentStartDate, recentEndDate);
+    if (!found) {
+      found = await tryFetch("2025-01-01", "2026-12-30");
+    }
+
+    if (found) {
+      const extId = found.external_client_id || found.externalClientId || found.clientId || found.id || input;
+      const numId = found.id || found.clientId || found.client_id || 0;
+      const clientName = found.client_name || found.name || `Trader ${extId}`;
+      const balance = Number(found.total_balance ?? 0);
+      const equity = Number(found.total_equity ?? balance);
+      const volume = Number(found.volume ?? 0);
+      const mtNetDeposits = Number(found.mt_net_deposits ?? 0);
+
+      let isRegistered = false;
+      let isWashedOut = false;
+      if (clientPromise) {
+        try {
+          const mongoClient = await clientPromise;
+          const db = mongoClient.db("tradetalks");
+          const dbTrader = await db.collection<any>("traders").findOne({
+            $or: [
+              { _id: extId },
+              { clientId: extId },
+              { numericId: isNaN(Number(numId)) ? -1 : Number(numId) }
+            ]
+          });
+          if (dbTrader) {
+            isRegistered = dbTrader.isRegistered ?? false;
+            isWashedOut = dbTrader.isWashedOut ?? false;
+          }
+        } catch (e) {}
+      }
+
+      return {
+        id: extId,
+        internalId: numId,
+        externalClientId: extId,
+        name: clientName,
+        title: volume > 10 ? "Elite Trader" : volume > 2 ? "Pro Trader" : "Rising Star",
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(clientName)}`,
+        profit: 0,
+        isCorrupted: false,
+        tradesCount: Math.round(volume * 6),
+        status: volume > 0 || balance > 0 ? "online" : "offline",
+        country: found.country || "India",
+        registrationDate: found.registration_date || "N/A",
+        volume,
+        unsettledVolume: Number(found.unsettled_volume ?? 0),
+        settledRebates: Number(found.settled_rebates ?? 0),
+        unsettledRebates: Number(found.unsettled_rebates ?? 0),
+        turnover: Number(found.turnover ?? 0),
+        mtNetDeposits,
+        totalBalance: balance,
+        totalEquity: equity,
+        programName: found.program_name || "Scheme 1.0, MT",
+        isRegistered,
+        isWashedOut
+      };
+    }
+  } catch (err) {
+    console.error("[searchSingleAlpariClient] Error:", err);
   }
 
   return null;
