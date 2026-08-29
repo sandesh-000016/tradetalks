@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   let initialTraders = [];
   try {
-    initialTraders = await getCachedLeaderboard("monthly");
+    const rawTraders = await getCachedLeaderboard("monthly");
+    initialTraders = JSON.parse(JSON.stringify(rawTraders));
   } catch (error) {
     console.error("Failed to load monthly leaderboard on server:", error);
   }

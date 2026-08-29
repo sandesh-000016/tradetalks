@@ -128,10 +128,15 @@ export async function getIntegratedLeaderboard(
       const db = mongoClient.db("tradetalks");
       const cacheDoc = await db.collection<any>("api_cache").findOne({ _id: "leaderboard_data" });
 
-      if (cacheDoc) {
-        rawClients = cacheDoc.traders;
-        cacheHit = true;
-        console.log("[Leaderboard API] Serving from MongoDB cache.");
+      if (cacheDoc && cacheDoc.traders && cacheDoc.updatedAt) {
+        const cacheAge = Date.now() - new Date(cacheDoc.updatedAt).getTime();
+        if (cacheAge < CACHE_DURATION_MS) {
+          rawClients = cacheDoc.traders;
+          cacheHit = true;
+          console.log(`[Leaderboard API] Serving from MongoDB cache (age: ${Math.round(cacheAge / 1000)}s / max: ${Math.round(CACHE_DURATION_MS / 1000)}s).`);
+        } else {
+          console.log(`[Leaderboard API] MongoDB cache expired (age: ${Math.round(cacheAge / 1000)}s > max: ${Math.round(CACHE_DURATION_MS / 1000)}s). Fetching fresh live data from Alpari API...`);
+        }
       }
     } catch (err) {
       console.error("[Leaderboard API] Error reading MongoDB cache:", err);
@@ -466,10 +471,16 @@ export async function getIntegratedLeaderboard(
             startingBalanceOfThisPeriod = netDeposit;
           }
 
-          // Auto-heal for traders affected by the previous tiny-fluctuation bug
+          // Auto-heal for traders affected by distorted deposit baselines or tiny-fluctuation bugs
           let simpleROI = netDeposit > 0 ? ((apiBalance - netDeposit) / netDeposit) * 100 : 0;
-          if (key === "f05d8b86111" || (simpleROI > 300 && twrFactor < 5.0 && startingBalanceOfThisPeriod > netDeposit * 3)) {
-            console.log(`[Leaderboard Sync] Auto-healing TWR for ${trader.client_name || key}. Simple ROI: ${simpleROI}%, TWR Factor: ${twrFactor}`);
+          if (
+            key === "f05d8b86111" ||
+            key === "f046ecffb3d" ||
+            (netDeposit >= 50 && startingBalanceOfThisPeriod < netDeposit / 2) ||
+            (simpleROI < 0 && (startingBalanceOfThisPeriod < netDeposit / 2 || twrFactor > 1.5)) ||
+            (simpleROI > 300 && twrFactor < 5.0 && startingBalanceOfThisPeriod > netDeposit * 3)
+          ) {
+            console.log(`[Leaderboard Sync] Auto-healing TWR baseline for ${trader.client_name || key}. NetDeposit: $${netDeposit}, StartingBal: $${startingBalanceOfThisPeriod}, Simple ROI: ${simpleROI.toFixed(2)}%`);
             twrFactor = 1.0;
             startingBalanceOfThisPeriod = netDeposit;
           }
@@ -483,8 +494,8 @@ export async function getIntegratedLeaderboard(
             const hasNewDeposit = diff >= 2.0;
 
             if (hasNewDeposit && netDeposit !== dbTrader.totalNetDeposits && dbTrader.totalNetDeposits !== undefined) {
-              // If TWR factor is uninitialized or previous deposit was distorted (< 10), re-baseline cleanly
-              if (!dbTrader.twrFactor || dbTrader.totalNetDeposits < 10) {
+              // If TWR factor is uninitialized or previous deposit was distorted (< 100 or vastly different), re-baseline cleanly
+              if (!dbTrader.twrFactor || dbTrader.totalNetDeposits < 100 || dbTrader.totalNetDeposits < netDeposit / 2) {
                 twrFactor = 1.0;
                 startingBalanceOfThisPeriod = netDeposit;
               } else {
@@ -681,7 +692,7 @@ export async function getIntegratedLeaderboard(
 
         // Pass raw fields to client for details modal
         country: t.country || "India",
-        registrationDate: t.registration_date || "N/A",
+        registrationDate: t.registration_date ? String(t.registration_date) : "N/A",
         volume: volume,
         unsettledVolume: Number(t.unsettled_volume ?? 0),
         settledRebates: settledRebates,

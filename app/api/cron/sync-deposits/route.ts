@@ -6,9 +6,18 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    // 1. Secure the endpoint using Vercel's Cron Secret
+    // 1. Secure the endpoint using Vercel's Cron Secret (or query param secret)
     const authHeader = request.headers.get("authorization");
-    if (process.env.NODE_ENV === "production" && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const { searchParams } = new URL(request.url);
+    const secretParam = searchParams.get("secret");
+
+    const isAuthorized =
+      process.env.NODE_ENV !== "production" ||
+      !process.env.CRON_SECRET ||
+      authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+      secretParam === process.env.CRON_SECRET;
+
+    if (!isAuthorized) {
       return new Response("Unauthorized", { status: 401 });
     }
     console.log("[Cron Job] Starting sync-deposits background worker...");

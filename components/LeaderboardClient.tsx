@@ -350,7 +350,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       ctx.fillText(rankText, 400, bY + 27);
 
       // Profit return percent
-      const profitVal = activeTrader.profit ?? 0;
+      const profitVal = Number(activeTrader.profit ?? 0);
       const isPositive = profitVal >= 0;
       const profitText = `${isPositive ? "+" : ""}${profitVal.toFixed(2)}%`;
       ctx.font = "bold 80px 'Space Grotesk', 'Inter', sans-serif";
@@ -373,10 +373,10 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       ctx.font = "bold 18px 'Space Grotesk', 'Inter', sans-serif";
       ctx.fillStyle = "#cbd5e1";
       ctx.textAlign = "left";
-      ctx.fillText(`VOLUME: ${(activeTrader.volume ?? 0).toFixed(2)} Lots`, 160, 580);
+      ctx.fillText(`VOLUME: ${Number(activeTrader.volume ?? 0).toFixed(2)} Lots`, 160, 580);
 
       ctx.textAlign = "right";
-      ctx.fillText(`START CAPITAL: $${(activeTrader.mtNetDeposits ?? 100).toFixed(2)}`, 640, 580);
+      ctx.fillText(`START CAPITAL: $${Number(activeTrader.mtNetDeposits ?? 100).toFixed(2)}`, 640, 580);
 
       // Badges & Points Count
       ctx.font = "medium 14px 'Inter', sans-serif";
@@ -784,14 +784,16 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
-                        ${(trader.totalBalance ?? 0).toFixed(2)}
+                        ${Number(trader.totalBalance ?? 0).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
-                        ${(trader.mtNetDeposits ?? 0).toFixed(2)}
+                        ${Number(trader.mtNetDeposits ?? 0).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <span className={`font-display font-bold ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
+                        <span className={`font-display font-bold ${trader.profit !== null && trader.profit !== undefined && !isNaN(trader.profit) && trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {trader.profit === null || trader.profit === undefined || isNaN(trader.profit)
+                            ? "N/A"
+                            : `${trader.profit >= 0 ? "+" : ""}${Number(trader.profit).toFixed(2)}%`}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -879,7 +881,9 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
       </div>
 
       {/* Trader Profile Modal */}
-      {trader && (
+      {selectedTrader && (() => {
+        const trader = selectedTrader;
+        return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
@@ -905,8 +909,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                 <div className="relative -mt-16 mb-4 flex justify-between items-end">
                   <div className="w-32 h-32 rounded-2xl bg-slate-800 border-4 border-slate-900 overflow-hidden shadow-xl">
                     <img
-                      src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name)}`}
-                      alt={trader.name}
+                      src={trader.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trader.name || 'trader')}`}
+                      alt={trader.name || 'Trader'}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -935,12 +939,12 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     {(trader.volume ?? 0) < ((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio ? (
                       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Under Volume</span>
-                        Requires at least <span className="font-bold font-display">{(((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{(trader.volume ?? 0).toFixed(2)} Lots</span>.
+                        Requires at least <span className="font-bold font-display">{(((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{Number(trader.volume ?? 0).toFixed(2)} Lots</span>.
                       </div>
                     ) : (
                       <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-emerald-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Volume Qualified</span>
-                        Traded <span className="font-bold font-display">{(trader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span>.
+                        Traded <span className="font-bold font-display">{Number(trader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((trader.mtNetDeposits ?? 0) / 100) * minVolumeRatio).toFixed(2)} Lots</span>.
                       </div>
                     )}
                   </div>
@@ -976,14 +980,16 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
 
                 <div className="grid grid-cols-2 gap-4 mb-8">
                   <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
-                    <div className={`font-display font-bold text-xl mb-1 ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
+                    <div className={`font-display font-bold text-xl mb-1 ${trader.profit !== null && trader.profit !== undefined && !isNaN(trader.profit) && trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {trader.profit === null || trader.profit === undefined || isNaN(trader.profit)
+                        ? "N/A"
+                        : `${trader.profit >= 0 ? "+" : ""}${Number(trader.profit).toFixed(2)}%`}
                     </div>
                     <div className="text-xs text-slate-500 uppercase">Profit Return</div>
                   </div>
                   <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
                     <div className="text-white font-display font-bold text-xl mb-1">
-                      {(trader.volume ?? 0).toFixed(2)}
+                      {Number(trader.volume ?? 0).toFixed(2)}
                     </div>
                     <div className="text-xs text-slate-500 uppercase">
                       Lots Traded
@@ -1007,19 +1013,19 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Total Volume</span>
-                      <span className="text-white font-medium">{trader.volume?.toFixed(2) ?? "0.00"} Lots</span>
+                      <span className="text-white font-medium">{trader.volume !== undefined && trader.volume !== null ? Number(trader.volume).toFixed(2) : "0.00"} Lots</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Total Balance</span>
-                      <span className="text-white font-medium">${trader.totalBalance?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${trader.totalBalance !== undefined && trader.totalBalance !== null ? Number(trader.totalBalance).toFixed(2) : "0.00"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Account Equity</span>
-                      <span className="text-white font-medium">${trader.totalEquity?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${trader.totalEquity !== undefined && trader.totalEquity !== null ? Number(trader.totalEquity).toFixed(2) : "0.00"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Net Deposit</span>
-                      <span className="text-white font-medium">${trader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${trader.mtNetDeposits !== undefined && trader.mtNetDeposits !== null ? Number(trader.mtNetDeposits).toFixed(2) : "0.00"}</span>
                     </div>
                   </div>
                 </div>
@@ -1035,7 +1041,7 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                   </button>
                 </div>
 
-                {trader.activity && trader.activity.length > 0 && (
+                {trader.activity && Array.isArray(trader.activity) && trader.activity.length > 0 && (
                   <div className="mb-4">
                     <h3 className="text-sm font-medium text-slate-300 mb-3">
                       Trading Activity{" "}
@@ -1056,21 +1062,21 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
                           {trader.activity.slice(0, 5).map((a, i) => (
                             <tr key={i} className="text-xs">
                               <td className="px-3 py-2 text-slate-300 font-medium">
-                                {a.instrument}
+                                {a?.instrument || "Trade"}
                               </td>
                               <td className="px-3 py-2">
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                    a.action === "Buy"
+                                    a?.action === "Buy"
                                       ? "bg-emerald-500/10 text-emerald-400"
                                       : "bg-rose-500/10 text-rose-400"
                                   }`}
                                 >
-                                  {a.action}
+                                  {a?.action || "Buy"}
                                 </span>
                               </td>
                               <td className="px-3 py-2 text-right font-medium text-emerald-400">
-                                +{a.pl.toFixed(2)}%
+                                {a && a.pl !== undefined && a.pl !== null ? `${a.pl >= 0 ? "+" : ""}${Number(a.pl).toFixed(2)}%` : "0.00%"}
                               </td>
                             </tr>
                           ))}
@@ -1083,7 +1089,8 @@ export default function LeaderboardClient({ initialTraders }: LeaderboardClientP
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Badge Condition Modal */}
       {badge && (

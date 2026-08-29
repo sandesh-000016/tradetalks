@@ -1362,7 +1362,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                                 <span>{trader.country || "India"}</span>
                                 {/* Volume Warning Tag */}
                                 {(trader.volume ?? 0) < ((trader.mtNetDeposits ?? 0) / 100) * 0.6 ? (
-                                  <span className="text-[9px] font-bold text-amber-500/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title={`Needs at least ${(((trader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots. Currently has ${(trader.volume ?? 0).toFixed(2)} Lots.`}>
+                                  <span className="text-[9px] font-bold text-amber-500/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title={`Needs at least ${(((trader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots. Currently has ${Number(trader.volume ?? 0).toFixed(2)} Lots.`}>
                                     Under Volume
                                   </span>
                                 ) : (
@@ -1377,47 +1377,22 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="flex gap-1.5 flex-wrap items-center justify-center">
                             {trader.earnedBadges && trader.earnedBadges.length > 0 ? (
-                              trader.earnedBadges.map((badgeName, idx) => {
-                                const badge = BADGE_DETAILS[badgeName];
-                                if (!badge) return null;
-
-                                return (
-                                  <button
-                                    key={idx}
-                                    onClick={(e) => {
-                                      e.stopPropagation(); // prevent opening details modal
-                                      const matchedRule = badgeRules.find((r) => r._id === badgeName);
-                                      
-                                      const formatConditions = (rule: any) => {
-                                        if (rule.conditions && Array.isArray(rule.conditions) && rule.conditions.length > 0) {
-                                          return rule.conditions.map((cond: any) => {
-                                            const opSign = cond.operator === "gte" ? ">=" : cond.operator === "lte" ? "<=" : cond.operator === "gt" ? ">" : cond.operator === "lt" ? "<" : "=";
-                                            return `${cond.metric} ${opSign} ${cond.value}`;
-                                          }).join(" AND ");
-                                        }
-                                        const opSign = rule.operator === "gte" ? ">=" : rule.operator === "lte" ? "<=" : rule.operator === "gt" ? ">" : rule.operator === "lt" ? "<" : "=";
-                                        return `${rule.metric} ${opSign} ${rule.value}`;
-                                      };
-
-                                      setSelectedBadge({
-                                        name: badgeName,
-                                        desc: matchedRule?.description || badge.desc,
-                                        condition: matchedRule
-                                          ? `Requires: ${formatConditions(matchedRule)} (${matchedRule.points} Points) - Next evaluation: ${matchedRule.nextEvaluationTime ? new Date(matchedRule.nextEvaluationTime).toLocaleString() : 'N/A'}`
-                                          : badge.condition,
-                                        color: badge.color,
-                                        icon: badge.icon
-                                      });
-                                    }}
-                                    title={`Click to view condition: ${badgeName}`}
-                                    className="transition-all hover:scale-110 active:scale-95 cursor-pointer focus:outline-none outline-none"
-                                  >
-                                    {badge.icon}
-                                  </button>
-                                );
-                              })
+                              trader.earnedBadges.map((badgeName, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleBadgeClick(badgeName);
+                                  }}
+                                  title={`Click to view condition: ${badgeName}`}
+                                  className="transition-all hover:scale-110 active:scale-95 cursor-pointer focus:outline-none outline-none"
+                                >
+                                  {renderBadgeIcon(badgeName, "w-6 h-6")}
+                                </button>
+                              ))
                             ) : (
-                              <span className="text-slate-655 text-xs">-</span>
+                              <span className="text-slate-500 text-xs">-</span>
                             )}
                           </div>
                         </td>
@@ -1427,14 +1402,16 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
-                          ${(trader.totalBalance ?? 0).toFixed(2)}
+                          ${Number(trader.totalBalance ?? 0).toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-slate-300 font-medium font-display">
-                          ${(trader.mtNetDeposits ?? 0).toFixed(2)}
+                          ${Number(trader.mtNetDeposits ?? 0).toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <span className={`font-display font-bold ${trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {trader.profit >= 0 ? "+" : ""}{(trader.profit ?? 0).toFixed(2)}%
+                          <span className={`font-display font-bold ${trader.profit !== null && trader.profit !== undefined && !isNaN(trader.profit) && trader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                            {trader.profit === null || trader.profit === undefined || isNaN(trader.profit)
+                              ? "N/A"
+                              : `${trader.profit >= 0 ? "+" : ""}${Number(trader.profit).toFixed(2)}%`}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -2594,51 +2571,51 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     {(selectedTrader.volume ?? 0) < ((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6 ? (
                       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Under Volume</span>
-                        Requires at least <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>.
+                        Requires at least <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span> based on Net Deposit. Currently traded <span className="font-bold font-display">{Number(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>.
                       </div>
                     ) : (
                       <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-emerald-400 text-xs">
                         <span className="font-bold block uppercase tracking-wider text-[9px] mb-1">Status: Volume Qualified</span>
-                        Traded <span className="font-bold font-display">{(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span>.
+                        Traded <span className="font-bold font-display">{Number(selectedTrader.volume ?? 0).toFixed(2)} Lots</span>, meeting the requirement of <span className="font-bold font-display">{(((selectedTrader.mtNetDeposits ?? 0) / 100) * 0.6).toFixed(2)} Lots</span>.
                       </div>
                     )}
                   </div>
 
                   {selectedTrader.earnedBadges && selectedTrader.earnedBadges.length > 0 && (
                     <div className="flex gap-2 flex-wrap">
-                      {selectedTrader.earnedBadges.map((badgeName, idx) => {
-                        const badge = BADGE_DETAILS[badgeName];
-                        if (!badge) return null;
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleBadgeClick(badgeName);
-                            }}
-                            title={`Click to view rules for ${badgeName}`}
-                            className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-850 hover:border-violet-500/50 transition-all cursor-pointer group"
-                          >
-                            <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">{badge.icon}</span>
-                            <span className="font-medium group-hover:text-white transition-colors">{badgeName}</span>
-                          </button>
-                        );
-                      })}
+                      {selectedTrader.earnedBadges.map((badgeName, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBadgeClick(badgeName);
+                          }}
+                          title={`Click to view rules for ${badgeName}`}
+                          className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-850 hover:border-violet-500/50 transition-all cursor-pointer group"
+                        >
+                          <span className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform group-hover:scale-110">
+                            {renderBadgeIcon(badgeName, "w-4 h-4")}
+                          </span>
+                          <span className="font-medium group-hover:text-white transition-colors">{badgeName}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-8">
                   <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
-                    <div className={`font-display font-bold text-xl mb-1 ${selectedTrader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {selectedTrader.profit >= 0 ? "+" : ""}{(selectedTrader.profit ?? 0).toFixed(2)}%
+                    <div className={`font-display font-bold text-xl mb-1 ${selectedTrader.profit !== null && selectedTrader.profit !== undefined && !isNaN(selectedTrader.profit) && selectedTrader.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {selectedTrader.profit === null || selectedTrader.profit === undefined || isNaN(selectedTrader.profit)
+                        ? "N/A"
+                        : `${selectedTrader.profit >= 0 ? "+" : ""}${Number(selectedTrader.profit).toFixed(2)}%`}
                     </div>
                     <div className="text-xs text-slate-500 uppercase">Profit Return</div>
                   </div>
                   <div className="bg-slate-900/50 rounded-xl p-4 text-center border border-slate-800">
                     <div className="text-white font-display font-bold text-xl mb-1">
-                      {(selectedTrader.volume ?? 0).toFixed(2)}
+                      {Number(selectedTrader.volume ?? 0).toFixed(2)}
                     </div>
                     <div className="text-xs text-slate-500 uppercase">
                       Lots Traded
@@ -2662,19 +2639,19 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Total Volume</span>
-                      <span className="text-white font-medium">{selectedTrader.volume?.toFixed(2) ?? "0.00"} Lots</span>
+                      <span className="text-white font-medium">{selectedTrader.volume !== undefined && selectedTrader.volume !== null ? Number(selectedTrader.volume).toFixed(2) : "0.00"} Lots</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Total Balance</span>
-                      <span className="text-white font-medium">${selectedTrader.totalBalance?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${selectedTrader.totalBalance !== undefined && selectedTrader.totalBalance !== null ? Number(selectedTrader.totalBalance).toFixed(2) : "0.00"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Account Equity</span>
-                      <span className="text-white font-medium">${selectedTrader.totalEquity?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${selectedTrader.totalEquity !== undefined && selectedTrader.totalEquity !== null ? Number(selectedTrader.totalEquity).toFixed(2) : "0.00"}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-xs">Net Deposit</span>
-                      <span className="text-white font-medium">${selectedTrader.mtNetDeposits?.toFixed(2) ?? "0.00"}</span>
+                      <span className="text-white font-medium">${selectedTrader.mtNetDeposits !== undefined && selectedTrader.mtNetDeposits !== null ? Number(selectedTrader.mtNetDeposits).toFixed(2) : "0.00"}</span>
                     </div>
                   </div>
                 </div>
@@ -2690,7 +2667,7 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                   </button>
                 </div>
 
-                {selectedTrader.activity && selectedTrader.activity.length > 0 && (
+                {selectedTrader.activity && Array.isArray(selectedTrader.activity) && selectedTrader.activity.length > 0 && (
                   <div className="mb-4">
                     <h3 className="text-sm font-medium text-slate-300 mb-3">
                       Trading Activity{" "}
@@ -2711,21 +2688,21 @@ export default function HomePageClient({ initialTraders }: HomePageClientProps) 
                           {selectedTrader.activity.slice(0, 5).map((a, i) => (
                             <tr key={i} className="text-xs">
                               <td className="px-3 py-2 text-slate-300 font-medium">
-                                {a.instrument}
+                                {a?.instrument || "Trade"}
                               </td>
                               <td className="px-3 py-2">
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                    a.action === "Buy"
+                                    a?.action === "Buy"
                                       ? "bg-emerald-500/10 text-emerald-400"
                                       : "bg-rose-500/10 text-rose-400"
                                   }`}
                                 >
-                                  {a.action}
+                                  {a?.action || "Buy"}
                                 </span>
                               </td>
                               <td className="px-3 py-2 text-right font-medium text-emerald-400">
-                                +{a.pl.toFixed(2)}%
+                                {a && a.pl !== undefined && a.pl !== null ? `${a.pl >= 0 ? "+" : ""}${Number(a.pl).toFixed(2)}%` : "0.00%"}
                               </td>
                             </tr>
                           ))}
