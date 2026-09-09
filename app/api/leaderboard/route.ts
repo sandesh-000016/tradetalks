@@ -12,8 +12,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid timeframe parameter" }, { status: 400 });
     }
 
-    console.log(`[Leaderboard API] Fetching live data for "${timeframe}"...`);
-    const leaderboardData = await getIntegratedLeaderboard(timeframe as any);
+    const refresh = searchParams.get("refresh") === "true" || searchParams.get("bypassCache") === "true";
+
+    console.log(`[Leaderboard API] Fetching live data for "${timeframe}" (refresh: ${refresh})...`);
+    const leaderboardData = await getIntegratedLeaderboard(timeframe as any, false, refresh);
 
     return NextResponse.json(leaderboardData);
   } catch (error: any) {

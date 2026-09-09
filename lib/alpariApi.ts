@@ -134,6 +134,17 @@ export async function getIntegratedLeaderboard(
           rawClients = cacheDoc.traders;
           cacheHit = true;
           console.log(`[Leaderboard API] Serving from MongoDB cache (age: ${Math.round(cacheAge / 1000)}s / max: ${Math.round(CACHE_DURATION_MS / 1000)}s).`);
+          
+          // Dynamically recalculate ROI profit on cache hits to ensure accuracy
+          rawClients.forEach((t: any) => {
+            const currentEquity = (t.total_equity !== undefined && t.total_equity !== null)
+              ? Number(t.total_equity)
+              : (t.total_balance !== undefined && t.total_balance !== null ? Number(t.total_balance) : (t.totalEquity ?? t.totalBalance ?? 0));
+            const netDep = Number(t.mt_net_deposits ?? t.mtNetDeposits ?? t.totalNetDeposits ?? 0);
+            if (netDep > 0 && (!t.twr_factor || t.twr_factor === 1.0)) {
+              t.profit = Number((((currentEquity - netDep) / netDep) * 100).toFixed(2));
+            }
+          });
         } else {
           console.log(`[Leaderboard API] MongoDB cache expired (age: ${Math.round(cacheAge / 1000)}s > max: ${Math.round(CACHE_DURATION_MS / 1000)}s). Fetching fresh live data from Alpari API...`);
         }
@@ -417,13 +428,10 @@ export async function getIntegratedLeaderboard(
             : (Number(trader.total_equity) + simOffset);
           const apiDepositDate = trader.last_deposit_date || null;
 
-          // Preserve registration-time deposit, fallback to last recorded balance only (no hardcoded placeholder)
-          let totalNetDeposits = dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance;
-
-          // Always update totalNetDeposits if Alpari API provides a valid tracked net deposit (> 0)
-          if (trader.mt_net_deposits && trader.mt_net_deposits > 0) {
-            totalNetDeposits = trader.mt_net_deposits;
-          }
+          // Prefer live API net deposits when available, falling back to dbTrader.totalNetDeposits or live balance
+          let totalNetDeposits = (trader.mt_net_deposits !== undefined && trader.mt_net_deposits !== null && Number(trader.mt_net_deposits) > 0)
+            ? Number(trader.mt_net_deposits)
+            : (dbTrader.totalNetDeposits ?? dbTrader.lastRecordedBalance ?? apiBalance);
 
           // Defer net deposit update if we don't have a live balance to calculate TWR cash flow adjustments
           if (trader.total_balance === undefined && dbTrader.totalNetDeposits !== undefined && totalNetDeposits !== dbTrader.totalNetDeposits) {
@@ -517,8 +525,11 @@ export async function getIntegratedLeaderboard(
           }
 
           let twrProfit = 0;
-          if (startingBalanceOfThisPeriod > 0) {
-            const currentPeriodReturn = (apiBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+          const currentVal = (apiEquity !== undefined && apiEquity !== null) ? apiEquity : apiBalance;
+          if (twrFactor === 1.0 || !dbTrader.twrFactor) {
+            twrProfit = netDeposit > 0 ? ((currentVal - netDeposit) / netDeposit) * 100 : 0;
+          } else if (startingBalanceOfThisPeriod > 0) {
+            const currentPeriodReturn = (currentVal - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
             twrProfit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
           }
 
@@ -658,16 +669,23 @@ export async function getIntegratedLeaderboard(
         profit = isNegative ? -baseProfit : baseProfit;
         tradesCount = volume > 0 ? Math.max(1, Math.round(volume * 6 + (seed % 5))) : 0;
       } else {
-        // Real TWR profit calculation:
-        const currentBalance = totalBalance || totalEquity;
+        // Real ROI calculation prioritizing live equity over closed balance
+        const currentEquity = (totalEquity !== undefined && totalEquity !== null)
+          ? totalEquity
+          : (totalBalance !== undefined && totalBalance !== null ? totalBalance : 0);
         const twrFactor = t.twr_factor ?? 1.0;
         const startingBalanceOfThisPeriod = t.starting_balance_of_this_period ?? mtNetDeposits;
 
-        let currentPeriodReturn = 0;
-        if (startingBalanceOfThisPeriod > 0) {
-          currentPeriodReturn = (currentBalance - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+        if (twrFactor === 1.0 || !t.twr_factor) {
+          // Direct Net ROI: (Equity - NetDeposit) / NetDeposit * 100
+          profit = mtNetDeposits > 0 ? ((currentEquity - mtNetDeposits) / mtNetDeposits) * 100 : 0;
+        } else {
+          let currentPeriodReturn = 0;
+          if (startingBalanceOfThisPeriod > 0) {
+            currentPeriodReturn = (currentEquity - startingBalanceOfThisPeriod) / startingBalanceOfThisPeriod;
+          }
+          profit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
         }
-        profit = (twrFactor * (1 + currentPeriodReturn) - 1) * 100;
 
         // Sanity: if TWR is unreasonable, mark as corrupted
         if (Math.abs(profit) > 5000 || isNaN(profit) || !isFinite(profit)) {
